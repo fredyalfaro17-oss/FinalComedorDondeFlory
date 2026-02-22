@@ -1,0 +1,334 @@
+/* Global Styles & Design System */
+:root {
+  --primary: #991b1b;
+  --primary-hover: #b91c1c;
+  --accent: #fbbf24;
+  --bg-dark: #020617;
+  --surface: #0f172a;
+  --card-bg: rgba(30, 41, 59, 0.5);
+  --glass: rgba(15, 23, 42, 0.8);
+  --border: rgba(51, 65, 85, 0.5);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Glassmorphism Classes */
+.glass-panel {
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+/* Animations */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-slide-right {
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Menu Item Card Hover */
+.menu-item-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.menu-item-card:hover {
+  transform: translateY(-2px);
+  background-color: rgba(30, 41, 59, 0.8);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.menu-item-card:active {
+  transform: scale(0.98);
+}
+
+/* Category Button Active State */
+.cat-btn {
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.cat-btn.active {
+  background-color: var(--cat-color);
+  color: white;
+  box-shadow: 0 4px 12px -2px var(--cat-color-alpha);
+  transform: scale(1.05);
+}
+
+.cat-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  background-color: var(--cat-color);
+  border-radius: 50%;
+}
+
+/* Modal styles */
+#modal-overlay {
+  transition: opacity 0.3s ease;
+}
+
+#modal-overlay:not(.hidden) {
+  display: flex !important;
+}
+
+/* Ticket Styles (Receipt style) */
+.ticket-container {
+  font-family: 'Courier New', Courier, monospace;
+  background: white;
+  color: #1a1a1a;
+  padding: 2rem;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.ticket-header {
+  text-align: center;
+  border-bottom: 2px dashed #ccc;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+.ticket-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.ticket-footer {
+  text-align: center;
+  border-top: 2px dashed #ccc;
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+
+/* Quantity Controls */
+.qty-btn {
+  @apply w-12 h-12 rounded-full border border-slate-700 flex items-center justify-center text-xl font-bold transition-all hover:bg-slate-700 active:scale-90;
+}
+
+/* Thermal Printer (58mm) Print Styles */
+@media print {
+
+  /* Hide everything except ticket */
+  body>*:not(#modal-overlay),
+  #modal-overlay>*:not(.animate-scale-in),
+  .animate-scale-in>*:not(#ticket-preview),
+  #close-ticket-btn,
+  #print-ticket-btn,
+  #copy-ticket-btn,
+  .print-hidden {
+    display: none !important;
+  }
+
+  body,
+  html {
+    background: #fff !important;
+    width: 58mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Force system fonts to avoid bitmap blurring of webfonts */
+  #ticket-preview,
+  #ticket-preview * {
+    visibility: visible !important;
+    color: #000 !important;
+    background: #fff !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+  }
+
+  #ticket-preview {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 58mm !important;
+    max-width: 58mm !important;
+    padding: 2mm !important;
+    margin: 0 !important;
+    border: none !important;
+  }
+
+  .ticket-header h2 {
+    font-size: 14pt !important;
+    font-weight: 900 !important;
+    margin-bottom: 2pt !important;
+  }
+
+  .ticket-info,
+  .ticket-meta {
+    font-size: 10pt !important;
+    font-weight: 600 !important;
+    color: #000 !important;
+    margin: 0 !important;
+    line-height: 1.1 !important;
+  }
+
+  .customer-section {
+    border: 1px solid #000 !important;
+    background: #fff !important;
+    padding: 4pt !important;
+    margin: 6pt 0 !important;
+  }
+
+  .customer-data {
+    font-size: 10pt !important;
+    display: block !important;
+  }
+
+  .customer-data .label {
+    font-weight: 900 !important;
+    margin-right: 2pt !important;
+  }
+
+  .customer-data .value {
+    font-weight: 900 !important;
+  }
+
+  .ticket-row {
+    font-size: 11pt !important;
+    font-weight: 700 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    border-bottom: 1pt dashed #000 !important;
+    padding: 2pt 0 !important;
+  }
+
+  .item-description {
+    font-size: 9pt !important;
+    font-weight: 600 !important;
+    color: #000 !important;
+    padding-left: 10pt !important;
+    margin-bottom: 4pt !important;
+    line-height: 1.1 !important;
+  }
+
+  .total-section {
+    border-top: 2pt solid #000 !important;
+    padding-top: 4pt !important;
+    margin-top: 8pt !important;
+  }
+
+  .total-section .label {
+    font-size: 11pt !important;
+    font-weight: 900 !important;
+  }
+
+  .total-section .value {
+    font-size: 16pt !important;
+    font-weight: 900 !important;
+  }
+
+  .ticket-footer {
+    border-top: 1pt dashed #000 !important;
+    padding-top: 6pt !important;
+    text-align: center !important;
+  }
+
+  .ticket-footer p:first-child {
+    font-size: 11pt !important;
+    font-weight: 900 !important;
+  }
+
+  .ticket-footer p:last-child {
+    font-size: 9pt !important;
+    margin-top: 2pt !important;
+  }
+}

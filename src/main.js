@@ -106,6 +106,7 @@ function updateCartUI() {
       <div class="bg-slate-800/80 border border-slate-700/50 p-4 rounded-xl flex items-center justify-between gap-4 animate-slide-right">
         <div class="flex-1 min-w-0">
           <h4 class="font-black text-base text-white truncate">${item.name}</h4>
+          ${item.description ? `<p class="text-xs text-slate-500 italic mt-0.5 line-clamp-1">${item.description}</p>` : ''}
           <p class="text-xs text-slate-400 mt-0.5 font-medium">${item.quantity} × Q${item.price.toFixed(2)}</p>
         </div>
         <div class="flex flex-col items-end gap-2 shrink-0">
@@ -160,6 +161,13 @@ function openItemModal(item) {
           </div>
         </div>
         
+        <div class="flex flex-col gap-4">
+          <label class="text-xs uppercase tracking-widest text-slate-500 font-bold">Detalles Adicionales (Opcional)</label>
+          <textarea id="custom-details" maxlength="150" rows="2" 
+            class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-red-500 transition-colors placeholder:text-slate-600"
+            placeholder="Ej: Solo verduras, sin arroz..."></textarea>
+        </div>
+        
         <button id="add-to-cart-btn" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-4 rounded-2xl shadow-xl shadow-red-900/30 transition-all active:scale-[0.98]">
           Añadir al Carrito — Q<span id="subtotal-display">${item.price.toFixed(2)}</span>
         </button>
@@ -179,7 +187,8 @@ function openItemModal(item) {
   document.getElementById('qty-minus').onclick = () => updateQty(qty - 1);
   document.getElementById('close-modal-btn').onclick = () => modalOverlay.classList.add('hidden');
   document.getElementById('add-to-cart-btn').onclick = () => {
-    addItemToCart(item, qty);
+    const customDescription = document.getElementById('custom-details').value.trim();
+    addItemToCart(item, qty, customDescription);
     modalOverlay.classList.add('hidden');
   };
 }
@@ -213,8 +222,8 @@ function openTicketModal() {
         ${(customerInfo.name || customerInfo.phone || customerInfo.deliveryTime) ? `
           <div class="mb-4 text-sm space-y-2 bg-slate-50 p-3 rounded border border-slate-200 customer-section">
             ${customerInfo.name ? `<p class="customer-data"><span class="label">CLIENTE:</span> <span class="value font-black">${customerInfo.name.toUpperCase()}</span></p>` : ''}
-            ${customerInfo.phone ? `<p class="customer-data"><span class="label">TELÉFONO:</span> <span class="value font-black">${customerInfo.phone}</span></p>` : ''}
-            ${customerInfo.deliveryTime ? `<p class="customer-data"><span class="label">ENTREGA:</span> <span class="value font-black">${customerInfo.deliveryTime}</span></p>` : ''}
+            ${customerInfo.phone ? `<p class="customer-data"><span class="label">TELÉFONO:</span> <span class="value font-black text-2xl">${customerInfo.phone}</span></p>` : ''}
+            ${customerInfo.deliveryTime ? `<p class="customer-data"><span class="label">ENTREGA:</span> <span class="value font-black text-2xl">${customerInfo.deliveryTime}</span></p>` : ''}
           </div>
           <div class="border-b-2 border-dashed border-slate-200 mb-4 print-hidden"></div>
         ` : ''}
@@ -289,12 +298,17 @@ function openTicketModal() {
 
 // --- Actions ---
 
-function addItemToCart(item, quantity) {
-  const existingItem = cart.find(i => i.name === item.name && i.price === item.price);
+function addItemToCart(item, quantity, customDescription) {
+  // Use custom description if provided, otherwise fallback to item.description (if any)
+  const description = customDescription || item.description || "";
+
+  // Find item by name, price AND description to keep distinct variations separate
+  const existingItem = cart.find(i => i.name === item.name && i.price === item.price && i.description === description);
+
   if (existingItem) {
     existingItem.quantity += quantity;
   } else {
-    cart.push({ ...item, quantity });
+    cart.push({ ...item, quantity, description });
   }
   updateCartUI();
 }

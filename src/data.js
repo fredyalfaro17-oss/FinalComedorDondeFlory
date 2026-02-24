@@ -5,12 +5,12 @@ export const menuData = {
       name: "Lunes",
       color: "#dc2626", // red-600
       items: [
-        { name: "Caldo de Res con Verduras", price: 30, description: "+ Arroz + Aguacate + Fresco Natural + Tortillas" },
-        { name: "Pollo Frito", price: 25, description: "+ Guacamol, Ensalada, Zuchinis o Arroz + Fresco Natural + Tortillas" },
-        { name: "Pechuga Frita", price: 30, description: "+ Guacamol, Ensalada, Zuchinis o Arroz + Fresco Natural + Tortillas" },
-        { name: "Milanesa de Res", price: 30, description: "+ Guacamol, Ensalada, Zuchinis o Arroz + Fresco Natural + Tortillas" },
-        { name: "Pollo en Crema", price: 30, description: "+ Guacamol, Ensalada, Zuchinis o Arroz + Fresco Natural + Tortillas" },
-        { name: "Tortitas de Carne", price: 30, description: "+ Acompañamientos variados + Fresco Natural + Tortillas" }
+        { name: "Caldo de Res con Verduras", price: 30 },
+        { name: "Pollo Frito", price: 25 },
+        { name: "Pechuga Frita", price: 30 },
+        { name: "Milanesa de Res", price: 30 },
+        { name: "Pollo en Crema", price: 30 },
+        { name: "Tortitas de Carne", price: 30 }
       ]
     },
     {
@@ -18,13 +18,13 @@ export const menuData = {
       name: "Martes",
       color: "#ea580c", // orange-600
       items: [
-        { name: "Caldo de Pata con Verduras", price: 30, description: "+ Más Arroz + Limón + Fresco Natural + Tortillas" },
-        { name: "Filete de Pechuga a la Plancha", price: 25, description: "+ Guacamol, Ensalada verde, Ensalada Rusa o Arroz + Fresco Natural + Tortillas" },
-        { name: "Ensalada Latina con Filete", price: 30, description: "+ Guacamol, Ensalada verde, Ensalada Rusa o Arroz + Fresco Natural + Tortillas" },
-        { name: "Pollo Guisado", price: 25, description: "+ Guacamol, Ensalada verde, Ensalada Rusa o Arroz + Fresco Natural + Tortillas" },
-        { name: "Tortitas de Carne", price: 30, description: "+ Guacamol, Ensalada verde, Ensalada Rusa o Arroz + Fresco Natural + Tortillas" },
-        { name: "Bistec de Res", price: 30, description: "+ Guacamol, Ensalada verde, Ensalada Rusa o Arroz + Fresco Natural + Tortillas" },
-        { name: "Panza en Amarillo", price: 25, description: "+ Guacamol, Ensalada verde, Ensalada Rusa o Arroz + Fresco Natural + Tortillas" }
+        { name: "Caldo de Pata con Verduras", price: 30 },
+        { name: "Filete de Pechuga a la Plancha", price: 25 },
+        { name: "Ensalada Latina con Filete", price: 30 },
+        { name: "Pollo Guisado", price: 25 },
+        { name: "Tortitas de Carne", price: 30 },
+        { name: "Bistec de Res", price: 30 },
+        { name: "Panza en Amarillo", price: 25 }
       ]
     },
     {
@@ -32,14 +32,14 @@ export const menuData = {
       name: "Miércoles",
       color: "#2563eb", // blue-600
       items: [
-        { name: "Pepián de Res", price: 30, description: "+ Fresco Natural + Tortillas" },
-        { name: "Pepián de Pollo", price: 25, description: "+ Fresco Natural + Tortillas" },
-        { name: "Pepián de Pechuga", price: 30, description: "+ Fresco Natural + Tortillas" },
-        { name: "Chapsui Mixto (Res, Cerdo)", price: 30, description: "+ Guacamol, Espagueti con Mantequilla, Ensalada de pepino o Arroz + Fresco Natural + Tortillas" },
-        { name: "Bistec a la Plancha", price: 30, description: "+ Guacamol, Espagueti con Mantequilla, Ensalada de pepino o Arroz + Fresco Natural + Tortillas" },
-        { name: "Salpicón de Res", price: 30, description: "+ Guacamol, Espagueti con Mantequilla, Ensalada de pepino o Arroz + Fresco Natural + Tortillas" },
-        { name: "Tortilla de Harina Res", price: 30, description: "+ Guacamol, Ensalada de pepino, Espagueti o Arroz + Fresco Natural + Tortillas" },
-        { name: "Pollo Guisado", price: 25, description: "+ Guacamol, Ensalada de pepino, Espagueti o Arroz + Fresco Natural + Tortillas" }
+        { name: "Pepián de Res", price: 30 },
+        { name: "Pepián de Pollo", price: 25 },
+        { name: "Pepián de Pechuga", price: 30 },
+        { name: "Chapsui Mixto (Res, Cerdo)", price: 30 },
+        { name: "Bistec a la Plancha", price: 30 },
+        { name: "Salpicón de Res", price: 30 },
+        { name: "Tortilla de Harina Res", price: 30 },
+        { name: "Pollo Guisado", price: 25 }
       ]
     },
     {
@@ -47,12 +47,12 @@ export const menuData = {
       name: "Jueves",
       color: "#a16207", // yellow-700 -> amber? I'll use a better amber
       items: [
-        { name: "Frijol Colorado con Costilla", price: 30, description: "+ Fresco Natural + Tortillas" },
-        { name: "Frijol Colorado con Chicharrón", price: 25, description: "+ Fresco Natural + Tortillas" },
-        { name: "Pechuga Rellena de Mozzarella", price: 30, description: "+ Guacamol, Ensalada hawaiana, Ensalada de papa o Arroz + Fresco Natural + Tortillas" },
-        { name: "Tortillas de Harina de Res", price: 30, description: "+ Fresco Natural" },
-        { name: "Costilla en Barbacoa", price: 25, description: "+ Guacamol, Ensalada hawaiana, Ensalada de papa o Arroz + Fresco Natural + Tortillas" },
-        { name: "Salpicón de Res", price: 30, description: "+ Guacamol, Ensalada hawaiana, Ensalada de papa o Arroz + Fresco Natural + Tortillas" }
+        { name: "Frijol Colorado con Costilla", price: 30 },
+        { name: "Frijol Colorado con Chicharrón", price: 25 },
+        { name: "Pechuga Rellena de Mozzarella", price: 30 },
+        { name: "Tortillas de Harina de Res", price: 30 },
+        { name: "Costilla en Barbacoa", price: 25 },
+        { name: "Salpicón de Res", price: 30 }
       ]
     },
     {
@@ -60,12 +60,12 @@ export const menuData = {
       name: "Viernes",
       color: "#9333ea", // purple-600
       items: [
-        { name: "Carne Asada", price: 30, description: "+ Guacamol, Frijoles Volteados, Coditos con Mayonesa o Papas Baby con Mantequilla + Fresco Natural + Tortillas" },
-        { name: "Costilla Asada", price: 30, description: "+ Guacamol, Frijoles Volteados, Coditos con Mayonesa o Papas Baby con Mantequilla + Fresco Natural + Tortillas" },
-        { name: "Pollo Asado", price: 25, description: "+ Guacamol, Frijoles Volteados, Coditos con Mayonesa o Papas Baby con Mantequilla + Fresco Natural + Tortillas" },
-        { name: "Pechuga Asada", price: 30, description: "+ Guacamol, Frijoles Volteados, Coditos con Mayonesa o Papas Baby con Mantequilla + Fresco Natural + Tortillas" },
-        { name: "Caldo de Pollo Amarillo", price: 30, description: "+ Fresco Natural + Tortillas" },
-        { name: "Ceviche de Camarón", price: 35, description: "+ Tomate, Cebolla, Cilantro, Limón + Galletas de soda" }
+        { name: "Carne Asada", price: 30 },
+        { name: "Costilla Asada", price: 30 },
+        { name: "Pollo Asado", price: 25 },
+        { name: "Pechuga Asada", price: 30 },
+        { name: "Caldo de Pollo Amarillo", price: 30 },
+        { name: "Ceviche de Camarón", price: 35 }
       ]
     },
     {
@@ -116,12 +116,12 @@ export const menuData = {
       name: "Desayunos",
       color: "#b45309", // amber-700
       items: [
-        { name: "Huevos al Gusto (Simples/Estrellados/etc)", price: 17, description: "Incluye: Frijoles, Plátanos Fritos, 1 Café, Tortilla o Pan" },
-        { name: "Huevos al Gusto (Tomate/Cebolla/Rancheros)", price: 18, description: "Incluye: Frijoles, Plátanos Fritos, 1 Café, Tortilla o Pan" },
-        { name: "Huevos Revueltos con Jamón/Salchicha", price: 19, description: "Incluye: Frijoles, Plátanos Fritos, 1 Café, Tortilla o Pan" },
-        { name: "Huevos Especial (Chorizo/Longaniza/Omelette)", price: 20, description: "Incluye: Frijoles, Plátanos Fritos, 1 Café, Tortilla o Pan" },
-        { name: "Campestre (Milanesa/Adobado)", price: 25, description: "Incluye: Frijoles, Plátanos Fritos, 1 Café, Tortilla o Pan" },
-        { name: "Chilaquiles", price: 20, description: "Incluye: 1 Café" }
+        { name: "Huevos al gusto simple", price: 17 },
+        { name: "Huevos al Gusto", price: 18 },
+        { name: "Huevos Revueltos", price: 19 },
+        { name: "Huevos especiales", price: 20 },
+        { name: "Campestre", price: 25 },
+        { name: "Chilaquiles", price: 20 }
       ]
     },
     {
@@ -160,7 +160,9 @@ export const menuData = {
         { name: "Licuado de Fresa Con Leche", price: 12 },
         { name: "Licuado de Mora Con Leche", price: 12 },
         { name: "Licuado de Oreo Con Leche", price: 12 },
-        { name: "Licuado de Café Con Leche", price: 12 }
+        { name: "Licuado de Café Con Leche", price: 12 },
+        { name: "Licuado Mixto con Agua", price: 10 },
+        { name: "Licuado Mixto con Leche", price: 12 }
       ]
     }
   ]

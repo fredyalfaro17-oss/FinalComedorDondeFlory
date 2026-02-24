@@ -280,6 +280,7 @@ body {
 
   .customer-data .value {
     font-weight: 900 !important;
+    font-size: 16pt !important;
   }
 
   .ticket-row {

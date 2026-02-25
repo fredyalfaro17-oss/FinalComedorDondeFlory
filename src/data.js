@@ -3,7 +3,7 @@ export const menuData = {
     {
       id: "lunes",
       name: "Lunes",
-      color: "#dc2626", // red-600
+      color: "#be123c", // rose-700
       items: [
         { name: "Caldo de Res con Verduras", price: 30 },
         { name: "Pollo Frito", price: 25 },
@@ -16,7 +16,7 @@ export const menuData = {
     {
       id: "martes",
       name: "Martes",
-      color: "#ea580c", // orange-600
+      color: "#c2410c", // orange-700
       items: [
         { name: "Caldo de Pata con Verduras", price: 30 },
         { name: "Filete de Pechuga a la Plancha", price: 25 },
@@ -30,7 +30,7 @@ export const menuData = {
     {
       id: "miercoles",
       name: "Miércoles",
-      color: "#2563eb", // blue-600
+      color: "#1d4ed8", // blue-700
       items: [
         { name: "Pepián de Res", price: 30 },
         { name: "Pepián de Pollo", price: 25 },
@@ -45,7 +45,7 @@ export const menuData = {
     {
       id: "jueves",
       name: "Jueves",
-      color: "#a16207", // yellow-700 -> amber? I'll use a better amber
+      color: "#b45309", // amber-700
       items: [
         { name: "Frijol Colorado con Costilla", price: 30 },
         { name: "Frijol Colorado con Chicharrón", price: 25 },
@@ -58,7 +58,7 @@ export const menuData = {
     {
       id: "viernes",
       name: "Viernes",
-      color: "#9333ea", // purple-600
+      color: "#7e22ce", // purple-700
       items: [
         { name: "Carne Asada", price: 30 },
         { name: "Costilla Asada", price: 30 },
@@ -71,7 +71,7 @@ export const menuData = {
     {
       id: "combos",
       name: "Combos",
-      color: "#eab308", // yellow-500
+      color: "#d97706", // amber-600
       items: [
         { name: "Combo 1 - 1 Doblada", price: 25, description: "1 Doblada + Fresco" },
         { name: "Combo 2 - 2 Dobladas", price: 30, description: "2 Dobladas + Fresco" },
@@ -81,7 +81,7 @@ export const menuData = {
     {
       id: "bebidas",
       name: "Bebidas",
-      color: "#16a34a", // green-600
+      color: "#15803d", // green-700
       items: [
         { name: "7up lata", price: 6 },
         { name: "Coca-Cola lata", price: 7 },
@@ -104,7 +104,7 @@ export const menuData = {
     {
       id: "extras",
       name: "Extras",
-      color: "#0891b2", // cyan-600
+      color: "#0e7490", // cyan-700
       items: [
         { name: "Doblada Tipo San Carlos", price: 15 },
         { name: "Porción de Crema", price: 3 },
@@ -114,7 +114,7 @@ export const menuData = {
     {
       id: "desayunos",
       name: "Desayunos",
-      color: "#b45309", // amber-700
+      color: "#a16207", // yellow-700
       items: [
         { name: "Huevos al gusto simple", price: 17 },
         { name: "Huevos al Gusto", price: 18 },
@@ -127,7 +127,7 @@ export const menuData = {
     {
       id: "panes",
       name: "Panes",
-      color: "#f97316", // orange-500
+      color: "#ea580c", // orange-600
       items: [
         { name: "Pan con Adobado", price: 10 },
         { name: "Pan con Chile Relleno", price: 10 },
@@ -143,7 +143,7 @@ export const menuData = {
     {
       id: "licuados",
       name: "Licuados",
-      color: "#db2777", // pink-600
+      color: "#be185d", // pink-700
       items: [
         { name: "Licuado de Papaya Con Agua", price: 10 },
         { name: "Licuado de Melón Con Agua", price: 10 },

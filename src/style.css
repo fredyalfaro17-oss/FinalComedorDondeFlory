@@ -1,13 +1,18 @@
 /* Global Styles & Design System */
 :root {
-  --primary: #991b1b;
-  --primary-hover: #b91c1c;
-  --accent: #fbbf24;
+  --primary: #be123c;
+  /* Rose 700 - Professional Crimson */
+  --primary-hover: #e11d48;
+  /* Rose 600 */
+  --accent: #d97706;
+  /* Amber 600 - Sophisticated Gold */
   --bg-dark: #020617;
+  /* Slate 950 - Deep Obsidian */
   --surface: #0f172a;
-  --card-bg: rgba(30, 41, 59, 0.5);
-  --glass: rgba(15, 23, 42, 0.8);
-  --border: rgba(51, 65, 85, 0.5);
+  /* Slate 900 - Midnight Surface */
+  --glass: rgba(15, 23, 42, 0.75);
+  --border: rgba(148, 163, 184, 0.1);
+  --card-glow: rgba(190, 18, 60, 0.15);
 }
 
 * {
@@ -49,15 +54,23 @@ body {
 /* Glassmorphism Classes */
 .glass-panel {
   background: var(--glass);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid var(--border);
+}
+
+.ultra-glass {
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(30px) saturate(200%);
+  -webkit-backdrop-filter: blur(30px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* Animations */
 @keyframes slideInUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(30px);
   }
 
   to {
@@ -69,7 +82,7 @@ body {
 @keyframes slideInRight {
   from {
     opacity: 0;
-    transform: translateX(20px);
+    transform: translateX(30px);
   }
 
   to {
@@ -91,7 +104,7 @@ body {
 @keyframes scaleIn {
   from {
     opacity: 0;
-    transform: scale(0.9);
+    transform: scale(0.95);
   }
 
   to {
@@ -101,104 +114,150 @@ body {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.4s ease-out;
 }
 
 .animate-slide-up {
-  animation: slideInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .animate-slide-right {
-  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .animate-scale-in {
-  animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Menu Item Card Hover */
 .menu-item-card {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.menu-item-card:hover {
-  transform: translateY(-2px);
-  background-color: rgba(30, 41, 59, 0.8);
-  border-color: rgba(239, 68, 68, 0.3);
-}
-
-.menu-item-card:active {
-  transform: scale(0.98);
-}
-
-/* Category Button Active State */
-.cat-btn {
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
+  overflow: hidden;
 }
 
-.cat-btn.active {
-  background-color: var(--cat-color);
-  color: white;
-  box-shadow: 0 4px 12px -2px var(--cat-color-alpha);
-  transform: scale(1.05);
-}
-
-.cat-btn.active::after {
-  content: '';
-  position: absolute;
-  bottom: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
-  background-color: var(--cat-color);
-  border-radius: 50%;
-}
-
-/* Modal styles */
-#modal-overlay {
-  transition: opacity 0.3s ease;
-}
-
-#modal-overlay:not(.hidden) {
-  display: flex !important;
-}
-
+/* Ticket Styles (Receipt style) */
 /* Ticket Styles (Receipt style) */
 .ticket-container {
   font-family: 'Courier New', Courier, monospace;
   background: white;
   color: #1a1a1a;
   padding: 2rem;
-  max-width: 400px;
+  max-width: 380px;
   width: 100%;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
 }
 
 .ticket-header {
   text-align: center;
-  border-bottom: 2px dashed #ccc;
-  padding-bottom: 1rem;
-  margin-bottom: 1rem;
+  border-bottom: 2px dashed #e2e8f0;
+  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .ticket-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .ticket-footer {
   text-align: center;
-  border-top: 2px dashed #ccc;
-  padding-top: 1rem;
-  margin-top: 1rem;
+  border-top: 2px dashed #e2e8f0;
+  padding-top: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.menu-item-card:hover {
+  transform: translateY(-4px);
+  background-color: var(--surface);
+  border-color: rgba(190, 18, 60, 0.4);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3), 0 0 20px 0 var(--card-glow);
+}
+
+.menu-item-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.menu-item-card:hover::before {
+  opacity: 1;
+}
+
+.menu-item-card:active {
+  transform: scale(0.98);
+}
+
+/* Category Button Refinement */
+.cat-btn {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  background: rgba(30, 41, 59, 0.3);
+  border-color: rgba(148, 163, 184, 0.1);
+}
+
+.cat-btn:hover {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: var(--cat-color);
+  color: white;
+}
+
+.cat-btn.active {
+  background-color: var(--cat-color);
+  border-color: var(--cat-color);
+  color: white;
+  box-shadow: 0 10px 15px -3px var(--cat-color-alpha);
+  transform: scale(1.05);
+}
+
+.cat-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 2px;
+  background-color: white;
+  border-radius: 99px;
+  opacity: 0.8;
+}
+
+/* Modal and Overlay Restoration */
+#modal-overlay {
+  transition: opacity 0.4s ease;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+#modal-overlay:not(.hidden) {
+  display: flex !important;
+}
+
+#modal-content {
+  box-shadow: 0 40px 100px -12px rgba(0, 0, 0, 0.8);
 }
 
 /* Quantity Controls */
 .qty-btn {
   @apply w-12 h-12 rounded-full border border-slate-700 flex items-center justify-center text-xl font-bold transition-all hover:bg-slate-700 active:scale-90;
+}
+
+.item-description {
+  font-size: 0.95rem;
+  color: #94a3b8;
+  font-style: italic;
+  line-height: 1.4;
 }
 
 /* Thermal Printer (58mm) Print Styles */
@@ -293,8 +352,8 @@ body {
   }
 
   .item-description {
-    font-size: 9pt !important;
-    font-weight: 600 !important;
+    font-size: 13pt !important;
+    font-weight: 500 !important;
     color: #000 !important;
     padding-left: 10pt !important;
     margin-bottom: 4pt !important;

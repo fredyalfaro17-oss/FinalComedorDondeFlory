@@ -106,8 +106,8 @@ function updateCartUI() {
       <div class="bg-slate-800/80 border border-slate-700/50 p-4 rounded-xl flex items-center justify-between gap-4 animate-slide-right">
         <div class="flex-1 min-w-0">
           <h4 class="font-black text-base text-white truncate">${item.name}</h4>
-          ${item.description ? `<p class="text-xs text-slate-500 italic mt-0.5 line-clamp-1">${item.description}</p>` : ''}
-          <p class="text-xs text-slate-400 mt-0.5 font-medium">${item.quantity} × Q${item.price.toFixed(2)}</p>
+          ${item.description ? `<p class="text-sm text-slate-400 font-medium italic mt-0.5 line-clamp-2">${item.description}</p>` : ''}
+          <p class="text-xs text-slate-500 mt-1 font-bold uppercase tracking-wider">${item.quantity} × Q${item.price.toFixed(2)}</p>
         </div>
         <div class="flex flex-col items-end gap-2 shrink-0">
           <span class="font-black text-red-500 text-base">Q${subtotal.toFixed(2)}</span>
@@ -164,7 +164,7 @@ function openItemModal(item) {
         <div class="flex flex-col gap-4">
           <label class="text-xs uppercase tracking-widest text-slate-500 font-bold">Detalles Adicionales (Opcional)</label>
           <textarea id="custom-details" maxlength="150" rows="2" 
-            class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-red-500 transition-colors placeholder:text-slate-600"
+            class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-base focus:outline-none focus:border-red-500 transition-colors placeholder:text-slate-600"
             placeholder="Ej: Solo verduras, sin arroz..."></textarea>
         </div>
         
@@ -201,14 +201,9 @@ function openTicketModal() {
 
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
-  // Clear customer input fields
-  document.getElementById('customer-name').value = '';
-  document.getElementById('customer-phone').value = '';
-  document.getElementById('customer-time').value = '';
-
   modalOverlay.innerHTML = `
     <div class="flex flex-col items-center gap-6 animate-scale-in w-full max-w-sm">
-      <div id="ticket-preview" class="ticket-container bg-white shadow-2xl rounded-sm text-black border-t-8 border-red-800">
+      <div id="ticket-preview" class="ticket-container bg-white shadow-2xl rounded-lg text-black">
         <div class="ticket-header space-y-0.5">
           <h2 class="text-xl font-bold uppercase tracking-tighter">Comedor Donde Flory</h2>
           <p class="ticket-info">Sabor Casero y Profesional</p>
@@ -277,6 +272,7 @@ function openTicketModal() {
     window.print();
     cart = [];
     updateCartUI();
+    resetCustomerInfo();
     modalOverlay.classList.add('hidden');
   };
 
@@ -291,6 +287,7 @@ function openTicketModal() {
       btn.classList.replace('bg-emerald-700', 'bg-green-600');
       cart = [];
       updateCartUI();
+      resetCustomerInfo();
       modalOverlay.classList.add('hidden');
     }, 1500);
   };
@@ -442,6 +439,17 @@ function copyTicketText() {
   navigator.clipboard.writeText(text);
 }
 
+function resetCustomerInfo() {
+  customerInfo = {
+    name: '',
+    phone: '',
+    deliveryTime: ''
+  };
+  document.getElementById('customer-name').value = '';
+  document.getElementById('customer-phone').value = '';
+  document.getElementById('customer-time').value = '';
+}
+
 // --- Utilities ---
 
 function formatPhoneNumber(value) {
@@ -497,6 +505,7 @@ function setupEventListeners() {
   clearCartBtn.onclick = () => {
     cart = [];
     updateCartUI();
+    resetCustomerInfo();
   };
 
   generateTicketBtn.onclick = openTicketModal;

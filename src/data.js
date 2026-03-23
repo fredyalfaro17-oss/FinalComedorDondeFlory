@@ -83,19 +83,20 @@ export const menuData = {
       name: "Bebidas",
       color: "#15803d", // green-700
       items: [
-        { name: "7up lata", price: 6 },
+        { name: "7up lata", price: 7 },
         { name: "Coca-Cola lata", price: 7 },
         { name: "Coca-Cola Zero lata", price: 7 },
         { name: "Fanta naranja lata", price: 7 },
         { name: "Fanta uva en lata", price: 7 },
-        { name: "Grapette lata", price: 6 },
+        { name: "Grapette lata", price: 7 },
         { name: "Jugo del valle lata", price: 6 },
         { name: "Jugos Petit", price: 5 },
+        { name: "Limonada con Soda lata", price: 5 },
         { name: "Mineral lata", price: 7 },
-        { name: "Mirinda lata", price: 6 },
+        { name: "Mirinda lata", price: 7 },
         { name: "Naranja con soda lata", price: 5 },
-        { name: "Pepsi Black lata", price: 6 },
-        { name: "Pepsi lata", price: 6 },
+        { name: "Pepsi Black lata", price: 7 },
+        { name: "Pepsi lata", price: 7 },
         { name: "Rica Piña", price: 5 },
         { name: "Rica roja lata", price: 5 },
         { name: "Te frío Lipton", price: 10 }
@@ -106,7 +107,10 @@ export const menuData = {
       name: "Extras",
       color: "#0e7490", // cyan-700
       items: [
+        { name: "Café", price: 5 },
         { name: "Doblada Tipo San Carlos", price: 15 },
+        { name: "Fresco", price: 5 },
+        { name: "Pan", price: 2 },
         { name: "Porción de Crema", price: 3 },
         { name: "Porción de tortillas", price: 2 }
       ]
@@ -116,12 +120,15 @@ export const menuData = {
       name: "Desayunos",
       color: "#a16207", // yellow-700
       items: [
-        { name: "Huevos al gusto simple", price: 17 },
-        { name: "Huevos al Gusto", price: 18 },
-        { name: "Huevos Revueltos", price: 19 },
-        { name: "Huevos especiales", price: 20 },
-        { name: "Campestre", price: 25 },
-        { name: "Chilaquiles", price: 20 }
+        { name: "Desayuno Simple", price: 19 },
+        { name: "Desayuno Ranchero", price: 20 },
+        { name: "Desayuno de Chilaquiles", price: 22 },
+        { name: "Desayuno con Embutidos", price: 22 },
+        { name: "Desayuno con Omelette", price: 23 },
+        { name: "Desayuno Campestre", price: 27 },
+        { name: "Panqueques", price: 15 },
+        { name: "Plátanos Cocidos", price: 10 },
+        { name: "Tostadas", price: 7 }
       ]
     },
     {

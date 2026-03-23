@@ -142,8 +142,10 @@ export const menuData = {
         { name: "Pan con Ensalada de Pollo", price: 10 },
         { name: "Pan con Frijol", price: 10 },
         { name: "Pan con Huevo", price: 10 },
+        { name: "Pan con Jamón", price: 10 },
         { name: "Pan con Milanesa", price: 10 },
         { name: "Pan con Omelette", price: 10 },
+        { name: "Pan con Salchicha", price: 10 },
         { name: "Pan con Torta de Carne", price: 10 }
       ]
     },

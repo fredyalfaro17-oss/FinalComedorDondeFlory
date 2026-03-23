@@ -129,6 +129,20 @@ body {
   animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+@keyframes logoFloat {
+  0%, 100% {
+    transform: translateY(0) scale(1.35);
+  }
+  50% {
+    transform: translateY(-6px) scale(1.35);
+  }
+}
+
+.animate-logo-float {
+  animation: logoFloat 4s ease-in-out infinite;
+  transform-origin: center;
+}
+
 /* Menu Item Card Hover */
 .menu-item-card {
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);

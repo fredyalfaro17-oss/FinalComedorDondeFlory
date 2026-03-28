@@ -209,7 +209,7 @@ function openTicketModal() {
           <p class="ticket-info">Sabor Casero y Profesional</p>
           <p class="ticket-info">4ta. Calle 4-69 Zona 1</p>
           <p class="ticket-info">Tel: 4259-7488</p>
-          <div class="py-1 border-y border-slate-200 mt-2 flex justify-between ticket-meta">
+          <div class="py-1 border-y border-slate-200 mt-2 flex justify-center text-center ticket-meta">
             <span>FECHA: ${dateStr} ${timeStr}</span>
           </div>
         </div>
@@ -330,8 +330,10 @@ function copyTicketText() {
   text += '📞 4259-7488\n'; // Removed extra newline
 
   // Date and ID
+  const dateLine = `FECHA: ${dateStr} ${timeStr}`;
+  const datePadding = " ".repeat(Math.max(0, Math.floor((width - dateLine.length) / 2)));
   text += `${separator}\n`; // Moving separator up
-  text += `FECHA: ${dateStr} ${timeStr}\n`;
+  text += `${datePadding}${dateLine}\n`;
   text += `${separator}\n`; // Removed extra newline
 
   // Customer info - if available

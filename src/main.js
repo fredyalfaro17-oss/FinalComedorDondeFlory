@@ -32,7 +32,7 @@ function init() {
 function renderCategories() {
   categoriesContainer.innerHTML = menuData.categories.map(cat => `
     <button 
-      class="cat-btn px-6 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap border border-slate-800 bg-slate-800/50 text-slate-400 hover:text-white transition-all ${cat.id === currentCategory ? 'active' : ''}" 
+      class="cat-btn px-6 py-2.5 rounded-full text-base font-bold uppercase tracking-wide whitespace-nowrap border border-slate-800 bg-slate-800/50 text-slate-400 hover:text-white transition-all ${cat.id === currentCategory ? 'active' : ''}" 
       data-id="${cat.id}"
       style="--cat-color: ${cat.color}; --cat-color-alpha: ${cat.color}44"
     >

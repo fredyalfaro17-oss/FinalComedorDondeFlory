@@ -108,6 +108,7 @@ export const menuData = {
       color: "#0e7490", // cyan-700
       items: [
         { name: "Café", price: 5 },
+        { name: "Café Grande", price: 7 },
         { name: "Doblada Tipo San Carlos", price: 15 },
         { name: "Fresco", price: 5 },
         { name: "Pan", price: 2 },
@@ -147,6 +148,23 @@ export const menuData = {
         { name: "Pan con Omelette", price: 10 },
         { name: "Pan con Salchicha", price: 10 },
         { name: "Pan con Torta de Carne", price: 10 }
+      ]
+    },
+    {
+      id: "tortillas",
+      name: "Tortillas",
+      color: "#ca8a04", // yellow-600
+      items: [
+        { name: "Tortilla con Adobado", price: 10 },
+        { name: "Tortilla con Chile Relleno", price: 10 },
+        { name: "Tortilla con Chuleta", price: 10 },
+        { name: "Tortilla con Frijol", price: 10 },
+        { name: "Tortilla con Huevo", price: 10 },
+        { name: "Tortilla con Jamón", price: 10 },
+        { name: "Tortilla con Milanesa", price: 10 },
+        { name: "Tortilla con Omelette", price: 10 },
+        { name: "Tortilla con Salchicha", price: 10 },
+        { name: "Tortilla con Torta de Carne", price: 10 }
       ]
     },
     {

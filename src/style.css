@@ -1,18 +1,13 @@
 /* Global Styles & Design System */
 :root {
-  --primary: #be123c;
-  /* Rose 700 - Professional Crimson */
-  --primary-hover: #e11d48;
-  /* Rose 600 */
-  --accent: #d97706;
-  /* Amber 600 - Sophisticated Gold */
-  --bg-dark: #020617;
-  /* Slate 950 - Deep Obsidian */
-  --surface: #0f172a;
-  /* Slate 900 - Midnight Surface */
-  --glass: rgba(15, 23, 42, 0.75);
-  --border: rgba(148, 163, 184, 0.1);
-  --card-glow: rgba(190, 18, 60, 0.15);
+  --primary: #FFB300;             /* Amber Gold */
+  --primary-hover: #FFD54F;       /* Lighter Gold */
+  --accent: #E6BE8A;              /* Muted Gold */
+  --bg-dark: #0A0E14;             /* Deep Charcoal */
+  --surface: #121824;             /* Elevated Surface */
+  --glass: rgba(18, 24, 36, 0.85); /* Dark Glass */
+  --border: rgba(255, 179, 0, 0.1); /* Subtle Amber Border */
+  --glow-color: rgba(255, 179, 0, 0.25);
 }
 
 * {
@@ -51,19 +46,45 @@ body {
   display: none;
 }
 
-/* Glassmorphism Classes */
-.glass-panel {
-  background: var(--glass);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid var(--border);
+/* Premium Glow & Interactions */
+.menu-item-card {
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.menu-item-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 10px 40px -10px var(--glow-color);
+  border-color: rgba(255, 179, 0, 0.3);
+}
+
+.cat-btn {
+  transition: all 0.3s ease;
+}
+
+.cat-btn:hover {
+  box-shadow: 0 0 15px -2px var(--glow-color);
+  border-color: rgba(255, 179, 0, 0.4);
+  transform: translateY(-1px);
+}
+
+.cat-btn.active {
+  background: var(--primary) !important;
+  color: #000 !important;
+  box-shadow: 0 4px 20px -5px var(--primary);
+  border-color: var(--primary) !important;
+}
+
+/* Glassmorphism Optimization */
+.backdrop-blur-md {
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
 }
 
 .ultra-glass {
-  background: rgba(15, 23, 42, 0.4);
+  background: rgba(10, 14, 20, 0.4);
   backdrop-filter: blur(30px) saturate(200%);
   -webkit-backdrop-filter: blur(30px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 179, 0, 0.05);
 }
 
 /* Animations */

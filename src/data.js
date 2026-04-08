@@ -24,7 +24,8 @@ export const menuData = {
         { name: "Pollo Guisado", price: 25 },
         { name: "Tortitas de Carne", price: 30 },
         { name: "Bistec de Res", price: 30 },
-        { name: "Panza en Amarillo", price: 25 }
+        { name: "Panza en Amarillo", price: 25 },
+        { name: "Hilachas", price: 30 }
       ]
     },
     {
@@ -51,7 +52,7 @@ export const menuData = {
         { name: "Frijol Colorado con Chicharrón", price: 25 },
         { name: "Pechuga Rellena de Mozzarella", price: 30 },
         { name: "Tortillas de Harina de Res", price: 30 },
-        { name: "Costilla en Barbacoa", price: 25 },
+        { name: "Costilla", price: 30 },
         { name: "Salpicón de Res", price: 30 }
       ]
     },
@@ -65,7 +66,8 @@ export const menuData = {
         { name: "Pollo Asado", price: 25 },
         { name: "Pechuga Asada", price: 30 },
         { name: "Caldo de Pollo Amarillo", price: 30 },
-        { name: "Ceviche de Camarón", price: 35 }
+        { name: "Ceviche de Camarón", price: 35 },
+        { name: "Birria", price: 40 }
       ]
     },
     {
@@ -113,7 +115,8 @@ export const menuData = {
         { name: "Fresco", price: 5 },
         { name: "Pan", price: 2 },
         { name: "Porción de Crema", price: 3 },
-        { name: "Porción de tortillas", price: 2 }
+        { name: "Porción de tortillas", price: 2 },
+        { name: "Cocoa", price: 5 }
       ]
     },
     {

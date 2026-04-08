@@ -2,7 +2,13 @@ import './style.css'
 import { menuData } from './data.js'
 
 // --- State ---
-let currentCategory = menuData.categories[0].id;
+const getTodayId = () => {
+  const days = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+  const todayId = days[new Date().getDay()];
+  return menuData.categories.some(cat => cat.id === todayId) ? todayId : menuData.categories[0].id;
+};
+
+let currentCategory = getTodayId();
 let cart = [];
 let customerInfo = {
   name: '',

@@ -138,13 +138,31 @@ function updateCartUI() {
   });
 }
 
-// --- Modals ---
+function getItemImage(item) {
+  const name = item.name.toLowerCase();
+  const days = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
+  
+  if (!days.includes(currentCategory)) return null;
+
+  // Specific high-priority matches
+  if (name.includes('caldo de res')) return '/caldo-de-res.png';
+  if (name.includes('caldo de pata')) return '/caldo-de-pata.png';
+  if (name.includes('hilachas')) return '/hilachas.png';
+  if (name.includes('pepián')) return '/pepian.png';
+  
+  // Categorical fallbacks
+  if (name.includes('pollo') || name.includes('pechuga')) return '/pollo.png';
+  if (name.includes('res') || name.includes('milanesa') || name.includes('bistec') || name.includes('carne') || name.includes('costilla')) return '/res.png';
+  
+  return '/comida-general.png';
+}
 
 function openItemModal(item) {
   let qty = 1;
+  const itemImage = getItemImage(item);
 
   modalOverlay.innerHTML = `
-    <div id="modal-content" class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm overflow-hidden animate-scale-in">
+    <div id="modal-content" class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm overflow-hidden animate-scale-in ${itemImage ? 'special-bg' : ''}" ${itemImage ? `style="--modal-bg-image: url('${itemImage}')"` : ''}>
       <div class="bg-gradient-to-br from-red-600 to-red-900 p-8 text-white relative">
         <button id="close-modal-btn" class="absolute top-4 right-4 text-white/50 hover:text-white transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>

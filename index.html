@@ -1,214 +1,232 @@
 <!DOCTYPE html>
-<html lang="es">
-
+<html lang="es" class="dark">
 <head>
-  <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Comedor Donde Flory | POS</title>
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
-</head>
-
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-amber-500/30">
-  <div id="app" class="flex flex-col h-screen overflow-hidden">
-    <!-- Top Header -->
-    <header
-      class="bg-slate-900 border-b border-slate-800 px-8 py-4 shadow-xl flex items-center justify-between shrink-0 gap-8 relative overflow-hidden">
-      <div class="absolute inset-0 bg-gradient-to-r from-red-600/5 to-transparent pointer-none"></div>
-      
-      <div class="shrink-0 relative z-10">
-        <img src="/logo.png" alt="Comedor Donde Flory" class="h-16 w-auto object-contain drop-shadow-2xl animate-logo-float">
-      </div>
-
-      <div class="flex-1 text-center hidden sm:block">
-        <h1
-          class="text-2xl md:text-4xl font-bold tracking-tight text-white font-playfair drop-shadow-lg text-shadow-glow">
-          COMEDOR DONDE FLORY</h1>
-        <div class="flex items-center justify-center gap-3 mt-1">
-          <div class="w-6 h-1 bg-amber-500/50 rounded-full shrink-0"></div>
-          <div class="overflow-hidden w-[200px] md:w-[300px] flex relative h-8 items-center">
-            <div class="animate-marquee absolute w-full flex justify-center">
-              <p class="text-amber-400 font-medium text-lg md:text-xl italic flex items-center gap-2 whitespace-nowrap">
-                <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                Sabor Casero y Profesional
-                <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-              </p>
-            </div>
-          </div>
-          <div class="w-6 h-1 bg-amber-500/50 rounded-full shrink-0"></div>
-        </div>
-      </div>
-
-      <div class="text-right hidden md:block shrink-0 min-w-fit">
-        <p class="text-xs text-slate-300">4ta. Calle 4-69 Zona 1</p>
-        <p class="text-xs text-slate-300">📞 4259-7488</p>
-      </div>
-    </header>
-
-    <!-- Navigation & Filters -->
-    <nav id="category-nav"
-      class="bg-slate-900/80 backdrop-blur-md sticky top-0 z-20 border-b border-slate-800 px-4 py-3 shrink-0">
-      <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1" id="categories-container">
-        <!-- Categories will be injected here -->
-      </div>
-    </nav>
-
-    <!-- Main Layout -->
-    <main class="flex-1 flex overflow-hidden">
-
-      <!-- Left Section: Menu Items -->
-      <section class="flex-1 flex flex-col overflow-hidden">
-
-        <!-- Customer Info Bar -->
-        <div class="bg-slate-900/50 border-b border-slate-800 p-4 shrink-0">
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <div class="md:col-span-2">
-              <label class="text-sm uppercase tracking-wider text-slate-500 font-bold mb-1.5 block">Cliente</label>
-              <input type="text" id="customer-name" placeholder="Nombre completo"
-                class="w-full bg-slate-800 border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all placeholder:text-slate-600">
-            </div>
-            <div>
-              <label class="text-sm uppercase tracking-wider text-slate-500 font-bold mb-1.5 block">Teléfono</label>
-              <input type="text" id="customer-phone" placeholder="xxxx-xxxx"
-                class="w-full bg-slate-800 border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none transition-all placeholder:text-slate-600">
-            </div>
-            <div>
-              <label class="text-sm uppercase tracking-wider text-slate-500 font-bold mb-1.5 block">Entrega</label>
-              <input type="time" id="customer-time"
-                class="w-full bg-slate-800 border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none transition-all">
-            </div>
-          </div>
-        </div>
-
-        <!-- Menu Container -->
-        <div id="menu-container" class="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <!-- Items injected here -->
-        </div>
-
-        <!-- Manual Input & Actions -->
-        <div class="bg-slate-900 border-t border-slate-800 p-4 shrink-0">
-          <div class="flex gap-4 items-center max-w-2xl mx-auto">
-            <div class="flex-1">
-              <input type="text" id="manual-name" placeholder="Artículo manual..."
-                class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 text-sm outline-none focus:border-slate-500 transition-all">
-            </div>
-            <div class="w-32 relative">
-              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">Q</span>
-              <input type="number" id="manual-price" placeholder="0.00"
-                class="w-full bg-slate-800/50 border border-slate-700 rounded-lg pl-8 pr-4 py-2 text-sm outline-none focus:border-slate-500 transition-all">
-            </div>
-            <button id="add-manual-btn"
-              class="bg-emerald-600 hover:bg-emerald-500 text-white p-2.5 rounded-lg transition-colors ring-offset-2 ring-offset-slate-900 focus:ring-2 focus:ring-emerald-500">
-              <span class="sr-only">Añadir manual</span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M5 12h14"></path>
-                <path d="M12 5v14"></path>
-              </svg>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Right Section: Cart -->
-      <aside id="cart-sidebar" class="w-80 md:w-96 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0">
-        <div class="p-6 border-b border-slate-800 flex items-center justify-between">
-          <h2 class="text-xl font-bold flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-              class="text-red-500">
-              <circle cx="8" cy="21" r="1"></circle>
-              <circle cx="19" cy="21" r="1"></circle>
-              <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path>
-            </svg>
-            Carrito
-          </h2>
-          <button id="clear-cart-btn"
-            class="text-xs font-bold text-red-500 hover:text-red-400 uppercase tracking-widest transition-colors hidden">Vaciar</button>
-        </div>
-
-        <!-- Cart Items -->
-        <div id="cart-items" class="flex-1 overflow-y-auto p-4 space-y-3">
-          <div class="flex flex-col items-center justify-center h-full text-slate-600 opacity-50 space-y-4">
-            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="8" cy="21" r="1"></circle>
-              <circle cx="19" cy="21" r="1"></circle>
-              <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path>
-            </svg>
-            <p class="font-medium">Tu carrito está vacío</p>
-          </div>
-        </div>
-
-        <!-- Cart Subtotal -->
-        <div class="p-6 bg-slate-900 border-t border-slate-800 space-y-4">
-          <div class="flex justify-between items-end">
-            <span class="text-slate-400 font-medium">Subtotal</span>
-            <span class="text-2xl font-bold text-white" id="cart-total">Q0.00</span>
-          </div>
-          <button id="generate-ticket-btn" disabled
-            class="w-full bg-red-600 hover:bg-red-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-red-900/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z"></path>
-              <path d="M14 8H8"></path>
-              <path d="M16 12H8"></path>
-              <path d="M13 16H8"></path>
-            </svg>
-            Generar Ticket
-          </button>
-        </div>
-      </aside>
-
-      <!-- Sidebar Footer (Admin Toggle) -->
-      <!-- Removed for Phase 11 Revert -->
-    </main>
-  </div>
-
-  <!-- Modals Overlay -->
-  <div id="modal-overlay"
-    class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
-    <!-- Logic will inject specific modal here -->
-  </div>
-
-  <script type="module" src="/src/main.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            // Premium Global Remapping
-            slate: {
-              950: '#0A0E14', // Deep Background
-              900: '#121824', // Surface
-              800: '#1a2233', // Border/Elevated
-              700: '#2a3142',
-              400: '#E6BE8A', // Muted Gold Text
-              100: '#f1e9db', // Cream Text
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Comedor Donde Flory | Experiencia Única</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;700;800;900&family=Be+Vietnam+Pro:wght@300;400;500;600&family=Work+Sans:wght@400;500;600&family=Permanent+Marker&display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#f3850d",
+                        "on-primary": "#ffffff",
+                        background: "#0a0a0a",
+                        surface: "#1a1a1a",
+                        "on-surface": "#e5e2e1",
+                        outline: "#333333",
+                    },
+                    fontFamily: {
+                        headline: ["Epilogue", "sans-serif"],
+                        body: ["Be Vietnam Pro", "sans-serif"],
+                        marker: ["Permanent Marker", "cursive"],
+                    },
+                    animation: {
+                        'glow': 'glow 4s ease-in-out infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        glow: {
+                            '0%, 100%': { opacity: 0.3, transform: 'scale(1)' },
+                            '50%': { opacity: 0.6, transform: 'scale(1.1)' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    }
+                },
             },
-            red: {
-              400: '#FFB300', // Primary Gold
-              500: '#FFB300', 
-              600: '#FFB300',
-              700: '#CC8F00',
-            },
-            amber: {
-              400: '#FFB300', // Accent
-              500: '#CC8F00',
-            }
-          },
-          fontFamily: {
-            sans: ['Outfit', 'sans-serif'],
-            playfair: ['Playfair Display', 'serif'],
-          },
         }
-      }
-    }
-  </script>
-</body>
+    </script>
+    <style>
+        body {
+            background-color: #0a0a0a;
+            color: #e5e2e1;
+            overflow: hidden;
+            height: 100vh;
+        }
 
+        .hexagon-frame {
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+        }
+
+        .grain-texture {
+            position: fixed;
+            inset: 0;
+            background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAbJeZ12kRSeOzUIql2xzradVSac94Mpm0bIAkGcZ6naxITJH9Qzv7Cgd0S7yHtjxtmSsWjaegNfgiTESrOlbOnhztFy9iCF2shUBE5Wnns_tZl776vFD3H0vkPaL20LkneASlv72iHoB9cmnkbesab8Q8G2bXkjuOmUAa3jlu74qCqHwc5Al2DejW9xv5omOdSzHQ90hHBTHlfUg-35hW2AYEvUu2a1SmYPOdpmdr_j38LKrngLC0D1FzYPZgRO7mE3wP78M4O4FVc");
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        /* Honeycomb layout logic - Scaled down for single screen */
+        .honeycomb-grid {
+            --hex-w: 220px;
+            --hex-h: 254px;
+            position: relative;
+            width: calc(var(--hex-w) * 3);
+            height: calc(var(--hex-h) * 1.5);
+            margin: 0 auto;
+        }
+
+        .hex-item {
+            position: absolute;
+            width: var(--hex-w);
+            height: var(--hex-h);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .hex-item:hover {
+            transform: scale(1.05);
+            z-index: 50;
+        }
+
+        /* Positions to match the 2-Top, 3-Bottom layout */
+        /* Row 1 (Top) */
+        .hex-1 { top: 0; left: calc(var(--hex-w) * 0.5); }
+        .hex-2 { top: 0; left: calc(var(--hex-w) * 1.5); }
+        /* Row 2 (Bottom) */
+        .hex-3 { top: calc(var(--hex-h) * 0.75); left: 0; }
+        .hex-4 { top: calc(var(--hex-h) * 0.75); left: var(--hex-w); }
+        .hex-5 { top: calc(var(--hex-h) * 0.75); left: calc(var(--hex-w) * 2); }
+
+        @media (max-width: 768px) {
+            .honeycomb-grid {
+                --hex-w: 180px;
+                --hex-h: 208px;
+            }
+        }
+
+        .nav-link-active {
+            border-bottom: 4px solid #f26522;
+        }
+
+        .text-glow {
+            text-shadow: 0 0 15px rgba(243, 133, 13, 0.4);
+        }
+    </style>
+</head>
+<body class="font-body selection:bg-primary/30 min-h-screen">
+    <div class="grain-texture"></div>
+
+    <!-- Outer Frame using the new requested color #f3850d -->
+    <div class="relative z-10 h-screen border-[16px] md:border-[24px] border-primary rounded-xl flex flex-col p-0">
+        
+        <div class="flex-1 border border-primary/40 relative rounded-sm flex flex-col p-4 md:p-8 items-center justify-between overflow-hidden shadow-[inset_0_0_100px_rgba(243,133,13,0.1)]">
+            
+            <!-- Branding & Nav Column -->
+            <header class="w-full flex flex-col items-center space-y-4 md:space-y-6">
+                <!-- Logo -->
+                <div class="absolute top-4 left-4 w-48 md:w-64 bg-black/40 backdrop-blur-md p-3 md:p-4 rounded-xl border border-white/5 shadow-2l z-[70]">
+                    <img src="https://lh3.googleusercontent.com/aida/ADBb0ujkQOKPrerZO0F9ow7BkC-3dVdqihjTrKAGkKR8BM9werRnC5Evliexttls0q7GmQOnonVnZ9bji0HjzOlv7dhQ9gDBHFd-uLjKLXjKFd7CClkctgDkyxqC8jOYuF1-58fI8_zZV4fSGtVlpWrZKUwuqdQwyQKRNIRvXTj_krMBdth6b8yc0irtTA-ZKUqLYMj39mWQyiuObIg6WLIiEQE4ykUMpQwCBtbLcLV1itV0pDe9rlOAymy_1NlhzL80hfydcSSJJTZowg" alt="Donde Flory" class="w-full h-auto drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
+                </div>
+
+                <!-- Navigation -->
+                <nav class="flex gap-12 md:gap-16 relative z-50 pt-2">
+                    <a href="#" class="text-primary font-headline font-black text-2xl md:text-3xl tracking-widest uppercase nav-link-active pb-1">HOME</a>
+                    <a href="menu.html" class="text-on-surface/50 hover:text-on-surface font-headline font-black text-2xl md:text-3xl tracking-widest uppercase transition-all pb-1">MENU</a>
+                </nav>
+
+                <!-- Slogan -->
+                <div class="max-w-4xl text-center px-4">
+                    <p class="text-base md:text-xl font-headline font-medium leading-relaxed">
+                        En <span class="text-primary font-black uppercase text-glow">COMEDOR DONDE FLORY</span> transformamos cada comida en una <span class="text-primary underline decoration-2 underline-offset-8 font-black">experiencia única</span>, combinando el auténtico sabor casero con la calidad de una cocina profesional.
+                    </p>
+                </div>
+
+                <!-- Main CTA -->
+                <div class="w-full flex justify-center pb-2">
+                    <a href="menu.html" class="inline-block bg-primary hover:bg-white hover:text-black text-white px-16 py-4 rounded-none font-headline font-black text-2xl tracking-tighter transition-all shadow-[0_20px_40px_rgba(243,133,13,0.3)] hover:scale-105 active:scale-95 text-center">
+                        ORDENA AHORA
+                    </a>
+                </div>
+            </header>
+
+            <!-- Grid Section -->
+            <div class="w-full max-w-5xl relative mt-4 mb-4 flex flex-col items-center flex-1 justify-center">
+                <!-- Slogan Badge -->
+                <div class="absolute -left-8 lg:-left-16 top-0 z-[60] -rotate-6 pointer-events-none animate-float">
+                    <span class="text-primary font-headline font-bold tracking-[0.2em] text-[10px] md:text-xs uppercase">SABOR ÚNICO</span>
+                    <div class="text-[80px] md:text-[100px] font-headline font-black text-white leading-[0.8] mb-1 drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]">100%</div>
+                    <div class="text-3xl md:text-4xl font-marker text-primary leading-none uppercase -mt-2">Casero</div>
+                </div>
+
+                <!-- The Honeycomb Grid -->
+                <div class="honeycomb-grid">
+                    <!-- Hex 1 -->
+                    <div class="hex-item hex-1 group">
+                        <div class="hexagon-frame w-full h-full bg-primary/40 p-[2px]">
+                            <div class="hexagon-frame w-full h-full bg-surface relative overflow-hidden">
+                                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDjA7TUegExUXHRefHlR0uoqtUtoo1r6dF_8-HaDURnNCsMDIQ0PrsSaSmu1yuWcnuvJxl_mpJx1O-a_vGQ3lNEdD1n9481wPsK9jgDcbqn78gE_JwPQitFM-17MaUj0Pg30FpEBRIrRjbtFJO2w-d3ZN07glM2wep0z8dmsNXwYuA9BHk3f4jSH2bSIclN2D4epDIsXfSj699Lgu6k-q9oBAOVJTSlW-1dWOOvSfy0KqYA1CZogcMs3_-JaSgHrzJtm21uSJ3_Ni9f" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                                <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/40 to-transparent p-6 pb-10 text-center">
+                                    <p class="font-headline font-bold text-xs tracking-widest uppercase">PEPIÁN DE RES</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Hex 2 -->
+                    <div class="hex-item hex-2 group">
+                        <div class="hexagon-frame w-full h-full bg-primary/40 p-[2px]">
+                            <div class="hexagon-frame w-full h-full bg-surface relative overflow-hidden">
+                                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuC77BMcPpfhuSUYKSQYNhe5O7gP1HPBNc1TF1O_9aBSIU8ONQg2RjjU0W53XROxerLNUirqouF6zk-UoRPsdvHHks1utPIZe3XjDW8c_MO-jMB3M4VFE1QvB2a8MneFPrWTDIx3Fe6TUEMFNllrGUZNYTD1IKSOh8QNXOw6D0AnlUXZLJHBiNbHRLdum4sjBX58FOLIgNL4HAG6Cs6WAU90tSNPYnX2--tbwtOUjjyxQ91cox63ipBKS7FQHKqAZ3EmSS1fbqpKVKDu" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                                <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/40 to-transparent p-6 pb-10 text-center">
+                                    <p class="font-headline font-bold text-xs tracking-widest uppercase">CALDO DE RES</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Hex 3 -->
+                    <div class="hex-item hex-3 group">
+                        <div class="hexagon-frame w-full h-full bg-primary/40 p-[2px]">
+                            <div class="hexagon-frame w-full h-full bg-surface relative overflow-hidden">
+                                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqVZ71uoyRTeVW3XWiKbESF9jdybyZLRvT2le8pP8Bb8yg7NZsp4PQKxCaktg8GeDPlFM_ghcYtZgVX3EmvDbwEzmGMZzpGIRoEB2vCLcwrmVmgskZTQ3lJ4I5nzNzCKf7eLTIHuX9tT0tzYJPnLG0shEu5QbSPf9HNxbRP1FOuGbMjxDAbo53HRmYyKPvlSdGJ6djpGEnuQ1P0MAaj3BeEv3yDhszD3RMai7jmG77wu7iLfAcqg-1kVEVkeD_QK2srAPuDl2T4Ymx" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                                <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/40 to-transparent p-6 pb-10 text-center">
+                                    <p class="font-headline font-bold text-xs tracking-widest uppercase">FRIJOL COLORADO</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Hex 4 -->
+                    <div class="hex-item hex-4 group">
+                        <div class="hexagon-frame w-full h-full bg-primary/40 p-[2px]">
+                            <div class="hexagon-frame w-full h-full bg-surface relative overflow-hidden">
+                                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6CssYQg-e99kUlrP-U8XjIE0LTbugVR9cCJEcvXr60FATWSFYwFSC-I4ICTpfsSWBQ5O-t7V9Y5F8wIzr1IjPlugcFhEmXJ3mYrAL7KgzRm_T-C2t5P4NVktuvRy7xBu73vtlUEFcEdfmYKL5W2p1imLAtJNIavGQamCM8u84ptl3ZAz5ObYK3UoNL0J0wsgBhb8dr28p1AGE-7CPZMqxuqd8jCTXaZCI3msnbzfx6Cn81jBzdYeG48RgEVvPK2yY_a0kFDuxtTKm" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                                <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/40 to-transparent p-6 pb-10 text-center">
+                                    <p class="font-headline font-bold text-xs tracking-widest uppercase">CALDO DE PATAS</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Hex 5 -->
+                    <div class="hex-item hex-5 group">
+                        <div class="hexagon-frame w-full h-full bg-primary/40 p-[2px]">
+                            <div class="hexagon-frame w-full h-full bg-surface relative overflow-hidden">
+                                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCG5b8CplvofSYnpYejpqgyAO6poe9YYeo75VVMl740ZBE0wH-_QmrIcEhM6BAHIhGoTXatN7c9eb6Ts9cOD2mruWXv-HSHIEU74ql-v9Ky7-chQdTQGRu8oAmlK_7Is4oCRJpyuM2WdrF5lUCl_QteJvJBTt-U4p8xdRST_em-vkgX7oltdnuXizPMWNeDaxxghd3d51G7Q8TvjHgzEXzAaBIbZ1P1dE_5v87CghAqEbZmLrwCEcQCKf2-R5j7sv-n9m77FOSU2AsJ" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                                <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/40 to-transparent p-6 pb-10 text-center">
+                                    <p class="font-headline font-bold text-xs tracking-widest uppercase">CARNE ASADA</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ambient Glow Effects -->
+            <div class="absolute top-1/4 -left-32 w-96 h-96 bg-primary/10 blur-[120px] rounded-full animate-glow"></div>
+            <div class="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/10 blur-[120px] rounded-full animate-glow" style="animation-delay: 2s"></div>
+
+            <footer class="w-full flex justify-center py-4 opacity-40">
+                <p class="font-headline font-bold text-[8px] tracking-[0.5em] uppercase">COMEDOR DONDE FLORY 2026</p>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        // Smooth scroll effect or logic can go here
+    </script>
+</body>
 </html>

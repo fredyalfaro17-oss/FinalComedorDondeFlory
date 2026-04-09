@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Comedor Donde Flory | POS</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-amber-500/30">
+  <div id="app" class="flex flex-col h-screen overflow-hidden">
+    <!-- Top Header -->
+    <header
+      class="bg-slate-900 border-b border-slate-800 px-8 py-4 shadow-xl flex items-center justify-between shrink-0 gap-8 relative overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-to-r from-red-600/5 to-transparent pointer-none"></div>
+      
+      <div class="shrink-0 relative z-10">
+        <img src="/logo.png" alt="Comedor Donde Flory" class="h-16 w-auto object-contain drop-shadow-2xl animate-logo-float">
+      </div>
+
+      <div class="flex-1 text-center hidden sm:block">
+        <h1
+          class="text-2xl md:text-4xl font-bold tracking-tight text-white font-playfair drop-shadow-lg text-shadow-glow">
+          COMEDOR DONDE FLORY</h1>
+        <div class="flex items-center justify-center gap-3 mt-1">
+          <div class="w-6 h-1 bg-amber-500/50 rounded-full shrink-0"></div>
+          <div class="overflow-hidden w-[200px] md:w-[300px] flex relative h-8 items-center">
+            <div class="animate-marquee absolute w-full flex justify-center">
+              <p class="text-amber-400 font-medium text-lg md:text-xl italic flex items-center gap-2 whitespace-nowrap">
+                <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                Sabor Casero y Profesional
+                <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+              </p>
+            </div>
+          </div>
+          <div class="w-6 h-1 bg-amber-500/50 rounded-full shrink-0"></div>
+        </div>
+      </div>
+
+      <div class="text-right hidden md:block shrink-0 min-w-fit">
+        <p class="text-xs text-slate-300">4ta. Calle 4-69 Zona 1</p>
+        <p class="text-xs text-slate-300">📞 4259-7488</p>
+      </div>
+    </header>
+
+    <!-- Navigation & Filters -->
+    <nav id="category-nav"
+      class="bg-slate-900/80 backdrop-blur-md sticky top-0 z-20 border-b border-slate-800 px-4 py-3 shrink-0">
+      <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1" id="categories-container">
+        <!-- Categories will be injected here -->
+      </div>
+    </nav>
+
+    <!-- Main Layout -->
+    <main class="flex-1 flex overflow-hidden">
+
+      <!-- Left Section: Menu Items -->
+      <section class="flex-1 flex flex-col overflow-hidden">
+
+        <!-- Customer Info Bar -->
+        <div class="bg-slate-900/50 border-b border-slate-800 p-4 shrink-0">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div class="md:col-span-2">
+              <label class="text-sm uppercase tracking-wider text-slate-500 font-bold mb-1.5 block">Cliente</label>
+              <input type="text" id="customer-name" placeholder="Nombre completo"
+                class="w-full bg-slate-800 border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all placeholder:text-slate-600">
+            </div>
+            <div>
+              <label class="text-sm uppercase tracking-wider text-slate-500 font-bold mb-1.5 block">Teléfono</label>
+              <input type="text" id="customer-phone" placeholder="xxxx-xxxx"
+                class="w-full bg-slate-800 border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none transition-all placeholder:text-slate-600">
+            </div>
+            <div>
+              <label class="text-sm uppercase tracking-wider text-slate-500 font-bold mb-1.5 block">Entrega</label>
+              <input type="time" id="customer-time"
+                class="w-full bg-slate-800 border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none transition-all">
+            </div>
+          </div>
+        </div>
+
+        <!-- Menu Container -->
+        <div id="menu-container" class="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <!-- Items injected here -->
+        </div>
+
+        <!-- Manual Input & Actions -->
+        <div class="bg-slate-900 border-t border-slate-800 p-4 shrink-0">
+          <div class="flex gap-4 items-center max-w-2xl mx-auto">
+            <div class="flex-1">
+              <input type="text" id="manual-name" placeholder="Artículo manual..."
+                class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 text-sm outline-none focus:border-slate-500 transition-all">
+            </div>
+            <div class="w-32 relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">Q</span>
+              <input type="number" id="manual-price" placeholder="0.00"
+                class="w-full bg-slate-800/50 border border-slate-700 rounded-lg pl-8 pr-4 py-2 text-sm outline-none focus:border-slate-500 transition-all">
+            </div>
+            <button id="add-manual-btn"
+              class="bg-emerald-600 hover:bg-emerald-500 text-white p-2.5 rounded-lg transition-colors ring-offset-2 ring-offset-slate-900 focus:ring-2 focus:ring-emerald-500">
+              <span class="sr-only">Añadir manual</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14"></path>
+                <path d="M12 5v14"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Section: Cart -->
+      <aside id="cart-sidebar" class="w-80 md:w-96 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0">
+        <div class="p-6 border-b border-slate-800 flex items-center justify-between">
+          <h2 class="text-xl font-bold flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              class="text-red-500">
+              <circle cx="8" cy="21" r="1"></circle>
+              <circle cx="19" cy="21" r="1"></circle>
+              <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path>
+            </svg>
+            Carrito
+          </h2>
+          <button id="clear-cart-btn"
+            class="text-xs font-bold text-red-500 hover:text-red-400 uppercase tracking-widest transition-colors hidden">Vaciar</button>
+        </div>
+
+        <!-- Cart Items -->
+        <div id="cart-items" class="flex-1 overflow-y-auto p-4 space-y-3">
+          <div class="flex flex-col items-center justify-center h-full text-slate-600 opacity-50 space-y-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="8" cy="21" r="1"></circle>
+              <circle cx="19" cy="21" r="1"></circle>
+              <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path>
+            </svg>
+            <p class="font-medium">Tu carrito está vacío</p>
+          </div>
+        </div>
+
+        <!-- Cart Subtotal -->
+        <div class="p-6 bg-slate-900 border-t border-slate-800 space-y-4">
+          <div class="flex justify-between items-end">
+            <span class="text-slate-400 font-medium">Subtotal</span>
+            <span class="text-2xl font-bold text-white" id="cart-total">Q0.00</span>
+          </div>
+          <button id="generate-ticket-btn" disabled
+            class="w-full bg-red-600 hover:bg-red-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-red-900/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z"></path>
+              <path d="M14 8H8"></path>
+              <path d="M16 12H8"></path>
+              <path d="M13 16H8"></path>
+            </svg>
+            Generar Ticket
+          </button>
+        </div>
+      </aside>
+
+      <!-- Sidebar Footer (Admin Toggle) -->
+      <!-- Removed for Phase 11 Revert -->
+    </main>
+  </div>
+
+  <!-- Modals Overlay -->
+  <div id="modal-overlay"
+    class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+    <!-- Logic will inject specific modal here -->
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            // Premium Global Remapping
+            slate: {
+              950: '#0A0E14', // Deep Background
+              900: '#121824', // Surface
+              800: '#1a2233', // Border/Elevated
+              700: '#2a3142',
+              400: '#E6BE8A', // Muted Gold Text
+              100: '#f1e9db', // Cream Text
+            },
+            red: {
+              400: '#FFB300', // Primary Gold
+              500: '#FFB300', 
+              600: '#FFB300',
+              700: '#CC8F00',
+            },
+            amber: {
+              400: '#FFB300', // Accent
+              500: '#CC8F00',
+            }
+          },
+          fontFamily: {
+            sans: ['Outfit', 'sans-serif'],
+            playfair: ['Playfair Display', 'serif'],
+          },
+        }
+      }
+    }
+  </script>
+</body>
+
+</html>

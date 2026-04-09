@@ -47,7 +47,7 @@ function renderCategories() {
   `).join('');
 
   const exitBtnHtml = `
-    <a href="landing_refined.html" 
+    <a href="index.html" 
       class="px-6 py-2.5 rounded-full text-base font-bold uppercase tracking-wide whitespace-nowrap border border-red-500/20 bg-red-500/10 text-red-500 hover:bg-red-600 hover:text-white transition-all flex items-center gap-2 ml-4"
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

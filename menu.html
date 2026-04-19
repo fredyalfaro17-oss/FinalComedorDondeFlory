@@ -17,7 +17,7 @@
     <!-- Top Header -->
     <header
       class="bg-slate-900 border-b border-slate-800 px-8 py-4 shadow-xl flex items-center justify-between shrink-0 gap-8 relative overflow-hidden">
-      <div class="absolute inset-0 bg-gradient-to-r from-red-600/5 to-transparent pointer-none"></div>
+      <div class="absolute inset-0 bg-gradient-to-r from-red-600/5 to-transparent pointer-events-none"></div>
       
       <div class="shrink-0 relative z-10">
         <img src="/logo.png" alt="Comedor Donde Flory" class="h-16 w-auto object-contain drop-shadow-2xl animate-logo-float">
@@ -42,9 +42,12 @@
         </div>
       </div>
 
-      <div class="text-right hidden md:block shrink-0 min-w-fit">
+      <div class="text-right hidden md:block shrink-0 min-w-fit relative z-10">
         <p class="text-xs text-slate-300">4ta. Calle 4-69 Zona 1</p>
         <p class="text-xs text-slate-300">📞 4259-7488</p>
+        <button id="view-report-btn" class="mt-2 w-full text-xs font-bold bg-amber-500/20 text-amber-500 px-3 py-1.5 rounded-md hover:bg-amber-500/30 transition-colors">
+          REPORTE DEL DÍA
+        </button>
       </div>
     </header>
 

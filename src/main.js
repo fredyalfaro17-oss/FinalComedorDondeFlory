@@ -1,5 +1,8 @@
 import './style.css'
 import { menuData } from './data.js'
+import ExcelJS from 'exceljs'
+import { saveAs } from 'file-saver'
+
 
 // --- State ---
 const getTodayId = () => {
@@ -308,6 +311,7 @@ function openTicketModal() {
   document.getElementById('close-ticket-btn').onclick = () => modalOverlay.classList.add('hidden');
 
   document.getElementById('print-ticket-btn').onclick = () => {
+    saveSale(total);
     window.print();
     cart = [];
     updateCartUI();
@@ -322,6 +326,7 @@ function openTicketModal() {
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg> ¡Copiado!`;
     btn.classList.replace('bg-green-600', 'bg-emerald-700');
     setTimeout(() => {
+      saveSale(total);
       btn.innerHTML = originalText;
       btn.classList.replace('bg-emerald-700', 'bg-green-600');
       cart = [];
@@ -551,10 +556,247 @@ function setupEventListeners() {
 
   generateTicketBtn.onclick = openTicketModal;
 
+  const viewReportBtn = document.getElementById('view-report-btn');
+  if (viewReportBtn) viewReportBtn.onclick = openReportModal;
+
   // Close modal on background click
   modalOverlay.onclick = (e) => {
     if (e.target === modalOverlay) modalOverlay.classList.add('hidden');
   };
+}
+
+// --- Reports ---
+
+function saveSale(total) {
+  const sales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const saleTime = customerInfo.deliveryTime || timeStr;
+
+  const sale = {
+    id: sales.length + 1,
+    date: now.toISOString().split('T')[0],
+    time: saleTime,
+    customerName: customerInfo.name || 'Cliente Mostrador',
+    phone: customerInfo.phone || '-',
+    total: total,
+    items: cart.map(i => `${i.quantity}x ${i.name}`).join(', ')
+  };
+
+  sales.push(sale);
+  localStorage.setItem('daily_sales', JSON.stringify(sales));
+}
+
+function openReportModal() {
+  const sales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
+  
+  let totalDia = 0;
+
+  const tableRows = sales.map(sale => {
+    totalDia += sale.total;
+
+    return `
+      <tr class="border-b border-slate-700 hover:bg-slate-800/50 transition-colors">
+        <td class="px-4 py-3 text-center">${sale.id}</td>
+        <td class="px-4 py-3">${sale.customerName}</td>
+        <td class="px-4 py-3 text-center">${sale.phone}</td>
+        <td class="px-4 py-3 text-center">${sale.time}</td>
+        <td class="px-4 py-3 text-right font-bold text-amber-400">Q${sale.total.toFixed(2)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  modalOverlay.innerHTML = `
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl animate-scale-in">
+      <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-800/50 rounded-t-2xl">
+        <div>
+          <h2 class="text-2xl font-bold font-playfair text-white flex items-center gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            INFORME DE VENTAS DEL DÍA
+          </h2>
+          <p class="text-sm text-slate-400 mt-1">Resumen de transacciones y formas de pago</p>
+        </div>
+        <button id="close-report-btn" class="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-auto p-6 bg-slate-950">
+        <div class="rounded-xl border border-slate-800 overflow-hidden">
+          <table class="w-full text-sm text-left text-slate-300">
+            <thead class="text-xs text-slate-400 uppercase bg-slate-900 border-b border-slate-800">
+              <tr>
+                <th scope="col" class="px-4 py-4 text-center w-16">No.</th>
+                <th scope="col" class="px-4 py-4">NOMBRE DEL CLIENTE</th>
+                <th scope="col" class="px-4 py-4 text-center">TELÉFONO</th>
+                <th scope="col" class="px-4 py-4 text-center">HORA</th>
+                <th scope="col" class="px-4 py-4 text-right">TOTAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sales.length > 0 ? tableRows : `
+                <tr>
+                  <td colspan="5" class="px-4 py-12 text-center text-slate-500">
+                    <div class="flex flex-col items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mb-3 opacity-50"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg>
+                      Aún no hay ventas registradas hoy
+                    </div>
+                  </td>
+                </tr>
+              `}
+            </tbody>
+            <tfoot class="bg-slate-900 border-t border-slate-800 font-bold text-white">
+              <tr>
+                <td colspan="4" class="px-4 py-4 text-right text-slate-400">Total del Día...</td>
+                <td class="px-4 py-4 text-right text-amber-500 text-lg">Q${totalDia.toFixed(2)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+
+      <div class="p-6 border-t border-slate-800 bg-slate-900 rounded-b-2xl flex justify-between items-center">
+        <button id="clear-sales-btn" class="text-sm font-bold text-red-500 hover:text-red-400 hover:bg-red-500/10 px-4 py-2 rounded-lg transition-colors border border-transparent hover:border-red-500/20">
+          Borrar Historial
+        </button>
+        <button id="export-excel-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2" ${sales.length === 0 ? 'disabled' : ''}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10.4 12.6a2 2 0 1 1 3 3L8 21l-4 1 1-4Z"></path><path d="m18 21-4-4"></path><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z"></path></svg>
+          Descargar CSV
+        </button>
+      </div>
+    </div>
+  `;
+
+  modalOverlay.classList.remove('hidden');
+
+  document.getElementById('close-report-btn').onclick = () => modalOverlay.classList.add('hidden');
+  
+  document.getElementById('clear-sales-btn').onclick = () => {
+    if (confirm('¿Estás seguro de que deseas borrar TODAS las ventas de hoy? Esta acción no se puede deshacer.')) {
+      localStorage.removeItem('daily_sales');
+      openReportModal();
+    }
+  };
+
+  const exportBtn = document.getElementById('export-excel-btn');
+  if (exportBtn) {
+    exportBtn.onclick = async () => {
+      await exportToExcel(sales, totalDia);
+    };
+  }
+}
+
+async function exportToExcel(sales, totalDia) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Reporte de Ventas');
+
+  // Title
+  worksheet.mergeCells('A1:R1');
+  const titleRow = worksheet.getCell('A1');
+  titleRow.value = 'INFORME DE VENTAS DEL DÍA';
+  titleRow.font = { name: 'Arial', size: 16, bold: true };
+  titleRow.alignment = { horizontal: 'center', vertical: 'middle' };
+  worksheet.getRow(1).height = 30;
+
+  // Spacing
+  worksheet.addRow([]);
+
+  // Vendor Headers (Row 3)
+  const vendorHeadersRow = worksheet.getRow(3);
+  worksheet.mergeCells('F3:H3');
+  worksheet.mergeCells('I3:K3');
+  worksheet.mergeCells('L3:N3');
+  worksheet.mergeCells('O3:Q3');
+
+  vendorHeadersRow.getCell('F').value = 'VENDEDOR 01';
+  vendorHeadersRow.getCell('I').value = 'VENDEDOR 02';
+  vendorHeadersRow.getCell('L').value = 'VENDEDOR 03';
+  vendorHeadersRow.getCell('O').value = 'VENDEDOR 04';
+  vendorHeadersRow.getCell('R').value = 'OTROS';
+
+  vendorHeadersRow.font = { bold: true };
+  vendorHeadersRow.alignment = { horizontal: 'center' };
+
+  // Subheaders (Row 4)
+  const subHeadersRow = worksheet.getRow(4);
+  const subHeaders = [
+    "No.", "NOMBRE DEL CLIENTE", "TELEFONO", "HORA", "TOTAL",
+    "EFECTIVO", "TRANSFERENCIA", "TARJETA", // V1
+    "EFECTIVO", "TRANSFERENCIA", "TARJETA", // V2
+    "EFECTIVO", "TRANSFERENCIA", "TARJETA", // V3
+    "EFECTIVO", "TRANSFERENCIA", "TARJETA", // V4
+    "" // OTROS
+  ];
+  subHeadersRow.values = subHeaders;
+  subHeadersRow.font = { bold: true };
+  subHeadersRow.alignment = { horizontal: 'center', vertical: 'middle' };
+
+  // Set column widths
+  worksheet.columns = [
+    { key: 'A', width: 5 },
+    { key: 'B', width: 25 },
+    { key: 'C', width: 12 },
+    { key: 'D', width: 10 },
+    { key: 'E', width: 10 },
+    { key: 'F', width: 12 }, { key: 'G', width: 15 }, { key: 'H', width: 12 },
+    { key: 'I', width: 12 }, { key: 'J', width: 15 }, { key: 'K', width: 12 },
+    { key: 'L', width: 12 }, { key: 'M', width: 15 }, { key: 'N', width: 12 },
+    { key: 'O', width: 12 }, { key: 'P', width: 15 }, { key: 'Q', width: 12 },
+    { key: 'R', width: 12 }
+  ];
+
+  // Data rows
+  let rowOffset = 4;
+  sales.forEach(sale => {
+    rowOffset++;
+    const row = worksheet.getRow(rowOffset);
+    row.values = [
+      sale.id,
+      sale.customerName,
+      sale.phone,
+      sale.time,
+      sale.total,
+      null, null, null, // V1
+      null, null, null, // V2
+      null, null, null, // V3
+      null, null, null, // V4
+      null // OTROS
+    ];
+    // Center specific columns
+    row.getCell('A').alignment = { horizontal: 'center' };
+    row.getCell('C').alignment = { horizontal: 'center' };
+    row.getCell('D').alignment = { horizontal: 'center' };
+    row.getCell('E').numFmt = 'Q#,##0.00';
+  });
+
+  // Totals row (sum)
+  const totalRowIndex = rowOffset + 15; // Reducimos el espacio a 15 filas para que sea visible
+  const totalRow = worksheet.getRow(totalRowIndex);
+  totalRow.getCell('D').value = 'Total del Dia...';
+  totalRow.getCell('D').font = { bold: true };
+  totalRow.getCell('D').alignment = { horizontal: 'right' };
+
+  const columnsToSum = ['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'];
+  columnsToSum.forEach(col => {
+    totalRow.getCell(col).value = { 
+      formula: `SUM(${col}5:${col}${totalRowIndex - 1})`,
+      result: 0 // Asegura que Excel muestre un valor inicial
+    };
+    totalRow.getCell(col).font = { bold: true };
+    totalRow.getCell(col).numFmt = 'Q#,##0.00';
+  });
+
+  // Borders for headers
+  ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'].forEach(col => {
+    worksheet.getCell(`${col}4`).border = {
+      bottom: { style: 'medium' }
+    };
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  saveAs(blob, `reporte_ventas_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
 // Start the APP

@@ -159,7 +159,7 @@ function updateCartUI() {
 function getItemImage(item) {
   const name = item.name.toLowerCase();
   const days = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
-  
+
   if (!days.includes(currentCategory)) return null;
 
   // Specific high-priority matches
@@ -167,11 +167,11 @@ function getItemImage(item) {
   if (name.includes('caldo de pata')) return '/caldo-de-pata.png';
   if (name.includes('hilachas')) return '/hilachas.png';
   if (name.includes('pepián')) return '/pepian.png';
-  
+
   // Categorical fallbacks
   if (name.includes('pollo') || name.includes('pechuga')) return '/pollo.png';
   if (name.includes('res') || name.includes('milanesa') || name.includes('bistec') || name.includes('carne') || name.includes('costilla')) return '/res.png';
-  
+
   return '/comida-general.png';
 }
 
@@ -589,7 +589,7 @@ function saveSale(total) {
 
 function openReportModal() {
   const sales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
-  
+
   let totalDia = 0;
 
   const tableRows = sales.map(sale => {
@@ -671,7 +671,7 @@ function openReportModal() {
   modalOverlay.classList.remove('hidden');
 
   document.getElementById('close-report-btn').onclick = () => modalOverlay.classList.add('hidden');
-  
+
   document.getElementById('clear-sales-btn').onclick = () => {
     if (confirm('¿Estás seguro de que deseas borrar TODAS las ventas de hoy? Esta acción no se puede deshacer.')) {
       localStorage.removeItem('daily_sales');
@@ -779,7 +779,7 @@ async function exportToExcel(sales, totalDia) {
 
   const columnsToSum = ['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'];
   columnsToSum.forEach(col => {
-    totalRow.getCell(col).value = { 
+    totalRow.getCell(col).value = {
       formula: `SUM(${col}5:${col}${totalRowIndex - 1})`,
       result: 0 // Asegura que Excel muestre un valor inicial
     };

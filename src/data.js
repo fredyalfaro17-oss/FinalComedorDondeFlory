@@ -10,7 +10,8 @@ export const menuData = {
         { name: "Pechuga Frita", price: 30 },
         { name: "Milanesa de Res", price: 30 },
         { name: "Pollo en Crema", price: 30 },
-        { name: "Tortitas de Carne", price: 30 }
+        { name: "Tortitas de Carne", price: 30 },
+        { name: "Costilla en Barbacoa", price: 30 }
       ]
     },
     {
@@ -25,7 +26,10 @@ export const menuData = {
         { name: "Tortitas de Carne", price: 30 },
         { name: "Bistec de Res", price: 30 },
         { name: "Panza en Amarillo", price: 25 },
-        { name: "Hilachas", price: 30 }
+        { name: "Hilachas", price: 30 },
+        { name: "Filete de Pechuga en Crema", price: 30 },
+        { name: "Chomín mixto (res y cerdo)", price: 30 },
+        { name: "Canelones rellenos de verdura y carne molida", price: 30 }
       ]
     },
     {
@@ -40,7 +44,8 @@ export const menuData = {
         { name: "Bistec a la Plancha", price: 30 },
         { name: "Salpicón de Res", price: 30 },
         { name: "Tortilla de Harina Res", price: 30 },
-        { name: "Pollo Guisado", price: 25 }
+        { name: "Pollo Guisado", price: 25 },
+        { name: "Pollo Crunchy", price: 30 }
       ]
     },
     {
@@ -53,7 +58,9 @@ export const menuData = {
         { name: "Pechuga Rellena de Mozzarella", price: 30 },
         { name: "Tortillas de Harina de Res", price: 30 },
         { name: "Costilla", price: 30 },
-        { name: "Salpicón de Res", price: 30 }
+        { name: "Salpicón de Res", price: 30 },
+        { name: "Carne guisada", price: 30 },
+        { name: "Pollo guisado Pechuga", price: 30 }
       ]
     },
     {
@@ -68,7 +75,8 @@ export const menuData = {
         { name: "Caldo de Pollo Amarillo", price: 30 },
         { name: "Ceviche de Camarón", price: 35 },
         { name: "Birria", price: 40 },
-        { name: "Filete de Pescado", price: 35 }
+        { name: "Filete de Pescado", price: 35 },
+        { name: "Aguachile de camarón", price: 35 }
       ]
     },
     {

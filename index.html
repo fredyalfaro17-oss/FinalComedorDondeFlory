@@ -63,6 +63,19 @@
             z-index: 50;
         }
 
+        .guatemala-bg {
+            position: fixed;
+            inset: 0;
+            /* Iconic Antigua Guatemala image with an elegant dark overlay */
+            background-image: linear-gradient(to bottom, rgba(10, 10, 10, 0.7), rgba(10, 10, 10, 0.95)), url("https://images.unsplash.com/photo-1518105779142-d975f22f1b0a?q=80&w=2070&auto=format&fit=crop");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.6;
+        }
+
         /* Honeycomb layout logic - Scaled down for single screen */
         .honeycomb-grid {
             --hex-w: 220px;
@@ -111,6 +124,7 @@
     </style>
 </head>
 <body class="font-body selection:bg-primary/30 min-h-screen">
+    <div class="guatemala-bg"></div>
     <div class="grain-texture"></div>
 
     <!-- Outer Frame using the new requested color #f3850d -->

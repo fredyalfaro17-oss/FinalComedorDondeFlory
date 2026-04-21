@@ -31,6 +31,8 @@ const modalOverlay = document.getElementById('modal-overlay');
 // --- Initialization ---
 function init() {
   renderCategories();
+  // Set initial category (today)
+  currentCategory = getTodayId();
   renderMenu();
   setupEventListeners();
   updateCartUI();
@@ -662,7 +664,7 @@ function openReportModal() {
         </button>
         <button id="export-excel-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2" ${sales.length === 0 ? 'disabled' : ''}>
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10.4 12.6a2 2 0 1 1 3 3L8 21l-4 1 1-4Z"></path><path d="m18 21-4-4"></path><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z"></path></svg>
-          Descargar CSV
+          Descargar Excel (.xlsx)
         </button>
       </div>
     </div>
@@ -691,113 +693,183 @@ async function exportToExcel(sales, totalDia) {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Reporte de Ventas');
 
-  // Title
+  // Freeze panes: Rows 1-3 and Columns A-E
+  worksheet.views = [{ state: 'frozen', xSplit: 5, ySplit: 3 }];
+
+  // --- Styling ---
+  const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF333333' } };
+  const headerFont = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+  const borderThin = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+  const currencyFmt = 'Q#,##0.00';
+
+  // --- Row 1: Title ---
   worksheet.mergeCells('A1:R1');
-  const titleRow = worksheet.getCell('A1');
-  titleRow.value = 'INFORME DE VENTAS DEL DÍA';
-  titleRow.font = { name: 'Arial', size: 16, bold: true };
-  titleRow.alignment = { horizontal: 'center', vertical: 'middle' };
+  const titleCell = worksheet.getCell('A1');
+  titleCell.value = 'INFORME DE VENTAS DEL DÍA';
+  titleCell.fill = headerFill;
+  titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
   worksheet.getRow(1).height = 30;
 
-  // Spacing
-  worksheet.addRow([]);
+  // --- Row 2: Vendor Headers ---
+  const vendorRow = worksheet.getRow(2);
+  vendorRow.height = 20;
+  worksheet.mergeCells('F2:H2');
+  worksheet.mergeCells('I2:K2');
+  worksheet.mergeCells('L2:N2');
+  worksheet.mergeCells('O2:Q2');
 
-  // Vendor Headers (Row 3)
-  const vendorHeadersRow = worksheet.getRow(3);
-  worksheet.mergeCells('F3:H3');
-  worksheet.mergeCells('I3:K3');
-  worksheet.mergeCells('L3:N3');
-  worksheet.mergeCells('O3:Q3');
+  const vCols = { 'F': 'VENDEDOR 01', 'I': 'VENDEDOR 02', 'L': 'VENDEDOR 03', 'O': 'VENDEDOR 04', 'R': 'OTROS' };
+  Object.keys(vCols).forEach(col => {
+    const cell = vendorRow.getCell(col);
+    cell.value = vCols[col];
+    cell.fill = headerFill;
+    cell.font = headerFont;
+    cell.alignment = { horizontal: 'center' };
+  });
 
-  vendorHeadersRow.getCell('F').value = 'VENDEDOR 01';
-  vendorHeadersRow.getCell('I').value = 'VENDEDOR 02';
-  vendorHeadersRow.getCell('L').value = 'VENDEDOR 03';
-  vendorHeadersRow.getCell('O').value = 'VENDEDOR 04';
-  vendorHeadersRow.getCell('R').value = 'OTROS';
-
-  vendorHeadersRow.font = { bold: true };
-  vendorHeadersRow.alignment = { horizontal: 'center' };
-
-  // Subheaders (Row 4)
-  const subHeadersRow = worksheet.getRow(4);
+  // --- Row 3: Subheaders ---
   const subHeaders = [
     "No.", "NOMBRE DEL CLIENTE", "TELEFONO", "HORA", "TOTAL",
     "EFECTIVO", "TRANSFERENCIA", "TARJETA", // V1
     "EFECTIVO", "TRANSFERENCIA", "TARJETA", // V2
     "EFECTIVO", "TRANSFERENCIA", "TARJETA", // V3
     "EFECTIVO", "TRANSFERENCIA", "TARJETA", // V4
-    "" // OTROS
+    ""
   ];
-  subHeadersRow.values = subHeaders;
-  subHeadersRow.font = { bold: true };
-  subHeadersRow.alignment = { horizontal: 'center', vertical: 'middle' };
+  const subHeaderRow = worksheet.getRow(3);
+  subHeaderRow.values = subHeaders;
+  subHeaderRow.eachCell(cell => {
+    cell.fill = headerFill;
+    cell.font = headerFont;
+    cell.alignment = { horizontal: 'center' };
+    cell.border = borderThin;
+  });
 
-  // Set column widths
+  // Column Widths
   worksheet.columns = [
-    { key: 'A', width: 5 },
-    { key: 'B', width: 25 },
-    { key: 'C', width: 12 },
-    { key: 'D', width: 10 },
-    { key: 'E', width: 10 },
-    { key: 'F', width: 12 }, { key: 'G', width: 15 }, { key: 'H', width: 12 },
-    { key: 'I', width: 12 }, { key: 'J', width: 15 }, { key: 'K', width: 12 },
-    { key: 'L', width: 12 }, { key: 'M', width: 15 }, { key: 'N', width: 12 },
-    { key: 'O', width: 12 }, { key: 'P', width: 15 }, { key: 'Q', width: 12 },
-    { key: 'R', width: 12 }
+    { key: 'id', width: 6 }, 
+    { key: 'name', width: 35 }, // Nombre del cliente mas ancho
+    { key: 'phone', width: 25 }, // Columna C para etiquetas de resumen
+    { key: 'time', width: 10 }, 
+    { key: 'total', width: 15 },
+    ...Array(13).fill({ width: 16 }) // Columnas de vendedores mas anchas para "TRANSFERENCIA"
   ];
 
-  // Data rows
-  let rowOffset = 4;
-  sales.forEach(sale => {
-    rowOffset++;
-    const row = worksheet.getRow(rowOffset);
-    row.values = [
-      sale.id,
-      sale.customerName,
-      sale.phone,
-      sale.time,
-      sale.total,
-      null, null, null, // V1
-      null, null, null, // V2
-      null, null, null, // V3
-      null, null, null, // V4
-      null // OTROS
-    ];
-    // Center specific columns
-    row.getCell('A').alignment = { horizontal: 'center' };
-    row.getCell('C').alignment = { horizontal: 'center' };
-    row.getCell('D').alignment = { horizontal: 'center' };
-    row.getCell('E').numFmt = 'Q#,##0.00';
+  // --- Split Sales into Morning (<12:00) and Afternoon (>=12:00) ---
+  const morningSales = sales.filter(s => {
+    const hour = parseInt(s.time.split(':')[0]);
+    return hour < 12;
+  });
+  const afternoonSales = sales.filter(s => {
+    const hour = parseInt(s.time.split(':')[0]);
+    return hour >= 12;
   });
 
-  // Totals row (sum)
-  const totalRowIndex = rowOffset + 15; // Reducimos el espacio a 15 filas para que sea visible
-  const totalRow = worksheet.getRow(totalRowIndex);
-  totalRow.getCell('D').value = 'Total del Dia...';
-  totalRow.getCell('D').font = { bold: true };
-  totalRow.getCell('D').alignment = { horizontal: 'right' };
+  let currentRow = 4;
 
-  const columnsToSum = ['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'];
-  columnsToSum.forEach(col => {
-    totalRow.getCell(col).value = {
-      formula: `SUM(${col}5:${col}${totalRowIndex - 1})`,
-      result: 0 // Asegura que Excel muestre un valor inicial
-    };
-    totalRow.getCell(col).font = { bold: true };
-    totalRow.getCell(col).numFmt = 'Q#,##0.00';
+  // Helper to add sales rows
+  const addSalesRows = (saleList) => {
+    const start = currentRow;
+    saleList.forEach(sale => {
+      const row = worksheet.getRow(currentRow);
+      row.values = [sale.id, sale.customerName, sale.phone, sale.time, sale.total];
+      row.getCell(5).numFmt = currencyFmt;
+      currentRow++;
+    });
+    return { start, end: currentRow - 1 };
+  };
+
+  // 1. Morning Sales
+  const morningRange = addSalesRows(morningSales);
+  
+  // 2. Total Morning Row
+  const rowMornTotal = worksheet.getRow(currentRow);
+  const morningTotalRowIndex = currentRow; // Capture Morning Total index
+  rowMornTotal.getCell('D').value = 'Total de la mañana';
+  rowMornTotal.getCell('D').font = { bold: true };
+  rowMornTotal.getCell('D').alignment = { horizontal: 'right' };
+  
+  // Formulas for Morning
+  ['E','F','G','H','I','J','K','L','M','N','O','P','Q','R'].forEach(col => {
+    if (morningSales.length > 0) {
+      rowMornTotal.getCell(col).value = { formula: `SUM(${col}${morningRange.start}:${col}${morningRange.end})` };
+    } else {
+      rowMornTotal.getCell(col).value = 0;
+    }
+    rowMornTotal.getCell(col).numFmt = currencyFmt;
+    rowMornTotal.getCell(col).font = { bold: true };
   });
+  currentRow += 2; // Spacing
 
-  // Borders for headers
-  ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'].forEach(col => {
-    worksheet.getCell(`${col}4`).border = {
-      bottom: { style: 'medium' }
-    };
+  // 3. Afternoon Sales
+  const afternoonRange = addSalesRows(afternoonSales);
+
+  // 4. Total Afternoon Row
+  const rowAftTotal = worksheet.getRow(currentRow);
+  const afternoonTotalRowIndex = currentRow; // Capture Afternoon Total index
+  rowAftTotal.getCell('D').value = 'Total de la Tarde';
+  rowAftTotal.getCell('D').font = { bold: true };
+  rowAftTotal.getCell('D').alignment = { horizontal: 'right' };
+
+  ['E','F','G','H','I','J','K','L','M','N','O','P','Q','R'].forEach(col => {
+    if (afternoonSales.length > 0) {
+      rowAftTotal.getCell(col).value = { formula: `SUM(${col}${afternoonRange.start}:${col}${afternoonRange.end})` };
+    } else {
+      rowAftTotal.getCell(col).value = 0;
+    }
+    rowAftTotal.getCell(col).numFmt = currencyFmt;
+    rowAftTotal.getCell(col).font = { bold: true };
   });
+  currentRow += 2;
 
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  saveAs(blob, `reporte_ventas_${new Date().toISOString().split('T')[0]}.xlsx`);
+  // 5. Total General Row
+  const rowGrandTotal = worksheet.getRow(currentRow);
+  const grandTotalRowIndex = currentRow; // Capture Grand Total index
+  rowGrandTotal.getCell('D').value = 'TOTAL GENERAL DEL DÍA';
+  rowGrandTotal.getCell('D').font = { bold: true, size: 12 };
+  rowGrandTotal.getCell('D').alignment = { horizontal: 'right' };
+
+  ['E','F','G','H','I','J','K','L','M','N','O','P','Q','R'].forEach(col => {
+    // Sum explicitly the Morning Total and Afternoon Total rows
+    rowGrandTotal.getCell(col).value = { formula: `${col}${morningTotalRowIndex} + ${col}${afternoonTotalRowIndex}` };
+    rowGrandTotal.getCell(col).numFmt = currencyFmt;
+    rowGrandTotal.getCell(col).font = { bold: true, size: 11 };
+  });
+  currentRow += 3;
+
+  // 6. Summary Block at the Bottom
+  const addSummaryRow = (label, cols) => {
+    const row = worksheet.getRow(currentRow);
+    row.getCell('C').value = label;
+    row.getCell('C').font = { bold: true };
+    row.getCell('C').alignment = { horizontal: 'right' };
+    
+    // Use the captured grandTotalRowIndex instead of relative currentRow
+    const sumString = cols.map(c => `${c}${grandTotalRowIndex}`).join(' + ');
+    row.getCell('E').value = { formula: sumString };
+    row.getCell('E').numFmt = currencyFmt;
+    row.getCell('E').font = { bold: true };
+    currentRow++;
+  };
+
+  addSummaryRow('TOTAL EFECTIVO (TODOS)', ['F','I','L','O']);
+  addSummaryRow('TOTAL TRANSFERENCIA (TODOS)', ['G','J','M','P']);
+  addSummaryRow('TOTAL TARJETA (TODOS)', ['H','K','N','Q']);
+
+  // Export
+  try {
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(blob, `REPORTE_DONDE_FLORY_${new Date().toISOString().split('T')[0]}.xlsx`);
+  } catch (error) {
+    console.error('Error al generar el Excel:', error);
+    alert('Hubo un error al generar el archivo de Excel. Por favor, revisa la consola.');
+  }
 }
+
+// --- INITIALIZATION ---
+
 
 // Start the APP
 window.addEventListener('DOMContentLoaded', init);

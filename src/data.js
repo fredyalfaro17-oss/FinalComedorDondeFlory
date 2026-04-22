@@ -20,7 +20,7 @@ export const menuData = {
       color: "#c2410c", // orange-700
       items: [
         { name: "Caldo de Pata con Verduras", price: 30 },
-        { name: "Filete de Pechuga a la Plancha", price: 25 },
+        { name: "Filete de Pechuga a la Plancha", price: 30 },
         { name: "Ensalada Latina con Filete", price: 30 },
         { name: "Pollo Guisado", price: 25 },
         { name: "Tortitas de Carne", price: 30 },

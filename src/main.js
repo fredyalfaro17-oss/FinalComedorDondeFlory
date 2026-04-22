@@ -699,7 +699,7 @@ async function exportToExcel(sales, totalDia) {
   // --- Styling ---
   const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF333333' } };
   const headerFont = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
-  const borderThin = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+  const borderThin = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
   const currencyFmt = 'Q#,##0.00';
 
   // --- Row 1: Title ---
@@ -713,19 +713,37 @@ async function exportToExcel(sales, totalDia) {
 
   // --- Row 2: Vendor Headers ---
   const vendorRow = worksheet.getRow(2);
-  vendorRow.height = 20;
+  vendorRow.height = 25;
   worksheet.mergeCells('F2:H2');
   worksheet.mergeCells('I2:K2');
   worksheet.mergeCells('L2:N2');
   worksheet.mergeCells('O2:Q2');
 
-  const vCols = { 'F': 'VENDEDOR 01', 'I': 'VENDEDOR 02', 'L': 'VENDEDOR 03', 'O': 'VENDEDOR 04', 'R': 'OTROS' };
-  Object.keys(vCols).forEach(col => {
-    const cell = vendorRow.getCell(col);
-    cell.value = vCols[col];
-    cell.fill = headerFill;
-    cell.font = headerFont;
-    cell.alignment = { horizontal: 'center' };
+  const vendorConfigs = [
+    { range: 'F2:H2', name: 'FREDY', color: 'FF1E40AF' },      // Blue-800
+    { range: 'I2:K2', name: 'JAIME', color: 'FF065F46' },      // Emerald-800
+    { range: 'L2:N2', name: 'VIEJO', color: 'FF92400E' },      // Amber-800
+    { range: 'O2:Q2', name: 'ANDRES Jr.', color: 'FF5B21B6' }, // Violet-800
+    { range: 'R2:R2', name: 'OTROS', color: 'FF374151' }       // Slate-700
+  ];
+
+  vendorConfigs.forEach(config => {
+    const cell = worksheet.getCell(config.range.split(':')[0]);
+    cell.value = config.name;
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: config.color } };
+    cell.font = { ...headerFont, size: 11 };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    
+    // Apply background to the entire merged range and subheaders
+    const startCol = worksheet.getColumn(config.range.split(':')[0].charAt(0)).number;
+    const endCol = worksheet.getColumn(config.range.split(':').pop().charAt(0)).number;
+    
+    for (let c = startCol; c <= endCol; c++) {
+      // Row 3 subheaders styling for this vendor
+      const subCell = worksheet.getRow(3).getCell(c);
+      subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: config.color.replace('FF', '1A') } }; // Transparent version
+      subCell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF333333' } };
+    }
   });
 
   // --- Row 3: Subheaders ---
@@ -739,19 +757,23 @@ async function exportToExcel(sales, totalDia) {
   ];
   const subHeaderRow = worksheet.getRow(3);
   subHeaderRow.values = subHeaders;
-  subHeaderRow.eachCell(cell => {
-    cell.fill = headerFill;
-    cell.font = headerFont;
-    cell.alignment = { horizontal: 'center' };
+  subHeaderRow.height = 18;
+  subHeaderRow.eachCell((cell, colNumber) => {
+    // If not colored by vendor logic above, apply default
+    if (!cell.fill || cell.fill.fgColor?.argb === 'FF333333') {
+      cell.fill = headerFill;
+      cell.font = headerFont;
+    }
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
     cell.border = borderThin;
   });
 
   // Column Widths
   worksheet.columns = [
-    { key: 'id', width: 6 }, 
+    { key: 'id', width: 6 },
     { key: 'name', width: 35 }, // Nombre del cliente mas ancho
     { key: 'phone', width: 25 }, // Columna C para etiquetas de resumen
-    { key: 'time', width: 10 }, 
+    { key: 'time', width: 10 },
     { key: 'total', width: 15 },
     ...Array(13).fill({ width: 16 }) // Columnas de vendedores mas anchas para "TRANSFERENCIA"
   ];
@@ -782,16 +804,17 @@ async function exportToExcel(sales, totalDia) {
 
   // 1. Morning Sales
   const morningRange = addSalesRows(morningSales);
-  
+  currentRow += 2; // Leave 2 blank lines after the last morning item
+
   // 2. Total Morning Row
   const rowMornTotal = worksheet.getRow(currentRow);
   const morningTotalRowIndex = currentRow; // Capture Morning Total index
   rowMornTotal.getCell('D').value = 'Total de la mañana';
   rowMornTotal.getCell('D').font = { bold: true };
   rowMornTotal.getCell('D').alignment = { horizontal: 'right' };
-  
+
   // Formulas for Morning
-  ['E','F','G','H','I','J','K','L','M','N','O','P','Q','R'].forEach(col => {
+  ['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'].forEach(col => {
     if (morningSales.length > 0) {
       rowMornTotal.getCell(col).value = { formula: `SUM(${col}${morningRange.start}:${col}${morningRange.end})` };
     } else {
@@ -800,10 +823,11 @@ async function exportToExcel(sales, totalDia) {
     rowMornTotal.getCell(col).numFmt = currencyFmt;
     rowMornTotal.getCell(col).font = { bold: true };
   });
-  currentRow += 2; // Spacing
+  currentRow += 2; // Spacing after morning total
 
   // 3. Afternoon Sales
   const afternoonRange = addSalesRows(afternoonSales);
+  currentRow += 2; // Leave 2 blank lines after the last afternoon item
 
   // 4. Total Afternoon Row
   const rowAftTotal = worksheet.getRow(currentRow);
@@ -812,7 +836,7 @@ async function exportToExcel(sales, totalDia) {
   rowAftTotal.getCell('D').font = { bold: true };
   rowAftTotal.getCell('D').alignment = { horizontal: 'right' };
 
-  ['E','F','G','H','I','J','K','L','M','N','O','P','Q','R'].forEach(col => {
+  ['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'].forEach(col => {
     if (afternoonSales.length > 0) {
       rowAftTotal.getCell(col).value = { formula: `SUM(${col}${afternoonRange.start}:${col}${afternoonRange.end})` };
     } else {
@@ -830,7 +854,7 @@ async function exportToExcel(sales, totalDia) {
   rowGrandTotal.getCell('D').font = { bold: true, size: 12 };
   rowGrandTotal.getCell('D').alignment = { horizontal: 'right' };
 
-  ['E','F','G','H','I','J','K','L','M','N','O','P','Q','R'].forEach(col => {
+  ['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'].forEach(col => {
     // Sum explicitly the Morning Total and Afternoon Total rows
     rowGrandTotal.getCell(col).value = { formula: `${col}${morningTotalRowIndex} + ${col}${afternoonTotalRowIndex}` };
     rowGrandTotal.getCell(col).numFmt = currencyFmt;
@@ -844,7 +868,7 @@ async function exportToExcel(sales, totalDia) {
     row.getCell('C').value = label;
     row.getCell('C').font = { bold: true };
     row.getCell('C').alignment = { horizontal: 'right' };
-    
+
     // Use the captured grandTotalRowIndex instead of relative currentRow
     const sumString = cols.map(c => `${c}${grandTotalRowIndex}`).join(' + ');
     row.getCell('E').value = { formula: sumString };
@@ -853,9 +877,10 @@ async function exportToExcel(sales, totalDia) {
     currentRow++;
   };
 
-  addSummaryRow('TOTAL EFECTIVO (TODOS)', ['F','I','L','O']);
-  addSummaryRow('TOTAL TRANSFERENCIA (TODOS)', ['G','J','M','P']);
-  addSummaryRow('TOTAL TARJETA (TODOS)', ['H','K','N','Q']);
+  addSummaryRow('TOTAL EFECTIVO (TODOS)', ['F', 'I', 'L', 'O']);
+  addSummaryRow('TOTAL TRANSFERENCIA (TODOS)', ['G', 'J', 'M', 'P']);
+  addSummaryRow('TOTAL TARJETA (TODOS)', ['H', 'K', 'N', 'Q']);
+  addSummaryRow('TOTAL OTROS', ['R']);
 
   // Export
   try {

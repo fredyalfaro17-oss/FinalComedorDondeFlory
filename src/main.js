@@ -786,14 +786,14 @@ async function exportToExcel(sales, totalDia) {
     ...Array(13).fill({ width: 16 }) // Columnas de vendedores mas anchas para "TRANSFERENCIA"
   ];
 
-  // --- Split Sales into Morning (<12:00) and Afternoon (>=12:00) ---
+  // --- Split Sales into Morning (<11:00) and Afternoon (>=11:00) ---
   const morningSales = sales.filter(s => {
     const hour = parseInt(s.time.split(':')[0]);
-    return hour < 12;
+    return hour < 11;
   });
   const afternoonSales = sales.filter(s => {
     const hour = parseInt(s.time.split(':')[0]);
-    return hour >= 12;
+    return hour >= 11;
   });
 
   let currentRow = 4;

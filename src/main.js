@@ -719,31 +719,39 @@ async function exportToExcel(sales, totalDia) {
   worksheet.mergeCells('L2:N2');
   worksheet.mergeCells('O2:Q2');
 
+
+  // Map vendor ranges to column numbers (A=1, F=6, I=9, L=12, O=15, R=18)
+
   const vendorConfigs = [
-    { range: 'F2:H2', name: 'FREDY', color: 'FF1E40AF' },      // Blue-800
-    { range: 'I2:K2', name: 'JAIME', color: 'FF065F46' },      // Emerald-800
-    { range: 'L2:N2', name: 'VIEJO', color: 'FF92400E' },      // Amber-800
-    { range: 'O2:Q2', name: 'ANDRES Jr.', color: 'FF5B21B6' }, // Violet-800
-    { range: 'R2:R2', name: 'OTROS', color: 'FF374151' }       // Slate-700
+    { startCell: 'F2', name: 'FREDY',      color: 'FF1E40AF', cols: [6, 7, 8]   }, // Blue-800
+    { startCell: 'I2', name: 'JAIME',      color: 'FF065F46', cols: [9, 10, 11] }, // Emerald-800
+    { startCell: 'L2', name: 'VIEJO',      color: 'FF92400E', cols: [12, 13, 14]}, // Amber-800
+    { startCell: 'O2', name: 'ANDRES Jr.', color: 'FF5B21B6', cols: [15, 16, 17]}, // Violet-800
+    { startCell: 'R2', name: 'OTROS',      color: 'FF374151', cols: [18]         }, // Slate-700
   ];
 
-  vendorConfigs.forEach(config => {
-    const cell = worksheet.getCell(config.range.split(':')[0]);
+  const vendorSubColors = [
+    'FF1E3A8A', // Fredy sub   (blue-900)
+    'FF064E3B', // Jaime sub   (emerald-900)
+    'FF78350F', // Viejo sub   (amber-900)
+    'FF4C1D95', // Andres sub  (violet-900)
+    'FF1F2937', // Otros sub   (slate-800)
+  ];
+
+  vendorConfigs.forEach((config, idx) => {
+    // Header row 2
+    const cell = worksheet.getCell(config.startCell);
     cell.value = config.name;
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: config.color } };
     cell.font = { ...headerFont, size: 11 };
     cell.alignment = { horizontal: 'center', vertical: 'middle' };
-    
-    // Apply background to the entire merged range and subheaders
-    const startCol = worksheet.getColumn(config.range.split(':')[0].charAt(0)).number;
-    const endCol = worksheet.getColumn(config.range.split(':').pop().charAt(0)).number;
-    
-    for (let c = startCol; c <= endCol; c++) {
-      // Row 3 subheaders styling for this vendor
-      const subCell = worksheet.getRow(3).getCell(c);
-      subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: config.color.replace('FF', '1A') } }; // Transparent version
-      subCell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF333333' } };
-    }
+
+    // Subheader row 3 — apply tinted background by column number
+    config.cols.forEach(colNum => {
+      const subCell = worksheet.getRow(3).getCell(colNum);
+      subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: vendorSubColors[idx] } };
+      subCell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FFDDDDDD' } };
+    });
   });
 
   // --- Row 3: Subheaders ---
@@ -759,8 +767,8 @@ async function exportToExcel(sales, totalDia) {
   subHeaderRow.values = subHeaders;
   subHeaderRow.height = 18;
   subHeaderRow.eachCell((cell, colNumber) => {
-    // If not colored by vendor logic above, apply default
-    if (!cell.fill || cell.fill.fgColor?.argb === 'FF333333') {
+    // Only override fill for columns A-E (no vendor color assigned)
+    if (colNumber <= 5) {
       cell.fill = headerFill;
       cell.font = headerFont;
     }

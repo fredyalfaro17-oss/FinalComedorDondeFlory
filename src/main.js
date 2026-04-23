@@ -817,9 +817,17 @@ async function exportToExcel(sales, totalDia) {
   // 2. Total Morning Row
   const rowMornTotal = worksheet.getRow(currentRow);
   const morningTotalRowIndex = currentRow; // Capture Morning Total index
+  const totalRowFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+  const totalRowFont = { bold: true, color: { argb: 'FF000000' } };
+
   rowMornTotal.getCell('D').value = 'Total de la mañana';
-  rowMornTotal.getCell('D').font = { bold: true };
+  rowMornTotal.getCell('D').font = { ...totalRowFont };
   rowMornTotal.getCell('D').alignment = { horizontal: 'right' };
+  rowMornTotal.getCell('D').fill = totalRowFill;
+  // Apply gray fill to all used columns in morning total row
+  ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R'].forEach(col => {
+    rowMornTotal.getCell(col).fill = totalRowFill;
+  });
 
   // Formulas for Morning
   ['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'].forEach(col => {
@@ -829,7 +837,8 @@ async function exportToExcel(sales, totalDia) {
       rowMornTotal.getCell(col).value = 0;
     }
     rowMornTotal.getCell(col).numFmt = currencyFmt;
-    rowMornTotal.getCell(col).font = { bold: true };
+    rowMornTotal.getCell(col).font = { ...totalRowFont };
+    rowMornTotal.getCell(col).fill = totalRowFill;
   });
   currentRow += 2; // Spacing after morning total
 
@@ -841,8 +850,13 @@ async function exportToExcel(sales, totalDia) {
   const rowAftTotal = worksheet.getRow(currentRow);
   const afternoonTotalRowIndex = currentRow; // Capture Afternoon Total index
   rowAftTotal.getCell('D').value = 'Total de la Tarde';
-  rowAftTotal.getCell('D').font = { bold: true };
+  rowAftTotal.getCell('D').font = { ...totalRowFont };
   rowAftTotal.getCell('D').alignment = { horizontal: 'right' };
+  rowAftTotal.getCell('D').fill = totalRowFill;
+  // Apply gray fill to all used columns in afternoon total row
+  ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R'].forEach(col => {
+    rowAftTotal.getCell(col).fill = totalRowFill;
+  });
 
   ['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'].forEach(col => {
     if (afternoonSales.length > 0) {
@@ -851,7 +865,8 @@ async function exportToExcel(sales, totalDia) {
       rowAftTotal.getCell(col).value = 0;
     }
     rowAftTotal.getCell(col).numFmt = currencyFmt;
-    rowAftTotal.getCell(col).font = { bold: true };
+    rowAftTotal.getCell(col).font = { ...totalRowFont };
+    rowAftTotal.getCell(col).fill = totalRowFill;
   });
   currentRow += 2;
 
@@ -859,14 +874,20 @@ async function exportToExcel(sales, totalDia) {
   const rowGrandTotal = worksheet.getRow(currentRow);
   const grandTotalRowIndex = currentRow; // Capture Grand Total index
   rowGrandTotal.getCell('D').value = 'TOTAL GENERAL DEL DÍA';
-  rowGrandTotal.getCell('D').font = { bold: true, size: 12 };
+  rowGrandTotal.getCell('D').font = { bold: true, size: 12, color: { argb: 'FF000000' } };
   rowGrandTotal.getCell('D').alignment = { horizontal: 'right' };
+  rowGrandTotal.getCell('D').fill = totalRowFill;
+  // Apply gray fill to all used columns in grand total row
+  ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R'].forEach(col => {
+    rowGrandTotal.getCell(col).fill = totalRowFill;
+  });
 
   ['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'].forEach(col => {
     // Sum explicitly the Morning Total and Afternoon Total rows
     rowGrandTotal.getCell(col).value = { formula: `${col}${morningTotalRowIndex} + ${col}${afternoonTotalRowIndex}` };
     rowGrandTotal.getCell(col).numFmt = currencyFmt;
-    rowGrandTotal.getCell(col).font = { bold: true, size: 11 };
+    rowGrandTotal.getCell(col).font = { bold: true, size: 11, color: { argb: 'FF000000' } };
+    rowGrandTotal.getCell(col).fill = totalRowFill;
   });
   currentRow += 3;
 

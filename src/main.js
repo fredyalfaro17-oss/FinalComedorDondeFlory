@@ -868,18 +868,26 @@ async function exportToExcel(sales) {
     return { start, end: currentRow - 1 };
   };
 
+  const totalRowFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
   const addTotalRow = (label, range) => {
     const row = worksheet.getRow(currentRow);
     row.getCell('D').value = label;
     row.getCell('D').font = { bold: true };
     row.getCell('D').alignment = { horizontal: 'right' };
     if (range.start <= range.end) {
-      row.getCell('E').value = { formula: \`SUM(E\${range.start}:E\${range.end})\` };
+      row.getCell('E').value = { formula: `SUM(E${range.start}:E${range.end})` };
     } else {
       row.getCell('E').value = 0;
     }
     row.getCell('E').numFmt = currencyFmt;
     row.getCell('E').font = { bold: true };
+    
+    // Apply gray fill to cells A-G
+    ['A','B','C','D','E','F','G'].forEach(col => {
+      row.getCell(col).fill = totalRowFill;
+      row.getCell(col).border = borderThin;
+    });
+
     currentRow++;
     return currentRow - 1; // Return the row index of the total
   };
@@ -899,9 +907,16 @@ async function exportToExcel(sales) {
   grandTotalRow.getCell('D').value = 'TOTAL GENERAL DEL DÍA';
   grandTotalRow.getCell('D').font = { bold: true, size: 12 };
   grandTotalRow.getCell('D').alignment = { horizontal: 'right' };
-  grandTotalRow.getCell('E').value = { formula: \`E\${morningTotalIndex} + E\${afternoonTotalIndex}\` };
+  grandTotalRow.getCell('E').value = { formula: `E${morningTotalIndex} + E${afternoonTotalIndex}` };
   grandTotalRow.getCell('E').numFmt = currencyFmt;
   grandTotalRow.getCell('E').font = { bold: true, size: 12 };
+  
+  // Apply gray fill
+  ['A','B','C','D','E','F','G'].forEach(col => {
+    grandTotalRow.getCell(col).fill = totalRowFill;
+    grandTotalRow.getCell(col).border = borderThin;
+  });
+  
   currentRow += 3;
 
   // Summaries by Vendor
@@ -931,7 +946,7 @@ async function exportToExcel(sales) {
     const dataRow = worksheet.getRow(currentRow);
     // Find all rows where vendor == v, and pago == EFECTIVO etc.
     const maxRow = (afternoonRange.end || morningRange.end || 3);
-    const formulaBase = \`SUMIFS(E3:E\${maxRow}, G3:G\${maxRow}, "\${v}", F3:F\${maxRow}, \`;
+    const formulaBase = `SUMIFS(E3:E${maxRow}, G3:G${maxRow}, "${v}", F3:F${maxRow}, `;
     
     dataRow.getCell('E').value = { formula: formulaBase + '"EFECTIVO")' };
     dataRow.getCell('F').value = { formula: formulaBase + '"TRANSFERENCIA")' };
@@ -951,7 +966,7 @@ async function exportToExcel(sales) {
   try {
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(blob, \`REPORTE_DONDE_FLORY_\${new Date().toISOString().split('T')[0]}.xlsx\`);
+    saveAs(blob, `REPORTE_DONDE_FLORY_${new Date().toISOString().split('T')[0]}.xlsx`);
   } catch (error) {
     console.error('Error al generar el Excel:', error);
     alert('Hubo un error al generar el archivo de Excel. Por favor, revisa la consola.');

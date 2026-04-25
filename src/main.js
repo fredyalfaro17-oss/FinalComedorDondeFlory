@@ -599,23 +599,9 @@ function saveSale(total) {
   localStorage.setItem('daily_sales', JSON.stringify(sales));
 }
 
-// --- Report Modal State ---
-let reportState = {
-  vendedor: '',
-  pago: ''
-};
-
 function renderReportContent(sales) {
-  let filteredSales = sales;
-  if (reportState.vendedor) {
-    filteredSales = filteredSales.filter(s => s.vendedor === reportState.vendedor);
-  }
-  if (reportState.pago) {
-    filteredSales = filteredSales.filter(s => s.pago === reportState.pago);
-  }
-
   let totalDia = 0;
-  const tableRows = filteredSales.map(sale => {
+  const tableRows = sales.map(sale => {
     totalDia += sale.total;
     return `
       <tr class="border-b border-slate-700 hover:bg-slate-800/50 transition-colors">
@@ -630,11 +616,10 @@ function renderReportContent(sales) {
     `;
   }).join('');
 
-  return { tableRows, totalDia, totalsHtml: '', isEmpty: filteredSales.length === 0 };
+  return { tableRows, totalDia, totalsHtml: '', isEmpty: sales.length === 0 };
 }
 
 function openReportModal() {
-  reportState = { vendedor: '', pago: '' };
   window.renderReportModal();
 }
 
@@ -657,30 +642,6 @@ window.renderReportModal = function() {
         </button>
       </div>
 
-      <!-- Filters -->
-      <div class="p-4 bg-slate-800/80 border-b border-slate-700 flex flex-wrap gap-6 items-center justify-between">
-        <div class="flex items-center gap-3">
-          <label class="text-sm font-bold text-slate-400 uppercase tracking-wider">Vendedor:</label>
-          <div class="flex bg-slate-900 rounded-lg overflow-hidden border border-slate-700 p-1 gap-1">
-            <button class="filter-vendedor-btn px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.vendedor === '' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-vendedor="">TODOS</button>
-            <button class="filter-vendedor-btn px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.vendedor === 'FREDY' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-vendedor="FREDY">FREDY</button>
-            <button class="filter-vendedor-btn px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.vendedor === 'JAIME' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-vendedor="JAIME">JAIME</button>
-            <button class="filter-vendedor-btn px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.vendedor === 'VIEJO' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-vendedor="VIEJO">VIEJO</button>
-            <button class="filter-vendedor-btn px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.vendedor === 'ANDRES Jr.' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-vendedor="ANDRES Jr.">ANDRES Jr.</button>
-            <button class="filter-vendedor-btn px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.vendedor === 'OTROS' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-vendedor="OTROS">OTROS</button>
-          </div>
-        </div>
-        <div class="flex items-center gap-3">
-           <label class="text-sm font-bold text-slate-400 uppercase tracking-wider">Forma de Pago:</label>
-           <div class="flex bg-slate-900 rounded-lg overflow-hidden border border-slate-700 p-1 gap-1">
-             <button class="filter-pago-btn px-4 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.pago === '' ? 'bg-amber-500 text-slate-900 shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-pago="">TODOS</button>
-             <button class="filter-pago-btn px-4 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.pago === 'EFECTIVO' ? 'bg-amber-500 text-slate-900 shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-pago="EFECTIVO">EFECTIVO</button>
-             <button class="filter-pago-btn px-4 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.pago === 'TRANSFERENCIA' ? 'bg-amber-500 text-slate-900 shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-pago="TRANSFERENCIA">TRANSFERENCIA</button>
-             <button class="filter-pago-btn px-4 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.pago === 'TARJETA' ? 'bg-amber-500 text-slate-900 shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-pago="TARJETA">TARJETA</button>
-           </div>
-        </div>
-      </div>
-
       <div class="flex-1 overflow-auto p-6 bg-slate-950">
         <div class="rounded-xl border border-slate-800 overflow-hidden">
           <table class="w-full text-sm text-left text-slate-300">
@@ -701,7 +662,7 @@ window.renderReportModal = function() {
                   <td colspan="7" class="px-4 py-12 text-center text-slate-500">
                     <div class="flex flex-col items-center justify-center">
                       <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mb-3 opacity-50"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg>
-                      No hay ventas que coincidan con los filtros
+                      No hay ventas
                     </div>
                   </td>
                 </tr>
@@ -732,20 +693,6 @@ window.renderReportModal = function() {
   modalOverlay.classList.remove('hidden');
 
   document.getElementById('close-report-btn').onclick = () => modalOverlay.classList.add('hidden');
-  
-  document.querySelectorAll('.filter-vendedor-btn').forEach(btn => {
-    btn.onclick = (e) => {
-      reportState.vendedor = e.target.dataset.vendedor;
-      window.renderReportModal();
-    };
-  });
-  
-  document.querySelectorAll('.filter-pago-btn').forEach(btn => {
-    btn.onclick = (e) => {
-      reportState.pago = e.target.dataset.pago;
-      window.renderReportModal();
-    };
-  });
 
   document.getElementById('clear-sales-btn').onclick = () => {
     if (confirm('¿Estás seguro de que deseas borrar TODAS las ventas de hoy? Esta acción no se puede deshacer.')) {

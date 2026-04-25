@@ -851,6 +851,25 @@ async function exportToExcel(sales) {
     { key: 'vendedor', width: 18 }
   ];
 
+  // Set AutoFilter for the header row
+  worksheet.autoFilter = 'A2:G2';
+
+  // Add dropdowns (data validation) for Pago and Vendedor up to row 1000
+  for (let i = 3; i <= 1000; i++) {
+    worksheet.getCell(`F${i}`).dataValidation = {
+      type: 'list',
+      allowBlank: true,
+      showErrorMessage: false,
+      formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA"']
+    };
+    worksheet.getCell(`G${i}`).dataValidation = {
+      type: 'list',
+      allowBlank: true,
+      showErrorMessage: false,
+      formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,OTROS"']
+    };
+  }
+
   const morningSales = sales.filter(s => parseInt(s.time.split(':')[0]) < 11);
   const afternoonSales = sales.filter(s => parseInt(s.time.split(':')[0]) >= 11);
 

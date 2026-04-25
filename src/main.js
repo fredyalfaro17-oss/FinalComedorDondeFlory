@@ -934,18 +934,14 @@ async function exportToExcel(sales) {
     cell.border = borderThin;
   });
 
-  // Standard Array-Safe Formulas for Filtering
-  // Uses INDEX and AGGREGATE functions to get rows from 'Reporte de Ventas'
-  // because exceljs has issues saving modern Dynamic Arrays (FILTER) causing file repair errors.
+  // Standard INDEX/MATCH Formulas for Filtering
+  // Uses a helper column (H) in 'Reporte de Ventas' to avoid array formula issues in Excel
   for (let r = 9; r <= 108; r++) {
     const rowIdx = r - 8; // 1, 2, 3...
     
-    // Denominator for AGGREGATE logic:
-    // ( (($B$5="") + ('Reporte de Ventas'!$G$3:$G$1000=$B$5) > 0) * (($D$5="") + ('Reporte de Ventas'!$F$3:$F$1000=$D$5) > 0) )
-    const baseCondition = `((($B$5="") + ('Reporte de Ventas'!$G$3:$G$1000=$B$5) > 0) * (($D$5="") + ('Reporte de Ventas'!$F$3:$F$1000=$D$5) > 0))`;
-    
     const getFormula = (colLetter, isString) => {
-        const indexExpr = `INDEX('Reporte de Ventas'!${colLetter}:${colLetter}, AGGREGATE(15, 6, ROW('Reporte de Ventas'!$A$3:$A$1000) / ${baseCondition}, ${rowIdx}))`;
+        // Find the row where the helper column H matches our rowIdx
+        const indexExpr = `INDEX('Reporte de Ventas'!${colLetter}:${colLetter}, MATCH(${rowIdx}, 'Reporte de Ventas'!$H:$H, 0))`;
         if (isString) {
             return `IFERROR(${indexExpr} & "", "")`;
         } else {

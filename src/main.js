@@ -880,6 +880,66 @@ async function exportToExcel(sales) {
     currentRow += 2;
   });
 
+  // --- SECOND SHEET: BUSCADOR INTELIGENTE ---
+  const searchSheet = workbook.addWorksheet('Buscador Inteligente');
+  searchSheet.views = [{ showGridLines: false }];
+  
+  // Set column widths
+  searchSheet.columns = [
+    { width: 6 },  // A
+    { width: 35 }, // B (Client Name / Search Vendor)
+    { width: 25 }, // C (Phone)
+    { width: 15 }, // D (Time / Search Payment)
+    { width: 15 }, // E (Total)
+    { width: 18 }, // F (Payment)
+    { width: 18 }  // G (Vendor)
+  ];
+
+  // Title
+  searchSheet.mergeCells('B2:F2');
+  const sTitle = searchSheet.getCell('B2');
+  sTitle.value = '🔍 BUSCADOR INTELIGENTE DE VENTAS';
+  sTitle.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FF1E293B' } };
+  sTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+
+  // Search Fields
+  searchSheet.getCell('B4').value = 'Selecciona VENDEDOR:';
+  searchSheet.getCell('B4').font = { bold: true };
+  searchSheet.getCell('B5').dataValidation = {
+    type: 'list', allowBlank: true, showErrorMessage: false, formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,OTROS"']
+  };
+  searchSheet.getCell('B5').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } }; // Yellow input box
+  searchSheet.getCell('B5').border = borderThin;
+  searchSheet.getCell('B5').alignment = { horizontal: 'center' };
+  searchSheet.getCell('B5').font = { bold: true, size: 12 };
+
+  searchSheet.getCell('D4').value = 'Selecciona PAGO:';
+  searchSheet.getCell('D4').font = { bold: true };
+  searchSheet.getCell('D5').dataValidation = {
+    type: 'list', allowBlank: true, showErrorMessage: false, formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA"']
+  };
+  searchSheet.getCell('D5').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } }; // Yellow input box
+  searchSheet.getCell('D5').border = borderThin;
+  searchSheet.getCell('D5').alignment = { horizontal: 'center' };
+  searchSheet.getCell('D5').font = { bold: true, size: 12 };
+
+  // Results Header
+  const sHeaderRow = searchSheet.getRow(8);
+  sHeaderRow.values = ["No.", "NOMBRE DEL CLIENTE", "TELEFONO", "HORA", "TOTAL", "FORMA DE PAGO", "VENDEDOR"];
+  sHeaderRow.height = 20;
+  sHeaderRow.eachCell(cell => {
+    cell.fill = headerFill;
+    cell.font = headerFont;
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    cell.border = borderThin;
+  });
+
+  // Dynamic Array Formula for Filtering
+  // Uses FILTER function to get rows from 'Reporte de Ventas'
+  const filterFormula = `FILTER('Reporte de Ventas'!A3:G1000, IF(B5="", 1, 'Reporte de Ventas'!G3:G1000=B5) * IF(D5="", 1, 'Reporte de Ventas'!F3:F1000=D5), "No hay resultados para esta búsqueda.")`;
+  
+  searchSheet.getCell('A9').value = { formula: filterFormula };
+
   // Export
   try {
     const buffer = await workbook.xlsx.writeBuffer();

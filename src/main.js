@@ -934,11 +934,47 @@ async function exportToExcel(sales) {
     cell.border = borderThin;
   });
 
-  // Dynamic Array Formula for Filtering
-  // Uses FILTER function to get rows from 'Reporte de Ventas'
-  const filterFormula = `FILTER('Reporte de Ventas'!A3:G1000, IF(B5="", 1, 'Reporte de Ventas'!G3:G1000=B5) * IF(D5="", 1, 'Reporte de Ventas'!F3:F1000=D5), "No hay resultados para esta búsqueda.")`;
-  
-  searchSheet.getCell('A9').value = { formula: filterFormula };
+  // Standard Array-Safe Formulas for Filtering
+  // Uses INDEX and AGGREGATE functions to get rows from 'Reporte de Ventas'
+  // because exceljs has issues saving modern Dynamic Arrays (FILTER) causing file repair errors.
+  for (let r = 9; r <= 108; r++) {
+    const rowIdx = r - 8; // 1, 2, 3...
+    
+    // Denominator for AGGREGATE logic:
+    // ( (($B$5="") + ('Reporte de Ventas'!$G$3:$G$1000=$B$5) > 0) * (($D$5="") + ('Reporte de Ventas'!$F$3:$F$1000=$D$5) > 0) )
+    const baseCondition = `((($B$5="") + ('Reporte de Ventas'!$G$3:$G$1000=$B$5) > 0) * (($D$5="") + ('Reporte de Ventas'!$F$3:$F$1000=$D$5) > 0))`;
+    
+    const getFormula = (colLetter, isString) => {
+        const indexExpr = `INDEX('Reporte de Ventas'!${colLetter}:${colLetter}, AGGREGATE(15, 6, ROW('Reporte de Ventas'!$A$3:$A$1000) / ${baseCondition}, ${rowIdx}))`;
+        if (isString) {
+            return `IFERROR(${indexExpr} & "", "")`;
+        } else {
+            return `IFERROR(IF(${indexExpr}=0,"",${indexExpr}), "")`;
+        }
+    };
+
+    // Fill formula for each column
+    searchSheet.getCell(`A${r}`).value = { formula: getFormula('A', false) };
+    searchSheet.getCell(`B${r}`).value = { formula: getFormula('B', true) };
+    searchSheet.getCell(`C${r}`).value = { formula: getFormula('C', true) };
+    searchSheet.getCell(`D${r}`).value = { formula: getFormula('D', true) };
+    searchSheet.getCell(`E${r}`).value = { formula: getFormula('E', false) };
+    searchSheet.getCell(`F${r}`).value = { formula: getFormula('F', true) };
+    searchSheet.getCell(`G${r}`).value = { formula: getFormula('G', true) };
+
+    // Format total column
+    searchSheet.getCell(`E${r}`).numFmt = '"Q"#,##0.00';
+
+    // Borders and alignment
+    ['A', 'B', 'C', 'D', 'E', 'F', 'G'].forEach(col => {
+      searchSheet.getCell(`${col}${r}`).border = borderThin;
+      if (col !== 'B' && col !== 'C') { // Center everything except Name and Phone
+        searchSheet.getCell(`${col}${r}`).alignment = { horizontal: 'center', vertical: 'middle' };
+      } else {
+        searchSheet.getCell(`${col}${r}`).alignment = { vertical: 'middle' };
+      }
+    });
+  }
 
   // Export
   try {

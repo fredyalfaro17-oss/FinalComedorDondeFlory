@@ -16,7 +16,9 @@ let cart = [];
 let customerInfo = {
   name: '',
   phone: '',
-  deliveryTime: ''
+  deliveryTime: '',
+  vendedor: '',
+  pago: ''
 };
 
 // --- DOM Elements ---
@@ -491,11 +493,15 @@ function resetCustomerInfo() {
   customerInfo = {
     name: '',
     phone: '',
-    deliveryTime: ''
+    deliveryTime: '',
+    vendedor: '',
+    pago: ''
   };
   document.getElementById('customer-name').value = '';
   document.getElementById('customer-phone').value = '';
   document.getElementById('customer-time').value = '';
+  document.getElementById('customer-vendedor').value = '';
+  document.getElementById('customer-pago').value = '';
 }
 
 // --- Utilities ---
@@ -529,6 +535,8 @@ function setupEventListeners() {
   };
 
   document.getElementById('customer-time').oninput = (e) => customerInfo.deliveryTime = e.target.value;
+  document.getElementById('customer-vendedor').onchange = (e) => customerInfo.vendedor = e.target.value;
+  document.getElementById('customer-pago').onchange = (e) => customerInfo.pago = e.target.value;
 
   // Manual Add
   const addManual = () => {
@@ -581,6 +589,8 @@ function saveSale(total) {
     time: saleTime,
     customerName: customerInfo.name || 'Cliente Mostrador',
     phone: customerInfo.phone || '-',
+    vendedor: customerInfo.vendedor || '-',
+    pago: customerInfo.pago || '-',
     total: total,
     items: cart.map(i => `${i.quantity}x ${i.name}`).join(', ')
   };
@@ -589,27 +599,87 @@ function saveSale(total) {
   localStorage.setItem('daily_sales', JSON.stringify(sales));
 }
 
-function openReportModal() {
-  const sales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
+// --- Report Modal State ---
+let reportState = {
+  vendedor: '',
+  pago: ''
+};
+
+function renderReportContent(sales) {
+  let filteredSales = sales;
+  if (reportState.vendedor) {
+    filteredSales = filteredSales.filter(s => s.vendedor === reportState.vendedor);
+  }
+  if (reportState.pago) {
+    filteredSales = filteredSales.filter(s => s.pago === reportState.pago);
+  }
 
   let totalDia = 0;
-
-  const tableRows = sales.map(sale => {
+  const tableRows = filteredSales.map(sale => {
     totalDia += sale.total;
-
     return `
       <tr class="border-b border-slate-700 hover:bg-slate-800/50 transition-colors">
         <td class="px-4 py-3 text-center">${sale.id}</td>
         <td class="px-4 py-3">${sale.customerName}</td>
         <td class="px-4 py-3 text-center">${sale.phone}</td>
         <td class="px-4 py-3 text-center">${sale.time}</td>
+        <td class="px-4 py-3 text-center font-semibold text-emerald-400">${sale.pago}</td>
+        <td class="px-4 py-3 text-center font-semibold text-blue-400">${sale.vendedor}</td>
         <td class="px-4 py-3 text-right font-bold text-amber-400">Q${sale.total.toFixed(2)}</td>
       </tr>
     `;
   }).join('');
 
+  const vendors = ['FREDY', 'JAIME', 'VIEJO', 'ANDRES Jr.'];
+  
+  let totalsHtml = '';
+  
+  vendors.forEach(v => {
+    const vSales = sales.filter(s => s.vendedor === v);
+    if (vSales.length === 0) return;
+    
+    const totEfe = vSales.filter(s => s.pago === 'EFECTIVO').reduce((sum, s) => sum + s.total, 0);
+    const totTra = vSales.filter(s => s.pago === 'TRANSFERENCIA').reduce((sum, s) => sum + s.total, 0);
+    const totTar = vSales.filter(s => s.pago === 'TARJETA').reduce((sum, s) => sum + s.total, 0);
+    
+    totalsHtml += `
+      <div class="mt-4 border border-slate-700 rounded-lg overflow-hidden max-w-3xl mx-auto">
+        <table class="w-full text-sm text-center text-slate-300">
+          <thead class="bg-slate-800 text-xs text-slate-400 uppercase">
+            <tr>
+              <th class="px-4 py-2 w-1/4">${v}</th>
+              <th class="px-4 py-2 w-1/4 bg-slate-700/50">EFECTIVO</th>
+              <th class="px-4 py-2 w-1/4 bg-slate-700/50">TRANSFERENCIA</th>
+              <th class="px-4 py-2 w-1/4 bg-slate-700/50">TARJETA</th>
+            </tr>
+          </thead>
+          <tbody class="bg-slate-900">
+            <tr>
+              <td class="px-4 py-3 border-r border-slate-700 font-bold text-white">TOTALES</td>
+              <td class="px-4 py-3 border-r border-slate-700 text-amber-400 font-bold text-lg">Q${totEfe.toFixed(2)}</td>
+              <td class="px-4 py-3 border-r border-slate-700 text-amber-400 font-bold text-lg">Q${totTra.toFixed(2)}</td>
+              <td class="px-4 py-3 text-amber-400 font-bold text-lg">Q${totTar.toFixed(2)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  });
+
+  return { tableRows, totalDia, totalsHtml, isEmpty: filteredSales.length === 0 };
+}
+
+function openReportModal() {
+  reportState = { vendedor: '', pago: '' };
+  window.renderReportModal();
+}
+
+window.renderReportModal = function() {
+  const sales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
+  const { tableRows, totalDia, totalsHtml, isEmpty } = renderReportContent(sales);
+
   modalOverlay.innerHTML = `
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl animate-scale-in">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl animate-scale-in">
       <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-800/50 rounded-t-2xl">
         <div>
           <h2 class="text-2xl font-bold font-playfair text-white flex items-center gap-3">
@@ -623,6 +693,32 @@ function openReportModal() {
         </button>
       </div>
 
+      <!-- Filters -->
+      <div class="p-4 bg-slate-800/80 border-b border-slate-700 flex flex-wrap gap-6 items-center justify-between">
+        <div class="flex items-center gap-3">
+          <label class="text-sm font-bold text-slate-400 uppercase tracking-wider">Vendedor:</label>
+          <div class="flex bg-slate-900 rounded-lg border border-slate-700 p-1">
+            <select id="filter-vendedor" class="bg-transparent text-white font-bold outline-none cursor-pointer pl-2 pr-4">
+              <option value="">TODOS</option>
+              <option value="FREDY" ${reportState.vendedor === 'FREDY' ? 'selected' : ''}>FREDY</option>
+              <option value="JAIME" ${reportState.vendedor === 'JAIME' ? 'selected' : ''}>JAIME</option>
+              <option value="VIEJO" ${reportState.vendedor === 'VIEJO' ? 'selected' : ''}>VIEJO</option>
+              <option value="ANDRES Jr." ${reportState.vendedor === 'ANDRES Jr.' ? 'selected' : ''}>ANDRES Jr.</option>
+              <option value="OTROS" ${reportState.vendedor === 'OTROS' ? 'selected' : ''}>OTROS</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+           <label class="text-sm font-bold text-slate-400 uppercase tracking-wider">Forma de Pago:</label>
+           <div class="flex bg-slate-900 rounded-lg overflow-hidden border border-slate-700 p-1 gap-1">
+             <button class="filter-pago-btn px-4 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.pago === '' ? 'bg-amber-500 text-slate-900 shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-pago="">TODOS</button>
+             <button class="filter-pago-btn px-4 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.pago === 'EFECTIVO' ? 'bg-amber-500 text-slate-900 shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-pago="EFECTIVO">EFECTIVO</button>
+             <button class="filter-pago-btn px-4 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.pago === 'TRANSFERENCIA' ? 'bg-amber-500 text-slate-900 shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-pago="TRANSFERENCIA">TRANSFERENCIA</button>
+             <button class="filter-pago-btn px-4 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.pago === 'TARJETA' ? 'bg-amber-500 text-slate-900 shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-pago="TARJETA">TARJETA</button>
+           </div>
+        </div>
+      </div>
+
       <div class="flex-1 overflow-auto p-6 bg-slate-950">
         <div class="rounded-xl border border-slate-800 overflow-hidden">
           <table class="w-full text-sm text-left text-slate-300">
@@ -632,16 +728,18 @@ function openReportModal() {
                 <th scope="col" class="px-4 py-4">NOMBRE DEL CLIENTE</th>
                 <th scope="col" class="px-4 py-4 text-center">TELÉFONO</th>
                 <th scope="col" class="px-4 py-4 text-center">HORA</th>
+                <th scope="col" class="px-4 py-4 text-center">PAGO</th>
+                <th scope="col" class="px-4 py-4 text-center">VENDEDOR</th>
                 <th scope="col" class="px-4 py-4 text-right">TOTAL</th>
               </tr>
             </thead>
             <tbody>
-              ${sales.length > 0 ? tableRows : `
+              ${!isEmpty ? tableRows : `
                 <tr>
-                  <td colspan="5" class="px-4 py-12 text-center text-slate-500">
+                  <td colspan="7" class="px-4 py-12 text-center text-slate-500">
                     <div class="flex flex-col items-center justify-center">
                       <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mb-3 opacity-50"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg>
-                      Aún no hay ventas registradas hoy
+                      No hay ventas que coincidan con los filtros
                     </div>
                   </td>
                 </tr>
@@ -649,16 +747,26 @@ function openReportModal() {
             </tbody>
             <tfoot class="bg-slate-900 border-t border-slate-800 font-bold text-white">
               <tr>
-                <td colspan="4" class="px-4 py-4 text-right text-slate-400">Total del Día...</td>
+                <td colspan="6" class="px-4 py-4 text-right text-slate-400">Total Mostrado...</td>
                 <td class="px-4 py-4 text-right text-amber-500 text-lg">Q${totalDia.toFixed(2)}</td>
               </tr>
             </tfoot>
           </table>
         </div>
+
+        <!-- Totals by Vendor -->
+        ${totalsHtml ? `
+        <div class="mt-8 space-y-4">
+          <h3 class="text-xl font-bold text-white text-center font-playfair mb-4 flex items-center justify-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-500"><path d="M12 20v-6M6 20V10M18 20V4"/></svg>
+            RESUMEN POR VENDEDOR
+          </h3>
+          ${totalsHtml}
+        </div>
+        ` : ''}
       </div>
 
-
-      <div class="p-6 border-t border-slate-800 bg-slate-900 rounded-b-2xl flex justify-between items-center">
+      <div class="p-6 border-t border-slate-800 bg-slate-900 rounded-b-2xl flex justify-between items-center shrink-0">
         <button id="clear-sales-btn" class="text-sm font-bold text-red-500 hover:text-red-400 hover:bg-red-500/10 px-4 py-2 rounded-lg transition-colors border border-transparent hover:border-red-500/20">
           Borrar Historial
         </button>
@@ -673,37 +781,47 @@ function openReportModal() {
   modalOverlay.classList.remove('hidden');
 
   document.getElementById('close-report-btn').onclick = () => modalOverlay.classList.add('hidden');
+  
+  document.getElementById('filter-vendedor').onchange = (e) => {
+    reportState.vendedor = e.target.value;
+    window.renderReportModal();
+  };
+  
+  document.querySelectorAll('.filter-pago-btn').forEach(btn => {
+    btn.onclick = (e) => {
+      reportState.pago = e.target.dataset.pago;
+      window.renderReportModal();
+    };
+  });
 
   document.getElementById('clear-sales-btn').onclick = () => {
     if (confirm('¿Estás seguro de que deseas borrar TODAS las ventas de hoy? Esta acción no se puede deshacer.')) {
       localStorage.removeItem('daily_sales');
-      openReportModal();
+      window.renderReportModal();
     }
   };
 
   const exportBtn = document.getElementById('export-excel-btn');
   if (exportBtn) {
     exportBtn.onclick = async () => {
-      await exportToExcel(sales, totalDia);
+      await exportToExcel(sales); // Export all sales, the excel has summaries
     };
   }
 }
 
-async function exportToExcel(sales, totalDia) {
+async function exportToExcel(sales) {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Reporte de Ventas');
 
-  // Freeze panes: Rows 1-3 and Columns A-E
-  worksheet.views = [{ state: 'frozen', xSplit: 5, ySplit: 3 }];
+  worksheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 2 }];
 
-  // --- Styling ---
   const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF333333' } };
   const headerFont = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
   const borderThin = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
   const currencyFmt = 'Q#,##0.00';
 
-  // --- Row 1: Title ---
-  worksheet.mergeCells('A1:R1');
+  // Row 1: Title
+  worksheet.mergeCells('A1:G1');
   const titleCell = worksheet.getCell('A1');
   titleCell.value = 'INFORME DE VENTAS DEL DÍA';
   titleCell.fill = headerFill;
@@ -711,67 +829,14 @@ async function exportToExcel(sales, totalDia) {
   titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
   worksheet.getRow(1).height = 30;
 
-  // --- Row 2: Vendor Headers ---
-  const vendorRow = worksheet.getRow(2);
-  vendorRow.height = 25;
-  worksheet.mergeCells('F2:H2');
-  worksheet.mergeCells('I2:K2');
-  worksheet.mergeCells('L2:N2');
-  worksheet.mergeCells('O2:Q2');
-
-
-  // Map vendor ranges to column numbers (A=1, F=6, I=9, L=12, O=15, R=18)
-
-  const vendorConfigs = [
-    { startCell: 'F2', name: 'FREDY',      color: 'FF1E40AF', cols: [6, 7, 8]   }, // Blue-800
-    { startCell: 'I2', name: 'JAIME',      color: 'FF065F46', cols: [9, 10, 11] }, // Emerald-800
-    { startCell: 'L2', name: 'VIEJO',      color: 'FF92400E', cols: [12, 13, 14]}, // Amber-800
-    { startCell: 'O2', name: 'ANDRES Jr.', color: 'FF5B21B6', cols: [15, 16, 17]}, // Violet-800
-    { startCell: 'R2', name: 'OTROS',      color: 'FF374151', cols: [18]         }, // Slate-700
-  ];
-
-  const vendorSubColors = [
-    'FF1E3A8A', // Fredy sub   (blue-900)
-    'FF064E3B', // Jaime sub   (emerald-900)
-    'FF78350F', // Viejo sub   (amber-900)
-    'FF4C1D95', // Andres sub  (violet-900)
-    'FF1F2937', // Otros sub   (slate-800)
-  ];
-
-  vendorConfigs.forEach((config, idx) => {
-    // Header row 2
-    const cell = worksheet.getCell(config.startCell);
-    cell.value = config.name;
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: config.color } };
-    cell.font = { ...headerFont, size: 11 };
-    cell.alignment = { horizontal: 'center', vertical: 'middle' };
-
-    // Subheader row 3 — apply tinted background by column number
-    config.cols.forEach(colNum => {
-      const subCell = worksheet.getRow(3).getCell(colNum);
-      subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: vendorSubColors[idx] } };
-      subCell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FFDDDDDD' } };
-    });
-  });
-
-  // --- Row 3: Subheaders ---
-  const subHeaders = [
-    "No.", "NOMBRE DEL CLIENTE", "TELEFONO", "HORA", "TOTAL",
-    "EFECTIVO", "TRANSFERENCIA", "TARJETA", // V1
-    "EFECTIVO", "TRANSFERENCIA", "TARJETA", // V2
-    "EFECTIVO", "TRANSFERENCIA", "TARJETA", // V3
-    "EFECTIVO", "TRANSFERENCIA", "TARJETA", // V4
-    ""
-  ];
-  const subHeaderRow = worksheet.getRow(3);
-  subHeaderRow.values = subHeaders;
-  subHeaderRow.height = 18;
-  subHeaderRow.eachCell((cell, colNumber) => {
-    // Only override fill for columns A-E (no vendor color assigned)
-    if (colNumber <= 5) {
-      cell.fill = headerFill;
-      cell.font = headerFont;
-    }
+  // Row 2: Headers
+  const headers = ["No.", "NOMBRE DEL CLIENTE", "TELEFONO", "HORA", "TOTAL", "FORMA DE PAGO", "VENDEDOR"];
+  const headerRow = worksheet.getRow(2);
+  headerRow.values = headers;
+  headerRow.height = 20;
+  headerRow.eachCell((cell) => {
+    cell.fill = headerFill;
+    cell.font = headerFont;
     cell.alignment = { horizontal: 'center', vertical: 'middle' };
     cell.border = borderThin;
   });
@@ -779,143 +844,114 @@ async function exportToExcel(sales, totalDia) {
   // Column Widths
   worksheet.columns = [
     { key: 'id', width: 6 },
-    { key: 'name', width: 35 }, // Nombre del cliente mas ancho
-    { key: 'phone', width: 25 }, // Columna C para etiquetas de resumen
+    { key: 'name', width: 35 },
+    { key: 'phone', width: 25 },
     { key: 'time', width: 10 },
     { key: 'total', width: 15 },
-    ...Array(13).fill({ width: 16 }) // Columnas de vendedores mas anchas para "TRANSFERENCIA"
+    { key: 'pago', width: 18 },
+    { key: 'vendedor', width: 18 }
   ];
 
-  // --- Split Sales into Morning (<11:00) and Afternoon (>=11:00) ---
-  const morningSales = sales.filter(s => {
-    const hour = parseInt(s.time.split(':')[0]);
-    return hour < 11;
-  });
-  const afternoonSales = sales.filter(s => {
-    const hour = parseInt(s.time.split(':')[0]);
-    return hour >= 11;
-  });
+  const morningSales = sales.filter(s => parseInt(s.time.split(':')[0]) < 11);
+  const afternoonSales = sales.filter(s => parseInt(s.time.split(':')[0]) >= 11);
 
-  let currentRow = 4;
+  let currentRow = 3;
 
-  // Helper to add sales rows
   const addSalesRows = (saleList) => {
     const start = currentRow;
     saleList.forEach(sale => {
       const row = worksheet.getRow(currentRow);
-      row.values = [sale.id, sale.customerName, sale.phone, sale.time, sale.total];
+      row.values = [sale.id, sale.customerName, sale.phone, sale.time, sale.total, sale.pago, sale.vendedor];
       row.getCell(5).numFmt = currencyFmt;
       currentRow++;
     });
     return { start, end: currentRow - 1 };
   };
 
-  // 1. Morning Sales
-  const morningRange = addSalesRows(morningSales);
-  currentRow += 2; // Leave 2 blank lines after the last morning item
-
-  // 2. Total Morning Row
-  const rowMornTotal = worksheet.getRow(currentRow);
-  const morningTotalRowIndex = currentRow; // Capture Morning Total index
-  const totalRowFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
-  const totalRowFont = { bold: true, color: { argb: 'FF000000' } };
-
-  rowMornTotal.getCell('D').value = 'Total de la mañana';
-  rowMornTotal.getCell('D').font = { ...totalRowFont };
-  rowMornTotal.getCell('D').alignment = { horizontal: 'right' };
-  rowMornTotal.getCell('D').fill = totalRowFill;
-  // Apply gray fill to all used columns in morning total row
-  ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R'].forEach(col => {
-    rowMornTotal.getCell(col).fill = totalRowFill;
-  });
-
-  // Formulas for Morning
-  ['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'].forEach(col => {
-    if (morningSales.length > 0) {
-      rowMornTotal.getCell(col).value = { formula: `SUM(${col}${morningRange.start}:${col}${morningRange.end})` };
-    } else {
-      rowMornTotal.getCell(col).value = 0;
-    }
-    rowMornTotal.getCell(col).numFmt = currencyFmt;
-    rowMornTotal.getCell(col).font = { ...totalRowFont };
-    rowMornTotal.getCell(col).fill = totalRowFill;
-  });
-  currentRow += 2; // Spacing after morning total
-
-  // 3. Afternoon Sales
-  const afternoonRange = addSalesRows(afternoonSales);
-  currentRow += 2; // Leave 2 blank lines after the last afternoon item
-
-  // 4. Total Afternoon Row
-  const rowAftTotal = worksheet.getRow(currentRow);
-  const afternoonTotalRowIndex = currentRow; // Capture Afternoon Total index
-  rowAftTotal.getCell('D').value = 'Total de la Tarde';
-  rowAftTotal.getCell('D').font = { ...totalRowFont };
-  rowAftTotal.getCell('D').alignment = { horizontal: 'right' };
-  rowAftTotal.getCell('D').fill = totalRowFill;
-  // Apply gray fill to all used columns in afternoon total row
-  ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R'].forEach(col => {
-    rowAftTotal.getCell(col).fill = totalRowFill;
-  });
-
-  ['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'].forEach(col => {
-    if (afternoonSales.length > 0) {
-      rowAftTotal.getCell(col).value = { formula: `SUM(${col}${afternoonRange.start}:${col}${afternoonRange.end})` };
-    } else {
-      rowAftTotal.getCell(col).value = 0;
-    }
-    rowAftTotal.getCell(col).numFmt = currencyFmt;
-    rowAftTotal.getCell(col).font = { ...totalRowFont };
-    rowAftTotal.getCell(col).fill = totalRowFill;
-  });
-  currentRow += 2;
-
-  // 5. Total General Row
-  const rowGrandTotal = worksheet.getRow(currentRow);
-  const grandTotalRowIndex = currentRow; // Capture Grand Total index
-  rowGrandTotal.getCell('D').value = 'TOTAL GENERAL DEL DÍA';
-  rowGrandTotal.getCell('D').font = { bold: true, size: 12, color: { argb: 'FF000000' } };
-  rowGrandTotal.getCell('D').alignment = { horizontal: 'right' };
-  rowGrandTotal.getCell('D').fill = totalRowFill;
-  // Apply gray fill to all used columns in grand total row
-  ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R'].forEach(col => {
-    rowGrandTotal.getCell(col).fill = totalRowFill;
-  });
-
-  ['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'].forEach(col => {
-    // Sum explicitly the Morning Total and Afternoon Total rows
-    rowGrandTotal.getCell(col).value = { formula: `${col}${morningTotalRowIndex} + ${col}${afternoonTotalRowIndex}` };
-    rowGrandTotal.getCell(col).numFmt = currencyFmt;
-    rowGrandTotal.getCell(col).font = { bold: true, size: 11, color: { argb: 'FF000000' } };
-    rowGrandTotal.getCell(col).fill = totalRowFill;
-  });
-  currentRow += 3;
-
-  // 6. Summary Block at the Bottom
-  const addSummaryRow = (label, cols) => {
+  const addTotalRow = (label, range) => {
     const row = worksheet.getRow(currentRow);
-    row.getCell('C').value = label;
-    row.getCell('C').font = { bold: true };
-    row.getCell('C').alignment = { horizontal: 'right' };
-
-    // Use the captured grandTotalRowIndex instead of relative currentRow
-    const sumString = cols.map(c => `${c}${grandTotalRowIndex}`).join(' + ');
-    row.getCell('E').value = { formula: sumString };
+    row.getCell('D').value = label;
+    row.getCell('D').font = { bold: true };
+    row.getCell('D').alignment = { horizontal: 'right' };
+    if (range.start <= range.end) {
+      row.getCell('E').value = { formula: \`SUM(E\${range.start}:E\${range.end})\` };
+    } else {
+      row.getCell('E').value = 0;
+    }
     row.getCell('E').numFmt = currencyFmt;
     row.getCell('E').font = { bold: true };
     currentRow++;
+    return currentRow - 1; // Return the row index of the total
   };
 
-  addSummaryRow('TOTAL EFECTIVO (TODOS)', ['F', 'I', 'L', 'O']);
-  addSummaryRow('TOTAL TRANSFERENCIA (TODOS)', ['G', 'J', 'M', 'P']);
-  addSummaryRow('TOTAL TARJETA (TODOS)', ['H', 'K', 'N', 'Q']);
-  addSummaryRow('TOTAL OTROS', ['R']);
+  // Morning
+  const morningRange = addSalesRows(morningSales);
+  const morningTotalIndex = addTotalRow('Total de la mañana', morningRange);
+  currentRow++; // blank line
+
+  // Afternoon
+  const afternoonRange = addSalesRows(afternoonSales);
+  const afternoonTotalIndex = addTotalRow('Total de la Tarde', afternoonRange);
+  currentRow++; // blank line
+
+  // Grand Total
+  const grandTotalRow = worksheet.getRow(currentRow);
+  grandTotalRow.getCell('D').value = 'TOTAL GENERAL DEL DÍA';
+  grandTotalRow.getCell('D').font = { bold: true, size: 12 };
+  grandTotalRow.getCell('D').alignment = { horizontal: 'right' };
+  grandTotalRow.getCell('E').value = { formula: \`E\${morningTotalIndex} + E\${afternoonTotalIndex}\` };
+  grandTotalRow.getCell('E').numFmt = currencyFmt;
+  grandTotalRow.getCell('E').font = { bold: true, size: 12 };
+  currentRow += 3;
+
+  // Summaries by Vendor
+  const vendors = ['FREDY', 'JAIME', 'VIEJO', 'ANDRES Jr.'];
+  
+  vendors.forEach(v => {
+    const vSales = sales.filter(s => s.vendedor === v);
+    if (vSales.length === 0) return;
+    
+    // Header for this vendor table
+    const headRow = worksheet.getRow(currentRow);
+    headRow.getCell('D').value = v;
+    headRow.getCell('E').value = 'EFECTIVO';
+    headRow.getCell('F').value = 'TRANSFERENCIA';
+    headRow.getCell('G').value = 'TARJETA';
+    
+    ['D','E','F','G'].forEach(col => {
+      const cell = headRow.getCell(col);
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFA6A6A6' } };
+      cell.font = { bold: true };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border = borderThin;
+    });
+    currentRow++;
+
+    // Data for this vendor table
+    const dataRow = worksheet.getRow(currentRow);
+    // Find all rows where vendor == v, and pago == EFECTIVO etc.
+    const maxRow = (afternoonRange.end || morningRange.end || 3);
+    const formulaBase = \`SUMIFS(E3:E\${maxRow}, G3:G\${maxRow}, "\${v}", F3:F\${maxRow}, \`;
+    
+    dataRow.getCell('E').value = { formula: formulaBase + '"EFECTIVO")' };
+    dataRow.getCell('F').value = { formula: formulaBase + '"TRANSFERENCIA")' };
+    dataRow.getCell('G').value = { formula: formulaBase + '"TARJETA")' };
+    
+    ['D','E','F','G'].forEach(col => {
+      const cell = dataRow.getCell(col);
+      if(col !== 'D') cell.numFmt = currencyFmt;
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border = borderThin;
+    });
+    
+    currentRow += 2;
+  });
 
   // Export
   try {
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(blob, `REPORTE_DONDE_FLORY_${new Date().toISOString().split('T')[0]}.xlsx`);
+    saveAs(blob, \`REPORTE_DONDE_FLORY_\${new Date().toISOString().split('T')[0]}.xlsx\`);
   } catch (error) {
     console.error('Error al generar el Excel:', error);
     alert('Hubo un error al generar el archivo de Excel. Por favor, revisa la consola.');

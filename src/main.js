@@ -942,7 +942,6 @@ async function exportToExcel(sales) {
   
   vendors.forEach(v => {
     const vSales = sales.filter(s => s.vendedor === v);
-    if (vSales.length === 0) return;
     
     // Header for this vendor table
     const headRow = worksheet.getRow(currentRow);

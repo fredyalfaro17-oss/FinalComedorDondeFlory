@@ -636,7 +636,6 @@ function renderReportContent(sales) {
   
   vendors.forEach(v => {
     const vSales = sales.filter(s => s.vendedor === v);
-    if (vSales.length === 0) return;
     
     const totEfe = vSales.filter(s => s.pago === 'EFECTIVO').reduce((sum, s) => sum + s.total, 0);
     const totTra = vSales.filter(s => s.pago === 'TRANSFERENCIA').reduce((sum, s) => sum + s.total, 0);
@@ -697,15 +696,13 @@ window.renderReportModal = function() {
       <div class="p-4 bg-slate-800/80 border-b border-slate-700 flex flex-wrap gap-6 items-center justify-between">
         <div class="flex items-center gap-3">
           <label class="text-sm font-bold text-slate-400 uppercase tracking-wider">Vendedor:</label>
-          <div class="flex bg-slate-900 rounded-lg border border-slate-700 p-1">
-            <select id="filter-vendedor" class="bg-transparent text-white font-bold outline-none cursor-pointer pl-2 pr-4">
-              <option value="">TODOS</option>
-              <option value="FREDY" ${reportState.vendedor === 'FREDY' ? 'selected' : ''}>FREDY</option>
-              <option value="JAIME" ${reportState.vendedor === 'JAIME' ? 'selected' : ''}>JAIME</option>
-              <option value="VIEJO" ${reportState.vendedor === 'VIEJO' ? 'selected' : ''}>VIEJO</option>
-              <option value="ANDRES Jr." ${reportState.vendedor === 'ANDRES Jr.' ? 'selected' : ''}>ANDRES Jr.</option>
-              <option value="OTROS" ${reportState.vendedor === 'OTROS' ? 'selected' : ''}>OTROS</option>
-            </select>
+          <div class="flex bg-slate-900 rounded-lg overflow-hidden border border-slate-700 p-1 gap-1">
+            <button class="filter-vendedor-btn px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.vendedor === '' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-vendedor="">TODOS</button>
+            <button class="filter-vendedor-btn px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.vendedor === 'FREDY' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-vendedor="FREDY">FREDY</button>
+            <button class="filter-vendedor-btn px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.vendedor === 'JAIME' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-vendedor="JAIME">JAIME</button>
+            <button class="filter-vendedor-btn px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.vendedor === 'VIEJO' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-vendedor="VIEJO">VIEJO</button>
+            <button class="filter-vendedor-btn px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.vendedor === 'ANDRES Jr.' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-vendedor="ANDRES Jr.">ANDRES Jr.</button>
+            <button class="filter-vendedor-btn px-3 py-1.5 rounded-md text-sm font-bold transition-all ${reportState.vendedor === 'OTROS' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}" data-vendedor="OTROS">OTROS</button>
           </div>
         </div>
         <div class="flex items-center gap-3">
@@ -782,10 +779,12 @@ window.renderReportModal = function() {
 
   document.getElementById('close-report-btn').onclick = () => modalOverlay.classList.add('hidden');
   
-  document.getElementById('filter-vendedor').onchange = (e) => {
-    reportState.vendedor = e.target.value;
-    window.renderReportModal();
-  };
+  document.querySelectorAll('.filter-vendedor-btn').forEach(btn => {
+    btn.onclick = (e) => {
+      reportState.vendedor = e.target.dataset.vendedor;
+      window.renderReportModal();
+    };
+  });
   
   document.querySelectorAll('.filter-pago-btn').forEach(btn => {
     btn.onclick = (e) => {

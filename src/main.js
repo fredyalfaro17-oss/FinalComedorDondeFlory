@@ -769,7 +769,20 @@ async function exportToExcel(sales) {
       showErrorMessage: false,
       formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,OTROS"']
     };
+
+    // Helper column H for 'Buscador Inteligente'
+    // It numbers matching rows sequentially (1, 2, 3...)
+    worksheet.getCell(`H${i}`).value = {
+      formula: `IF( (IF('Buscador Inteligente'!$B$5="", 1, --(G${i}='Buscador Inteligente'!$B$5))) * (IF('Buscador Inteligente'!$D$5="", 1, --(F${i}='Buscador Inteligente'!$D$5))) * --(A${i}<>"") = 1, MAX($H$2:H${i-1})+1, "")`
+    };
   }
+
+  // Initialize H2 so MAX($H$2:H2) works
+  worksheet.getCell('H2').value = 0;
+  worksheet.getColumn('H').hidden = true;
+
+  // Make sure full calc on load is true
+  workbook.calcProperties.fullCalcOnLoad = true;
 
   const morningSales = sales.filter(s => parseInt(s.time.split(':')[0]) < 11);
   const afternoonSales = sales.filter(s => parseInt(s.time.split(':')[0]) >= 11);

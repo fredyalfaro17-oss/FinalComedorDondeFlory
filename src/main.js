@@ -630,42 +630,7 @@ function renderReportContent(sales) {
     `;
   }).join('');
 
-  const vendors = ['FREDY', 'JAIME', 'VIEJO', 'ANDRES Jr.'];
-  
-  let totalsHtml = '';
-  
-  vendors.forEach(v => {
-    const vSales = sales.filter(s => s.vendedor === v);
-    
-    const totEfe = vSales.filter(s => s.pago === 'EFECTIVO').reduce((sum, s) => sum + s.total, 0);
-    const totTra = vSales.filter(s => s.pago === 'TRANSFERENCIA').reduce((sum, s) => sum + s.total, 0);
-    const totTar = vSales.filter(s => s.pago === 'TARJETA').reduce((sum, s) => sum + s.total, 0);
-    
-    totalsHtml += `
-      <div class="mt-4 border border-slate-700 rounded-lg overflow-hidden max-w-3xl mx-auto">
-        <table class="w-full text-sm text-center text-slate-300">
-          <thead class="bg-slate-800 text-xs text-slate-400 uppercase">
-            <tr>
-              <th class="px-4 py-2 w-1/4">${v}</th>
-              <th class="px-4 py-2 w-1/4 bg-slate-700/50">EFECTIVO</th>
-              <th class="px-4 py-2 w-1/4 bg-slate-700/50">TRANSFERENCIA</th>
-              <th class="px-4 py-2 w-1/4 bg-slate-700/50">TARJETA</th>
-            </tr>
-          </thead>
-          <tbody class="bg-slate-900">
-            <tr>
-              <td class="px-4 py-3 border-r border-slate-700 font-bold text-white">TOTALES</td>
-              <td class="px-4 py-3 border-r border-slate-700 text-amber-400 font-bold text-lg">Q${totEfe.toFixed(2)}</td>
-              <td class="px-4 py-3 border-r border-slate-700 text-amber-400 font-bold text-lg">Q${totTra.toFixed(2)}</td>
-              <td class="px-4 py-3 text-amber-400 font-bold text-lg">Q${totTar.toFixed(2)}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    `;
-  });
-
-  return { tableRows, totalDia, totalsHtml, isEmpty: filteredSales.length === 0 };
+  return { tableRows, totalDia, totalsHtml: '', isEmpty: filteredSales.length === 0 };
 }
 
 function openReportModal() {
@@ -750,17 +715,6 @@ window.renderReportModal = function() {
             </tfoot>
           </table>
         </div>
-
-        <!-- Totals by Vendor -->
-        ${totalsHtml ? `
-        <div class="mt-8 space-y-4">
-          <h3 class="text-xl font-bold text-white text-center font-playfair mb-4 flex items-center justify-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-500"><path d="M12 20v-6M6 20V10M18 20V4"/></svg>
-            RESUMEN POR VENDEDOR
-          </h3>
-          ${totalsHtml}
-        </div>
-        ` : ''}
       </div>
 
       <div class="p-6 border-t border-slate-800 bg-slate-900 rounded-b-2xl flex justify-between items-center shrink-0">

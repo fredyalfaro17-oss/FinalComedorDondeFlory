@@ -16,9 +16,7 @@ let cart = [];
 let customerInfo = {
   name: '',
   phone: '',
-  deliveryTime: '',
-  vendedor: '',
-  pago: ''
+  deliveryTime: ''
 };
 
 // --- DOM Elements ---
@@ -493,15 +491,11 @@ function resetCustomerInfo() {
   customerInfo = {
     name: '',
     phone: '',
-    deliveryTime: '',
-    vendedor: '',
-    pago: ''
+    deliveryTime: ''
   };
   document.getElementById('customer-name').value = '';
   document.getElementById('customer-phone').value = '';
   document.getElementById('customer-time').value = '';
-  document.getElementById('customer-vendedor').value = '';
-  document.getElementById('customer-pago').value = '';
 }
 
 // --- Utilities ---
@@ -535,8 +529,6 @@ function setupEventListeners() {
   };
 
   document.getElementById('customer-time').oninput = (e) => customerInfo.deliveryTime = e.target.value;
-  document.getElementById('customer-vendedor').onchange = (e) => customerInfo.vendedor = e.target.value;
-  document.getElementById('customer-pago').onchange = (e) => customerInfo.pago = e.target.value;
 
   // Manual Add
   const addManual = () => {

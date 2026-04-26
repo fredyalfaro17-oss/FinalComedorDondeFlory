@@ -772,8 +772,9 @@ async function exportToExcel(sales) {
 
     // Helper column H for 'Buscador Inteligente'
     // It numbers matching rows sequentially (1, 2, 3...)
+    // Uses simple AND/OR logic to avoid any arithmetic coercion issues in different Excel versions
     worksheet.getCell(`H${i}`).value = {
-      formula: `IF( (IF('Buscador Inteligente'!$B$5="", 1, --(G${i}='Buscador Inteligente'!$B$5))) * (IF('Buscador Inteligente'!$D$5="", 1, --(F${i}='Buscador Inteligente'!$D$5))) * --(A${i}<>"") = 1, MAX($H$2:H${i-1})+1, "")`
+      formula: `IF(AND(OR('Buscador Inteligente'!$B$5="", G${i}='Buscador Inteligente'!$B$5), OR('Buscador Inteligente'!$D$5="", F${i}='Buscador Inteligente'!$D$5), A${i}<>""), MAX($H$2:H${i-1})+1, "")`
     };
   }
 
@@ -954,7 +955,8 @@ async function exportToExcel(sales) {
     
     const getFormula = (colLetter, isString) => {
         // Find the row where the helper column H matches our rowIdx
-        const indexExpr = `INDEX('Reporte de Ventas'!${colLetter}:${colLetter}, MATCH(${rowIdx}, 'Reporte de Ventas'!$H:$H, 0))`;
+        // Using explicit bounds $1:$1000 to maximize Excel compatibility and avoid entire-column calculation issues
+        const indexExpr = `INDEX('Reporte de Ventas'!${colLetter}$1:${colLetter}$1000, MATCH(${rowIdx}, 'Reporte de Ventas'!$H$1:$H$1000, 0))`;
         if (isString) {
             return `IFERROR(${indexExpr} & "", "")`;
         } else {

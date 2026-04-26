@@ -866,7 +866,7 @@ async function exportToExcel(sales) {
     
     ['D','E','F','G'].forEach(col => {
       const cell = dataRow.getCell(col);
-      if(col !== 'D') cell.numFmt = currencyFmt;
+    if(col !== 'D') cell.numFmt = currencyFmt;
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
       cell.border = borderThin;
     });
@@ -875,24 +875,25 @@ async function exportToExcel(sales) {
   });
 
   // --- SECOND SHEET: BUSCADOR INTELIGENTE ---
-  // ARCHITECTURE: All sales data is written in hidden rows (starting at row 1000)
-  // within this same sheet. Formulas in visible rows use SMALL/INDEX to pull
-  // matching rows. Everything stays in ONE sheet → zero cross-sheet issues.
+  // ARCHITECTURE:
+  //   • All sales written as STATIC VALUES in hidden rows 1000+ (same sheet).
+  //   • ONE Excel FILTER formula in A7 spills results automatically.
+  //   • C4 = Vendor selector  |  E4 = Payment selector.
+  //   • Empty selector = show all. Works in Excel 365 / Excel 2019+.
   const searchSheet = workbook.addWorksheet('Buscador Inteligente');
   searchSheet.views = [{ showGridLines: false }];
 
   searchSheet.columns = [
     { width: 6  }, // A - No.
-    { width: 35 }, // B - Nombre / Vendedor dropdown
+    { width: 35 }, // B - Nombre del Cliente
     { width: 20 }, // C - Teléfono
-    { width: 12 }, // D - Hora / Pago dropdown
+    { width: 12 }, // D - Hora
     { width: 15 }, // E - Total
     { width: 18 }, // F - Forma de Pago
     { width: 18 }, // G - Vendedor
-    { width: 4  }  // H - Helper (will be hidden)
   ];
 
-  // ---- Title ----
+  // ---- Row 1: Title ----
   searchSheet.mergeCells('A1:G1');
   const sTitle = searchSheet.getCell('A1');
   sTitle.value = '🔍 BUSCADOR INTELIGENTE DE VENTAS — Comedor Donde Flory';
@@ -901,14 +902,16 @@ async function exportToExcel(sales) {
   sTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
   searchSheet.getRow(1).height = 30;
 
-  // ---- Filter inputs row 2 ----
+  // ---- Row 2: Instruction banner ----
   searchSheet.mergeCells('A2:G2');
-  searchSheet.getCell('A2').value = 'Selecciona VENDEDOR y FORMA DE PAGO — los resultados se actualizan automáticamente';
-  searchSheet.getCell('A2').font = { italic: true, size: 10, color: { argb: 'FF475569' } };
-  searchSheet.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
-  searchSheet.getCell('A2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+  const instrCell = searchSheet.getCell('A2');
+  instrCell.value = 'Selecciona Vendedor en C4 y/o Forma de Pago en E4 — los resultados aparecen solos ↓';
+  instrCell.font = { italic: true, size: 10, color: { argb: 'FF475569' } };
+  instrCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  instrCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+  searchSheet.getRow(2).height = 18;
 
-  // Row 3: Labels
+  // ---- Row 3: Labels ----
   searchSheet.getCell('B3').value = 'VENDEDOR:';
   searchSheet.getCell('B3').font = { bold: true, size: 11 };
   searchSheet.getCell('B3').alignment = { horizontal: 'right', vertical: 'middle' };
@@ -917,35 +920,33 @@ async function exportToExcel(sales) {
   searchSheet.getCell('D3').alignment = { horizontal: 'right', vertical: 'middle' };
   searchSheet.getRow(3).height = 20;
 
-  // Row 4: Dropdown inputs
+  // ---- Row 4: Yellow dropdown inputs ----
   const vendorInput = searchSheet.getCell('C4');
   vendorInput.dataValidation = {
     type: 'list', allowBlank: true, showErrorMessage: false,
     formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,OTROS"']
   };
-  vendorInput.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } };
+  vendorInput.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } };
   vendorInput.border = borderThin;
   vendorInput.alignment = { horizontal: 'center', vertical: 'middle' };
-  vendorInput.font = { bold: true, size: 12 };
-  vendorInput.value = '';  // empty = show all
+  vendorInput.font   = { bold: true, size: 12 };
 
   const pagoInput = searchSheet.getCell('E4');
   pagoInput.dataValidation = {
     type: 'list', allowBlank: true, showErrorMessage: false,
     formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA"']
   };
-  pagoInput.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } };
+  pagoInput.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } };
   pagoInput.border = borderThin;
   pagoInput.alignment = { horizontal: 'center', vertical: 'middle' };
-  pagoInput.font = { bold: true, size: 12 };
-  pagoInput.value = '';  // empty = show all
+  pagoInput.font   = { bold: true, size: 12 };
 
   searchSheet.getRow(4).height = 24;
 
-  // Row 5: empty spacer
+  // ---- Row 5: Spacer ----
   searchSheet.getRow(5).height = 8;
 
-  // Row 6: Results header
+  // ---- Row 6: Results table header ----
   const sHeader = searchSheet.getRow(6);
   sHeader.values = ['No.', 'NOMBRE DEL CLIENTE', 'TELÉFONO', 'HORA', 'TOTAL', 'FORMA DE PAGO', 'VENDEDOR'];
   sHeader.height = 22;
@@ -956,7 +957,7 @@ async function exportToExcel(sales) {
     cell.border = borderThin;
   });
 
-  // ---- Write ALL sales data in hidden rows starting at 1000 ----
+  // ---- Rows 1000+: ALL sales as static hidden values (source for FILTER) ----
   const DATA_START = 1000;
   let dataRow = DATA_START;
   sales.forEach(sale => {
@@ -968,58 +969,26 @@ async function exportToExcel(sales) {
     dr.getCell('E').value = sale.total;
     dr.getCell('F').value = sale.pago;
     dr.getCell('G').value = sale.vendedor;
-    // Helper column H: if this row matches the dropdowns, store its offset (1,2,3...), else ""
-    // C4 = Vendedor filter, E4 = Pago filter — all within this same sheet
-    dr.getCell('H').value = {
-      // Store the actual ROW number if this row matches both filter criteria, else ""
-      // SMALL will collect these numbers in ascending order for INDEX/MATCH to locate them
-      formula: `IF(AND(OR(C$4="",G${dataRow}=C$4),OR(E$4="",F${dataRow}=E$4),A${dataRow}<>""),ROW(),"")`
-    };
-    dr.hidden = true; // properly hide in Excel
+    dr.hidden = true; // hide from view; FILTER still reads them
     dataRow++;
   });
   const DATA_END = dataRow - 1;
 
-  // Column H hidden
-  searchSheet.getColumn('H').hidden = true;
-
-  // ---- Result rows (up to 100) using SMALL+INDEX within the same sheet ----
-  const MAX_RESULTS = 100;
-  for (let k = 1; k <= MAX_RESULTS; k++) {
-    const r = 6 + k; // rows 7, 8, 9 ...
-
-    const cf = (col, isText) => {
-      // SMALL gets the k-th smallest actual row number from H
-      // MATCH then finds that row number in column H so INDEX can retrieve the right cell
-      const expr = `INDEX(${col}$${DATA_START}:${col}$2000,MATCH(SMALL($H$${DATA_START}:$H$2000,${k}),$H$${DATA_START}:$H$2000,0))`;
-      return isText
-        ? `IFERROR(${expr}&"","")`
-        : `IFERROR(IF(${expr}=0,"",${expr}),"")`;
-    };
-
-    searchSheet.getCell(`A${r}`).value = { formula: cf('A', false) };
-    searchSheet.getCell(`B${r}`).value = { formula: cf('B', true) };
-    searchSheet.getCell(`C${r}`).value = { formula: cf('C', true) };
-    searchSheet.getCell(`D${r}`).value = { formula: cf('D', true) };
-    searchSheet.getCell(`E${r}`).value = { formula: cf('E', false) };
-    searchSheet.getCell(`F${r}`).value = { formula: cf('F', true) };
-    searchSheet.getCell(`G${r}`).value = { formula: cf('G', true) };
-
-    searchSheet.getCell(`E${r}`).numFmt = currencyFmt;
-
-    ['A','B','C','D','E','F','G'].forEach(col => {
-      searchSheet.getCell(`${col}${r}`).border = borderThin;
-      if (col !== 'B' && col !== 'C') {
-        searchSheet.getCell(`${col}${r}`).alignment = { horizontal: 'center', vertical: 'middle' };
-      } else {
-        searchSheet.getCell(`${col}${r}`).alignment = { vertical: 'middle' };
-      }
-      // Alternating row fill for visible result rows
-      if (k % 2 === 0) {
-        searchSheet.getCell(`${col}${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-      }
-    });
+  // ---- Row 7: Single FILTER formula — spills results automatically ----
+  // FILTER(array, condition) is native Excel 365/2019+.
+  // When C4 is blank → show all vendors. When E4 is blank → show all payments.
+  // (G=C4)+(C4="") is 2 only when C4 is blank OR the vendor matches → treat =2 as TRUE.
+  if (DATA_END >= DATA_START) {
+    const cond =
+      `((G${DATA_START}:G${DATA_END}=C$4)+(C$4="")=2)*` +
+      `((F${DATA_START}:F${DATA_END}=E$4)+(E$4="")=2)`;
+    const filterFormula =
+      `IFERROR(FILTER(A${DATA_START}:G${DATA_END},${cond}),"Sin coincidencias")`;
+    searchSheet.getCell('A7').value = { formula: filterFormula };
+  } else {
+    searchSheet.getCell('A7').value = 'No hay ventas registradas.';
   }
+
 
   // Export
   try {

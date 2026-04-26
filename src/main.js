@@ -978,17 +978,34 @@ async function exportToExcel(sales) {
   });
   const DATA_END = dataRow - 1;
 
-  // ---- Row 7: Single FILTER formula — spills results automatically ----
-  // FILTER(array, condition) is native Excel 365/2019+.
-  // When C4 is blank → show all vendors. When E4 is blank → show all payments.
-  // (G=C4)+(C4="") is 2 only when C4 is blank OR the vendor matches → treat =2 as TRUE.
+  // ---- Row 7: INDEX/MATCH formulas for universal compatibility ----
+  // FILTER() causes corruption in older Excel versions when exported by ExcelJS.
+  // We use a helper column H to tag matching rows, and INDEX/MATCH to pull them up.
+  searchSheet.getCell('H999').value = 0; // Base for MAX
+
   if (DATA_END >= DATA_START) {
-    const cond =
-      `((G${DATA_START}:G${DATA_END}=C$4)+(C$4="")=2)*` +
-      `((F${DATA_START}:F${DATA_END}=E$4)+(E$4="")=2)`;
-    const filterFormula =
-      `IFERROR(FILTER(A${DATA_START}:G${DATA_END},${cond}),"Sin coincidencias")`;
-    searchSheet.getCell('A7').value = { formula: filterFormula };
+    // 1. Helper column formulas in rows 1000+
+    for (let i = DATA_START; i <= DATA_END; i++) {
+      searchSheet.getCell(`H${i}`).value = { 
+        formula: `IF(AND(OR($C$4="", G${i}=$C$4), OR($E$4="", F${i}=$E$4)), MAX($H$999:H${i-1})+1, "")` 
+      };
+    }
+
+    // 2. Results formulas in rows 7 to 7 + sales.length
+    const resultsEndRow = 7 + sales.length - 1;
+    for (let i = 7; i <= resultsEndRow; i++) {
+      const rowNumOffset = i - 6; // Row 7 is match #1
+      ['A','B','C','D','E','F','G'].forEach(col => {
+        const cell = searchSheet.getCell(`${col}${i}`);
+        cell.value = { 
+          formula: `IFERROR(INDEX(${col}$${DATA_START}:${col}$${DATA_END}, MATCH(${rowNumOffset}, $H$${DATA_START}:$H$${DATA_END}, 0)), "")` 
+        };
+        // Apply styling to results area
+        if (col === 'E') cell.numFmt = currencyFmt;
+        cell.border = borderThin;
+        if (col !== 'B') cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+    }
   } else {
     searchSheet.getCell('A7').value = 'No hay ventas registradas.';
   }

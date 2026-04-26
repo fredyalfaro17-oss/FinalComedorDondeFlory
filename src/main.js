@@ -837,33 +837,6 @@ async function exportToExcel(sales) {
   
   currentRow += 3;
 
-  // Add elegant conditional formatting for the FORMA DE PAGO column (F)
-  worksheet.addConditionalFormatting({
-    ref: 'F3:F1000',
-    rules: [
-      {
-        type: 'cellIs', operator: 'equal', formulae: ['"EFECTIVO"'],
-        style: { 
-          font: { color: { argb: 'FF0E6251' }, bold: true },
-          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFD1F2EB' } }
-        }
-      },
-      {
-        type: 'cellIs', operator: 'equal', formulae: ['"TRANSFERENCIA"'],
-        style: { 
-          font: { color: { argb: 'FF154360' }, bold: true },
-          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFD4E6F1' } } // Same blue as FREDY, looks good
-        }
-      },
-      {
-        type: 'cellIs', operator: 'equal', formulae: ['"TARJETA"'],
-        style: { 
-          font: { color: { argb: 'FF7D6608' }, bold: true },
-          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFCF3CF' } }
-        }
-      }
-    ]
-  });
 
   // Add elegant conditional formatting for the VENDEDOR column (G)
   worksheet.addConditionalFormatting({
@@ -918,11 +891,6 @@ async function exportToExcel(sales) {
       'VIEJO': { font: 'FF7E5109', fill: 'FFFDEBD0' },
       'ANDRES Jr.': { font: 'FF512E5F', fill: 'FFF5EEF8' }
     };
-    const paymentColors = {
-      'E': { font: 'FF0E6251', fill: 'FFD1F2EB' }, // EFECTIVO
-      'F': { font: 'FF154360', fill: 'FFD4E6F1' }, // TRANSFERENCIA
-      'G': { font: 'FF7D6608', fill: 'FFFCF3CF' }  // TARJETA
-    };
 
     ['D','E','F','G'].forEach(col => {
       const cell = headRow.getCell(col);
@@ -933,9 +901,6 @@ async function exportToExcel(sales) {
       if (col === 'D') {
         fontColor = vendorColors[v].font;
         fillColor = vendorColors[v].fill;
-      } else {
-        fontColor = paymentColors[col].font;
-        fillColor = paymentColors[col].fill;
       }
 
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };

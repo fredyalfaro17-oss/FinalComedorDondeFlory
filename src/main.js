@@ -758,6 +758,7 @@ async function exportToExcel(sales) {
   const addSalesRows = (saleList) => {
     const start = currentRow;
     saleList.forEach(sale => {
+      sale.excelRow = currentRow;
       const row = worksheet.getRow(currentRow);
       row.getCell('A').value = sale.id;
       row.getCell('B').value = sale.customerName;
@@ -961,19 +962,19 @@ async function exportToExcel(sales) {
     cell.border = borderThin;
   });
 
-  // ---- Rows 1000+: ALL sales as static hidden values (source for FILTER) ----
+  // ---- Rows 1000+: ALL sales linked live to Sheet 1 (source for FILTER) ----
   const DATA_START = 1000;
   let dataRow = DATA_START;
   sales.forEach(sale => {
     const dr = searchSheet.getRow(dataRow);
-    dr.getCell('A').value = sale.id;
-    dr.getCell('B').value = sale.customerName;
-    dr.getCell('C').value = sale.phone;
-    dr.getCell('D').value = sale.time;
-    dr.getCell('E').value = sale.total;
-    dr.getCell('F').value = sale.pago;
-    dr.getCell('G').value = sale.vendedor;
-    dr.hidden = true; // hide from view; FILTER still reads them
+    dr.getCell('A').value = { formula: `'Reporte de Ventas'!A${sale.excelRow}` };
+    dr.getCell('B').value = { formula: `'Reporte de Ventas'!B${sale.excelRow}` };
+    dr.getCell('C').value = { formula: `'Reporte de Ventas'!C${sale.excelRow}` };
+    dr.getCell('D').value = { formula: `'Reporte de Ventas'!D${sale.excelRow}` };
+    dr.getCell('E').value = { formula: `'Reporte de Ventas'!E${sale.excelRow}` };
+    dr.getCell('F').value = { formula: `'Reporte de Ventas'!F${sale.excelRow}` };
+    dr.getCell('G').value = { formula: `'Reporte de Ventas'!G${sale.excelRow}` };
+    dr.hidden = true; // hide from view; INDEX/MATCH still reads them
     dataRow++;
   });
   const DATA_END = dataRow - 1;

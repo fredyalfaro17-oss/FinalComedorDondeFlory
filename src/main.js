@@ -837,6 +837,68 @@ async function exportToExcel(sales) {
   
   currentRow += 3;
 
+  // Add elegant conditional formatting for the FORMA DE PAGO column (F)
+  worksheet.addConditionalFormatting({
+    ref: 'F3:F1000',
+    rules: [
+      {
+        type: 'cellIs', operator: 'equal', formulae: ['"EFECTIVO"'],
+        style: { 
+          font: { color: { argb: 'FF0E6251' }, bold: true },
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFD1F2EB' } }
+        }
+      },
+      {
+        type: 'cellIs', operator: 'equal', formulae: ['"TRANSFERENCIA"'],
+        style: { 
+          font: { color: { argb: 'FF154360' }, bold: true },
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFD4E6F1' } } // Same blue as FREDY, looks good
+        }
+      },
+      {
+        type: 'cellIs', operator: 'equal', formulae: ['"TARJETA"'],
+        style: { 
+          font: { color: { argb: 'FF7D6608' }, bold: true },
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFCF3CF' } }
+        }
+      }
+    ]
+  });
+
+  // Add elegant conditional formatting for the VENDEDOR column (G)
+  worksheet.addConditionalFormatting({
+    ref: 'G3:G1000',
+    rules: [
+      {
+        type: 'cellIs', operator: 'equal', formulae: ['"FREDY"'],
+        style: { 
+          font: { color: { argb: 'FF154360' }, bold: true },
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFD4E6F1' } }
+        }
+      },
+      {
+        type: 'cellIs', operator: 'equal', formulae: ['"JAIME"'],
+        style: { 
+          font: { color: { argb: 'FF145A32' }, bold: true },
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFD5F5E3' } }
+        }
+      },
+      {
+        type: 'cellIs', operator: 'equal', formulae: ['"VIEJO"'],
+        style: { 
+          font: { color: { argb: 'FF7E5109' }, bold: true },
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFDEBD0' } }
+        }
+      },
+      {
+        type: 'cellIs', operator: 'equal', formulae: ['"ANDRES Jr."'],
+        style: { 
+          font: { color: { argb: 'FF512E5F' }, bold: true },
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF5EEF8' } }
+        }
+      }
+    ]
+  });
   // Summaries by Vendor
   const vendors = ['FREDY', 'JAIME', 'VIEJO', 'ANDRES Jr.'];
   

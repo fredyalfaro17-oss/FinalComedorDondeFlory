@@ -755,6 +755,8 @@ async function exportToExcel(sales) {
   // Set AutoFilter for the header row
   worksheet.autoFilter = 'A2:G2';
 
+  // Force Excel to recalculate all formulas when the workbook opens
+  workbook.calcProperties.fullCalcOnLoad = true;
 
   const morningSales = sales.filter(s => parseInt(s.time.split(':')[0]) < 11);
   const afternoonSales = sales.filter(s => parseInt(s.time.split(':')[0]) >= 11);
@@ -969,9 +971,11 @@ async function exportToExcel(sales) {
     // Helper column H: if this row matches the dropdowns, store its offset (1,2,3...), else ""
     // C4 = Vendedor filter, E4 = Pago filter — all within this same sheet
     dr.getCell('H').value = {
-      formula: `IF(AND(OR(C$4="",G${dataRow}=C$4),OR(E$4="",F${dataRow}=E$4),A${dataRow}<>""),ROW()-${DATA_START - 1},"")`
+      // Store the actual ROW number if this row matches both filter criteria, else ""
+      // SMALL will collect these numbers in ascending order for INDEX/MATCH to locate them
+      formula: `IF(AND(OR(C$4="",G${dataRow}=C$4),OR(E$4="",F${dataRow}=E$4),A${dataRow}<>""),ROW(),"")`
     };
-    dr.height = 0.1; // visually hidden
+    dr.hidden = true; // properly hide in Excel
     dataRow++;
   });
   const DATA_END = dataRow - 1;
@@ -985,7 +989,9 @@ async function exportToExcel(sales) {
     const r = 6 + k; // rows 7, 8, 9 ...
 
     const cf = (col, isText) => {
-      const expr = `INDEX(${col}$${DATA_START}:${col}$${DATA_END},SMALL($H$${DATA_START}:$H$${DATA_END},${k}))`;
+      // SMALL gets the k-th smallest actual row number from H
+      // MATCH then finds that row number in column H so INDEX can retrieve the right cell
+      const expr = `INDEX(${col}$${DATA_START}:${col}$2000,MATCH(SMALL($H$${DATA_START}:$H$2000,${k}),$H$${DATA_START}:$H$2000,0))`;
       return isText
         ? `IFERROR(${expr}&"","")`
         : `IFERROR(IF(${expr}=0,"",${expr}),"")`;

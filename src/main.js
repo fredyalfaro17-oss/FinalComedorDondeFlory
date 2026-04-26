@@ -912,10 +912,34 @@ async function exportToExcel(sales) {
     headRow.getCell('F').value = 'TRANSFERENCIA';
     headRow.getCell('G').value = 'TARJETA';
     
+    const vendorColors = {
+      'FREDY': { font: 'FF154360', fill: 'FFD4E6F1' },
+      'JAIME': { font: 'FF145A32', fill: 'FFD5F5E3' },
+      'VIEJO': { font: 'FF7E5109', fill: 'FFFDEBD0' },
+      'ANDRES Jr.': { font: 'FF512E5F', fill: 'FFF5EEF8' }
+    };
+    const paymentColors = {
+      'E': { font: 'FF0E6251', fill: 'FFD1F2EB' }, // EFECTIVO
+      'F': { font: 'FF154360', fill: 'FFD4E6F1' }, // TRANSFERENCIA
+      'G': { font: 'FF7D6608', fill: 'FFFCF3CF' }  // TARJETA
+    };
+
     ['D','E','F','G'].forEach(col => {
       const cell = headRow.getCell(col);
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFA6A6A6' } };
-      cell.font = { bold: true };
+      
+      let fontColor = 'FF000000';
+      let fillColor = 'FFA6A6A6';
+      
+      if (col === 'D') {
+        fontColor = vendorColors[v].font;
+        fillColor = vendorColors[v].fill;
+      } else {
+        fontColor = paymentColors[col].font;
+        fillColor = paymentColors[col].fill;
+      }
+
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
+      cell.font = { bold: true, color: { argb: fontColor } };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
       cell.border = borderThin;
     });

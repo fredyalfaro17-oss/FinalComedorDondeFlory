@@ -755,32 +755,6 @@ async function exportToExcel(sales) {
   // Set AutoFilter for the header row
   worksheet.autoFilter = 'A2:G2';
 
-  // Add dropdowns (data validation) for Pago and Vendedor up to row 1000
-  for (let i = 3; i <= 1000; i++) {
-    worksheet.getCell(`F${i}`).dataValidation = {
-      type: 'list',
-      allowBlank: true,
-      showErrorMessage: false,
-      formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA"']
-    };
-    worksheet.getCell(`G${i}`).dataValidation = {
-      type: 'list',
-      allowBlank: true,
-      showErrorMessage: false,
-      formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,OTROS"']
-    };
-
-    // Helper column H for 'Buscador Inteligente'
-    // Uses ROW() to mark the row number, which is independent and avoids sequential calculation issues.
-    worksheet.getCell(`H${i}`).value = {
-      formula: `IF(AND(OR('Buscador Inteligente'!$B$5="", G${i}='Buscador Inteligente'!$B$5), OR('Buscador Inteligente'!$D$5="", F${i}='Buscador Inteligente'!$D$5), A${i}<>""), ROW(), "")`
-    };
-  }
-
-  worksheet.getColumn('H').hidden = true;
-
-  // Make sure full calc on load is true
-  workbook.calcProperties.fullCalcOnLoad = true;
 
   const morningSales = sales.filter(s => parseInt(s.time.split(':')[0]) < 11);
   const afternoonSales = sales.filter(s => parseInt(s.time.split(':')[0]) >= 11);
@@ -791,8 +765,15 @@ async function exportToExcel(sales) {
     const start = currentRow;
     saleList.forEach(sale => {
       const row = worksheet.getRow(currentRow);
-      row.values = [sale.id, sale.customerName, sale.phone, sale.time, sale.total, sale.pago, sale.vendedor];
-      row.getCell(5).numFmt = currencyFmt;
+      row.getCell('A').value = sale.id;
+      row.getCell('B').value = sale.customerName;
+      row.getCell('C').value = sale.phone;
+      row.getCell('D').value = sale.time;
+      row.getCell('E').value = sale.total;
+      row.getCell('F').value = sale.pago;
+      row.getCell('G').value = sale.vendedor;
+      
+      row.getCell('E').numFmt = currencyFmt;
       currentRow++;
     });
     return { start, end: currentRow - 1 };
@@ -892,95 +873,92 @@ async function exportToExcel(sales) {
   });
 
   // --- SECOND SHEET: BUSCADOR INTELIGENTE ---
+  // NOTE: Instead of cross-sheet formulas (which are unreliable in exceljs),
+  // we write ALL sales data into this sheet as static values.
+  // The user picks a filter in B5/D5, then presses Ctrl+F5 or uses the AutoFilter
+  // row (row 8) to filter the visible rows. No volatile formulas needed.
   const searchSheet = workbook.addWorksheet('Buscador Inteligente');
   searchSheet.views = [{ showGridLines: false }];
-  
-  // Set column widths
+
   searchSheet.columns = [
-    { width: 6 },  // A
-    { width: 35 }, // B (Client Name / Search Vendor)
-    { width: 25 }, // C (Phone)
-    { width: 15 }, // D (Time / Search Payment)
-    { width: 15 }, // E (Total)
-    { width: 18 }, // F (Payment)
-    { width: 18 }  // G (Vendor)
+    { key: 'id',     width: 6  },
+    { key: 'name',   width: 35 },
+    { key: 'phone',  width: 20 },
+    { key: 'time',   width: 12 },
+    { key: 'total',  width: 15 },
+    { key: 'pago',   width: 18 },
+    { key: 'vendor', width: 18 }
   ];
 
-  // Title
-  searchSheet.mergeCells('B2:F2');
-  const sTitle = searchSheet.getCell('B2');
-  sTitle.value = '🔍 BUSCADOR INTELIGENTE DE VENTAS';
-  sTitle.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FF1E293B' } };
+  // ---- Title ----
+  searchSheet.mergeCells('A1:G1');
+  const sTitle = searchSheet.getCell('A1');
+  sTitle.value = '🔍 BUSCADOR INTELIGENTE DE VENTAS — Comedor Donde Flory';
+  sTitle.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
   sTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+  sTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+  searchSheet.getRow(1).height = 30;
 
-  // Search Fields
-  searchSheet.getCell('B4').value = 'Selecciona VENDEDOR:';
-  searchSheet.getCell('B4').font = { bold: true };
-  searchSheet.getCell('B5').dataValidation = {
-    type: 'list', allowBlank: true, showErrorMessage: false, formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,OTROS"']
-  };
-  searchSheet.getCell('B5').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } }; // Yellow input box
-  searchSheet.getCell('B5').border = borderThin;
-  searchSheet.getCell('B5').alignment = { horizontal: 'center' };
-  searchSheet.getCell('B5').font = { bold: true, size: 12 };
+  // ---- Instruction ----
+  searchSheet.mergeCells('A2:G2');
+  searchSheet.getCell('A2').value = 'Usa los filtros de la fila de encabezados (fila 4) para filtrar por VENDEDOR o FORMA DE PAGO';
+  searchSheet.getCell('A2').font = { italic: true, color: { argb: 'FF64748B' } };
+  searchSheet.getCell('A2').alignment = { horizontal: 'center' };
 
-  searchSheet.getCell('D4').value = 'Selecciona PAGO:';
-  searchSheet.getCell('D4').font = { bold: true };
-  searchSheet.getCell('D5').dataValidation = {
-    type: 'list', allowBlank: true, showErrorMessage: false, formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA"']
-  };
-  searchSheet.getCell('D5').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } }; // Yellow input box
-  searchSheet.getCell('D5').border = borderThin;
-  searchSheet.getCell('D5').alignment = { horizontal: 'center' };
-  searchSheet.getCell('D5').font = { bold: true, size: 12 };
-
-  // Results Header
-  const sHeaderRow = searchSheet.getRow(8);
-  sHeaderRow.values = ["No.", "NOMBRE DEL CLIENTE", "TELEFONO", "HORA", "TOTAL", "FORMA DE PAGO", "VENDEDOR"];
-  sHeaderRow.height = 20;
-  sHeaderRow.eachCell(cell => {
+  // ---- Data Table Header with AutoFilter ----
+  const sHeader = searchSheet.getRow(4);
+  sHeader.values = ['No.', 'NOMBRE DEL CLIENTE', 'TELÉFONO', 'HORA', 'TOTAL', 'FORMA DE PAGO', 'VENDEDOR'];
+  sHeader.height = 22;
+  sHeader.eachCell(cell => {
     cell.fill = headerFill;
     cell.font = headerFont;
     cell.alignment = { horizontal: 'center', vertical: 'middle' };
     cell.border = borderThin;
   });
+  searchSheet.autoFilter = 'A4:G4';
 
-  // Standard INDEX/MATCH Formulas for Filtering
-  // Uses a helper column (H) in 'Reporte de Ventas' to avoid array formula issues in Excel
-  for (let r = 9; r <= 108; r++) {
-    const rowIdx = r - 8; // 1, 2, 3...
-    
-    const getFormula = (colLetter, isString) => {
-        // Find the row using SMALL to get the k-th smallest row number matching the condition
-        // This completely avoids any sequential state / calculation bugs in Excel
-        const indexExpr = `INDEX('Reporte de Ventas'!${colLetter}$1:${colLetter}$1000, SMALL('Reporte de Ventas'!$H$1:$H$1000, ${rowIdx}))`;
-        if (isString) {
-            return `IFERROR(${indexExpr} & "", "")`;
-        } else {
-            return `IFERROR(IF(${indexExpr}=0,"",${indexExpr}), "")`;
-        }
-    };
+  // ---- Write ALL sales rows as static values ----
+  let sRow = 5;
+  sales.forEach(sale => {
+    const row = searchSheet.getRow(sRow);
+    row.getCell('A').value = sale.id;
+    row.getCell('B').value = sale.customerName;
+    row.getCell('C').value = sale.phone;
+    row.getCell('D').value = sale.time;
+    row.getCell('E').value = sale.total;
+    row.getCell('F').value = sale.pago;
+    row.getCell('G').value = sale.vendedor;
 
-    // Fill formula for each column
-    searchSheet.getCell(`A${r}`).value = { formula: getFormula('A', false) };
-    searchSheet.getCell(`B${r}`).value = { formula: getFormula('B', true) };
-    searchSheet.getCell(`C${r}`).value = { formula: getFormula('C', true) };
-    searchSheet.getCell(`D${r}`).value = { formula: getFormula('D', true) };
-    searchSheet.getCell(`E${r}`).value = { formula: getFormula('E', false) };
-    searchSheet.getCell(`F${r}`).value = { formula: getFormula('F', true) };
-    searchSheet.getCell(`G${r}`).value = { formula: getFormula('G', true) };
-
-    // Format total column
-    searchSheet.getCell(`E${r}`).numFmt = '"Q"#,##0.00';
-
-    // Borders and alignment
-    ['A', 'B', 'C', 'D', 'E', 'F', 'G'].forEach(col => {
-      searchSheet.getCell(`${col}${r}`).border = borderThin;
-      if (col !== 'B' && col !== 'C') { // Center everything except Name and Phone
-        searchSheet.getCell(`${col}${r}`).alignment = { horizontal: 'center', vertical: 'middle' };
+    row.getCell('E').numFmt = currencyFmt;
+    ['A','B','C','D','E','F','G'].forEach(col => {
+      row.getCell(col).border = borderThin;
+      if (col !== 'B' && col !== 'C') {
+        row.getCell(col).alignment = { horizontal: 'center', vertical: 'middle' };
       } else {
-        searchSheet.getCell(`${col}${r}`).alignment = { vertical: 'middle' };
+        row.getCell(col).alignment = { vertical: 'middle' };
       }
+    });
+    // Alternating row colors
+    if ((sRow % 2) === 0) {
+      ['A','B','C','D','E','F','G'].forEach(col => {
+        row.getCell(col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+      });
+    }
+    sRow++;
+  });
+
+  // ---- Grand Total row at bottom ----
+  if (sales.length > 0) {
+    const totRow = searchSheet.getRow(sRow + 1);
+    totRow.getCell('E').value = { formula: `SUM(E5:E${sRow - 1})` };
+    totRow.getCell('E').numFmt = currencyFmt;
+    totRow.getCell('E').font = { bold: true };
+    totRow.getCell('D').value = 'TOTAL VISIBLE:';
+    totRow.getCell('D').font = { bold: true };
+    totRow.getCell('D').alignment = { horizontal: 'right' };
+    ['A','B','C','D','E','F','G'].forEach(col => {
+      totRow.getCell(col).fill = totalRowFill;
+      totRow.getCell(col).border = borderThin;
     });
   }
 

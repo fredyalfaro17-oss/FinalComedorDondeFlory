@@ -873,21 +873,21 @@ async function exportToExcel(sales) {
   });
 
   // --- SECOND SHEET: BUSCADOR INTELIGENTE ---
-  // NOTE: Instead of cross-sheet formulas (which are unreliable in exceljs),
-  // we write ALL sales data into this sheet as static values.
-  // The user picks a filter in B5/D5, then presses Ctrl+F5 or uses the AutoFilter
-  // row (row 8) to filter the visible rows. No volatile formulas needed.
+  // ARCHITECTURE: All sales data is written in hidden rows (starting at row 1000)
+  // within this same sheet. Formulas in visible rows use SMALL/INDEX to pull
+  // matching rows. Everything stays in ONE sheet → zero cross-sheet issues.
   const searchSheet = workbook.addWorksheet('Buscador Inteligente');
   searchSheet.views = [{ showGridLines: false }];
 
   searchSheet.columns = [
-    { key: 'id',     width: 6  },
-    { key: 'name',   width: 35 },
-    { key: 'phone',  width: 20 },
-    { key: 'time',   width: 12 },
-    { key: 'total',  width: 15 },
-    { key: 'pago',   width: 18 },
-    { key: 'vendor', width: 18 }
+    { width: 6  }, // A - No.
+    { width: 35 }, // B - Nombre / Vendedor dropdown
+    { width: 20 }, // C - Teléfono
+    { width: 12 }, // D - Hora / Pago dropdown
+    { width: 15 }, // E - Total
+    { width: 18 }, // F - Forma de Pago
+    { width: 18 }, // G - Vendedor
+    { width: 4  }  // H - Helper (will be hidden)
   ];
 
   // ---- Title ----
@@ -899,14 +899,52 @@ async function exportToExcel(sales) {
   sTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
   searchSheet.getRow(1).height = 30;
 
-  // ---- Instruction ----
+  // ---- Filter inputs row 2 ----
   searchSheet.mergeCells('A2:G2');
-  searchSheet.getCell('A2').value = 'Usa los filtros de la fila de encabezados (fila 4) para filtrar por VENDEDOR o FORMA DE PAGO';
-  searchSheet.getCell('A2').font = { italic: true, color: { argb: 'FF64748B' } };
-  searchSheet.getCell('A2').alignment = { horizontal: 'center' };
+  searchSheet.getCell('A2').value = 'Selecciona VENDEDOR y FORMA DE PAGO — los resultados se actualizan automáticamente';
+  searchSheet.getCell('A2').font = { italic: true, size: 10, color: { argb: 'FF475569' } };
+  searchSheet.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
+  searchSheet.getCell('A2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
 
-  // ---- Data Table Header with AutoFilter ----
-  const sHeader = searchSheet.getRow(4);
+  // Row 3: Labels
+  searchSheet.getCell('B3').value = 'VENDEDOR:';
+  searchSheet.getCell('B3').font = { bold: true, size: 11 };
+  searchSheet.getCell('B3').alignment = { horizontal: 'right', vertical: 'middle' };
+  searchSheet.getCell('D3').value = 'FORMA DE PAGO:';
+  searchSheet.getCell('D3').font = { bold: true, size: 11 };
+  searchSheet.getCell('D3').alignment = { horizontal: 'right', vertical: 'middle' };
+  searchSheet.getRow(3).height = 20;
+
+  // Row 4: Dropdown inputs
+  const vendorInput = searchSheet.getCell('C4');
+  vendorInput.dataValidation = {
+    type: 'list', allowBlank: true, showErrorMessage: false,
+    formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,OTROS"']
+  };
+  vendorInput.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } };
+  vendorInput.border = borderThin;
+  vendorInput.alignment = { horizontal: 'center', vertical: 'middle' };
+  vendorInput.font = { bold: true, size: 12 };
+  vendorInput.value = '';  // empty = show all
+
+  const pagoInput = searchSheet.getCell('E4');
+  pagoInput.dataValidation = {
+    type: 'list', allowBlank: true, showErrorMessage: false,
+    formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA"']
+  };
+  pagoInput.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } };
+  pagoInput.border = borderThin;
+  pagoInput.alignment = { horizontal: 'center', vertical: 'middle' };
+  pagoInput.font = { bold: true, size: 12 };
+  pagoInput.value = '';  // empty = show all
+
+  searchSheet.getRow(4).height = 24;
+
+  // Row 5: empty spacer
+  searchSheet.getRow(5).height = 8;
+
+  // Row 6: Results header
+  const sHeader = searchSheet.getRow(6);
   sHeader.values = ['No.', 'NOMBRE DEL CLIENTE', 'TELÉFONO', 'HORA', 'TOTAL', 'FORMA DE PAGO', 'VENDEDOR'];
   sHeader.height = 22;
   sHeader.eachCell(cell => {
@@ -915,50 +953,65 @@ async function exportToExcel(sales) {
     cell.alignment = { horizontal: 'center', vertical: 'middle' };
     cell.border = borderThin;
   });
-  searchSheet.autoFilter = 'A4:G4';
 
-  // ---- Write ALL sales rows as static values ----
-  let sRow = 5;
+  // ---- Write ALL sales data in hidden rows starting at 1000 ----
+  const DATA_START = 1000;
+  let dataRow = DATA_START;
   sales.forEach(sale => {
-    const row = searchSheet.getRow(sRow);
-    row.getCell('A').value = sale.id;
-    row.getCell('B').value = sale.customerName;
-    row.getCell('C').value = sale.phone;
-    row.getCell('D').value = sale.time;
-    row.getCell('E').value = sale.total;
-    row.getCell('F').value = sale.pago;
-    row.getCell('G').value = sale.vendedor;
-
-    row.getCell('E').numFmt = currencyFmt;
-    ['A','B','C','D','E','F','G'].forEach(col => {
-      row.getCell(col).border = borderThin;
-      if (col !== 'B' && col !== 'C') {
-        row.getCell(col).alignment = { horizontal: 'center', vertical: 'middle' };
-      } else {
-        row.getCell(col).alignment = { vertical: 'middle' };
-      }
-    });
-    // Alternating row colors
-    if ((sRow % 2) === 0) {
-      ['A','B','C','D','E','F','G'].forEach(col => {
-        row.getCell(col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-      });
-    }
-    sRow++;
+    const dr = searchSheet.getRow(dataRow);
+    dr.getCell('A').value = sale.id;
+    dr.getCell('B').value = sale.customerName;
+    dr.getCell('C').value = sale.phone;
+    dr.getCell('D').value = sale.time;
+    dr.getCell('E').value = sale.total;
+    dr.getCell('F').value = sale.pago;
+    dr.getCell('G').value = sale.vendedor;
+    // Helper column H: if this row matches the dropdowns, store its offset (1,2,3...), else ""
+    // C4 = Vendedor filter, E4 = Pago filter — all within this same sheet
+    dr.getCell('H').value = {
+      formula: `IF(AND(OR(C$4="",G${dataRow}=C$4),OR(E$4="",F${dataRow}=E$4),A${dataRow}<>""),ROW()-${DATA_START - 1},"")`
+    };
+    dr.height = 0.1; // visually hidden
+    dataRow++;
   });
+  const DATA_END = dataRow - 1;
 
-  // ---- Grand Total row at bottom ----
-  if (sales.length > 0) {
-    const totRow = searchSheet.getRow(sRow + 1);
-    totRow.getCell('E').value = { formula: `SUM(E5:E${sRow - 1})` };
-    totRow.getCell('E').numFmt = currencyFmt;
-    totRow.getCell('E').font = { bold: true };
-    totRow.getCell('D').value = 'TOTAL VISIBLE:';
-    totRow.getCell('D').font = { bold: true };
-    totRow.getCell('D').alignment = { horizontal: 'right' };
+  // Column H hidden
+  searchSheet.getColumn('H').hidden = true;
+
+  // ---- Result rows (up to 100) using SMALL+INDEX within the same sheet ----
+  const MAX_RESULTS = 100;
+  for (let k = 1; k <= MAX_RESULTS; k++) {
+    const r = 6 + k; // rows 7, 8, 9 ...
+
+    const cf = (col, isText) => {
+      const expr = `INDEX(${col}$${DATA_START}:${col}$${DATA_END},SMALL($H$${DATA_START}:$H$${DATA_END},${k}))`;
+      return isText
+        ? `IFERROR(${expr}&"","")`
+        : `IFERROR(IF(${expr}=0,"",${expr}),"")`;
+    };
+
+    searchSheet.getCell(`A${r}`).value = { formula: cf('A', false) };
+    searchSheet.getCell(`B${r}`).value = { formula: cf('B', true) };
+    searchSheet.getCell(`C${r}`).value = { formula: cf('C', true) };
+    searchSheet.getCell(`D${r}`).value = { formula: cf('D', true) };
+    searchSheet.getCell(`E${r}`).value = { formula: cf('E', false) };
+    searchSheet.getCell(`F${r}`).value = { formula: cf('F', true) };
+    searchSheet.getCell(`G${r}`).value = { formula: cf('G', true) };
+
+    searchSheet.getCell(`E${r}`).numFmt = currencyFmt;
+
     ['A','B','C','D','E','F','G'].forEach(col => {
-      totRow.getCell(col).fill = totalRowFill;
-      totRow.getCell(col).border = borderThin;
+      searchSheet.getCell(`${col}${r}`).border = borderThin;
+      if (col !== 'B' && col !== 'C') {
+        searchSheet.getCell(`${col}${r}`).alignment = { horizontal: 'center', vertical: 'middle' };
+      } else {
+        searchSheet.getCell(`${col}${r}`).alignment = { vertical: 'middle' };
+      }
+      // Alternating row fill for visible result rows
+      if (k % 2 === 0) {
+        searchSheet.getCell(`${col}${r}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+      }
     });
   }
 

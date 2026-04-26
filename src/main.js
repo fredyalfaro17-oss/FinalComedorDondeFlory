@@ -764,8 +764,20 @@ async function exportToExcel(sales) {
       row.getCell('C').value = sale.phone;
       row.getCell('D').value = sale.time;
       row.getCell('E').value = sale.total;
-      row.getCell('F').value = sale.pago;
-      row.getCell('G').value = sale.vendedor;
+      
+      const pagoCell = row.getCell('F');
+      pagoCell.value = sale.pago;
+      pagoCell.dataValidation = {
+        type: 'list', allowBlank: true, showErrorMessage: false,
+        formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA"']
+      };
+
+      const vendedorCell = row.getCell('G');
+      vendedorCell.value = sale.vendedor;
+      vendedorCell.dataValidation = {
+        type: 'list', allowBlank: true, showErrorMessage: false,
+        formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr."']
+      };
       
       row.getCell('E').numFmt = currencyFmt;
       currentRow++;

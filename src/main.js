@@ -777,7 +777,7 @@ async function exportToExcel(sales) {
       vendedorCell.value = sale.vendedor;
       vendedorCell.dataValidation = {
         type: 'list', allowBlank: true, showErrorMessage: false,
-        formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr."']
+        formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,LOCAL"']
       };
       
       row.getCell('E').numFmt = currencyFmt;
@@ -869,11 +869,18 @@ async function exportToExcel(sales) {
           font: { color: { argb: 'FF512E5F' }, bold: true },
           fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF5EEF8' } }
         }
+      },
+      {
+        type: 'cellIs', operator: 'equal', formulae: ['"LOCAL"'],
+        style: { 
+          font: { color: { argb: 'FF424949' }, bold: true },
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFE5E8E8' } }
+        }
       }
     ]
   });
   // Summaries by Vendor
-  const vendors = ['FREDY', 'JAIME', 'VIEJO', 'ANDRES Jr.'];
+  const vendors = ['FREDY', 'JAIME', 'VIEJO', 'ANDRES Jr.', 'LOCAL'];
   
   vendors.forEach(v => {
     const vSales = sales.filter(s => s.vendedor === v);
@@ -889,7 +896,8 @@ async function exportToExcel(sales) {
       'FREDY': { font: 'FF154360', fill: 'FFD4E6F1' },
       'JAIME': { font: 'FF145A32', fill: 'FFD5F5E3' },
       'VIEJO': { font: 'FF7E5109', fill: 'FFFDEBD0' },
-      'ANDRES Jr.': { font: 'FF512E5F', fill: 'FFF5EEF8' }
+      'ANDRES Jr.': { font: 'FF512E5F', fill: 'FFF5EEF8' },
+      'LOCAL': { font: 'FF424949', fill: 'FFE5E8E8' }
     };
 
     ['D','E','F','G'].forEach(col => {
@@ -980,7 +988,7 @@ async function exportToExcel(sales) {
   const vendorInput = searchSheet.getCell('C4');
   vendorInput.dataValidation = {
     type: 'list', allowBlank: true, showErrorMessage: false,
-    formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,OTROS"']
+    formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,LOCAL,OTROS"']
   };
   vendorInput.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } };
   vendorInput.border = borderThin;

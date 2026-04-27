@@ -1,12 +1,19 @@
 /* Global Styles & Design System */
 :root {
-  --primary: #FFB300;             /* Amber Gold */
-  --primary-hover: #FFD54F;       /* Lighter Gold */
-  --accent: #E6BE8A;              /* Muted Gold */
-  --bg-dark: #0A0E14;             /* Deep Charcoal */
-  --surface: #121824;             /* Elevated Surface */
-  --glass: rgba(18, 24, 36, 0.85); /* Dark Glass */
-  --border: rgba(255, 179, 0, 0.1); /* Subtle Amber Border */
+  --primary: #FFB300;
+  /* Amber Gold */
+  --primary-hover: #FFD54F;
+  /* Lighter Gold */
+  --accent: #E6BE8A;
+  /* Muted Gold */
+  --bg-dark: #0A0E14;
+  /* Deep Charcoal */
+  --surface: #121824;
+  /* Elevated Surface */
+  --glass: rgba(18, 24, 36, 0.85);
+  /* Dark Glass */
+  --border: rgba(255, 179, 0, 0.1);
+  /* Subtle Amber Border */
   --glow-color: rgba(255, 179, 0, 0.25);
 }
 
@@ -151,8 +158,13 @@ body {
 }
 
 @keyframes marquee {
-  0% { transform: translateX(100%); }
-  100% { transform: translateX(-100%); }
+  0% {
+    transform: translateX(100%);
+  }
+
+  100% {
+    transform: translateX(-100%);
+  }
 }
 
 .animate-marquee {
@@ -161,9 +173,12 @@ body {
 }
 
 @keyframes logoFloat {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0) scale(1.35);
   }
+
   50% {
     transform: translateY(-6px) scale(1.35);
   }
@@ -458,12 +473,19 @@ body {
   animation: fade-in-bg 0.8s ease-out;
 }
 
-#modal-content.special-bg > div {
+#modal-content.special-bg>div {
   position: relative;
   z-index: 1;
 }
 
 @keyframes fade-in-bg {
-  from { opacity: 0; transform: scale(1.1); }
-  to { opacity: 0.3; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(1.1);
+  }
+
+  to {
+    opacity: 0.3;
+    transform: scale(1);
+  }
 }

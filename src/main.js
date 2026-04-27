@@ -881,16 +881,16 @@ async function exportToExcel(sales) {
   });
   // Summaries by Vendor
   const vendors = ['FREDY', 'JAIME', 'VIEJO', 'ANDRES Jr.', 'LOCAL'];
+  const vendorTotalRows = [];
   
   vendors.forEach(v => {
-    const vSales = sales.filter(s => s.vendedor === v);
-    
     // Header for this vendor table
     const headRow = worksheet.getRow(currentRow);
     headRow.getCell('D').value = v;
     headRow.getCell('E').value = 'EFECTIVO';
     headRow.getCell('F').value = 'TRANSFERENCIA';
     headRow.getCell('G').value = 'TARJETA';
+    headRow.getCell('H').value = 'TOTAL';
     
     const vendorColors = {
       'FREDY': { font: 'FF154360', fill: 'FFD4E6F1' },
@@ -900,17 +900,14 @@ async function exportToExcel(sales) {
       'LOCAL': { font: 'FF424949', fill: 'FFE5E8E8' }
     };
 
-    ['D','E','F','G'].forEach(col => {
+    ['D','E','F','G','H'].forEach(col => {
       const cell = headRow.getCell(col);
-      
       let fontColor = 'FF000000';
       let fillColor = 'FFA6A6A6';
-      
       if (col === 'D') {
         fontColor = vendorColors[v].font;
         fillColor = vendorColors[v].fill;
       }
-
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
       cell.font = { bold: true, color: { argb: fontColor } };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -920,23 +917,44 @@ async function exportToExcel(sales) {
 
     // Data for this vendor table
     const dataRow = worksheet.getRow(currentRow);
-    // Find all rows where vendor == v, and pago == EFECTIVO etc.
     const maxRow = (afternoonRange.end || morningRange.end || 3);
     const formulaBase = `SUMIFS(E3:E${maxRow}, G3:G${maxRow}, "${v}", F3:F${maxRow}, `;
     
     dataRow.getCell('E').value = { formula: formulaBase + '"EFECTIVO")' };
     dataRow.getCell('F').value = { formula: formulaBase + '"TRANSFERENCIA")' };
     dataRow.getCell('G').value = { formula: formulaBase + '"TARJETA")' };
+    dataRow.getCell('H').value = { formula: `E${currentRow} + F${currentRow} + G${currentRow}` };
     
-    ['D','E','F','G'].forEach(col => {
+    vendorTotalRows.push(currentRow);
+
+    ['D','E','F','G','H'].forEach(col => {
       const cell = dataRow.getCell(col);
-    if(col !== 'D') cell.numFmt = currencyFmt;
+      if(col !== 'D') cell.numFmt = currencyFmt;
+      if (col === 'H') cell.font = { bold: true };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
       cell.border = borderThin;
     });
     
     currentRow += 2;
   });
+
+  // --- FINAL TOTAL VENDIDO POR TODOS ---
+  const finalTotalRow = worksheet.getRow(currentRow);
+  finalTotalRow.getCell('G').value = 'TOTAL VENDIDO (TODOS)';
+  finalTotalRow.getCell('G').font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  finalTotalRow.getCell('G').alignment = { horizontal: 'right' };
+  finalTotalRow.getCell('G').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF333333' } };
+  
+  finalTotalRow.getCell('H').value = { formula: vendorTotalRows.map(r => `H${r}`).join('+') };
+  finalTotalRow.getCell('H').font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  finalTotalRow.getCell('H').numFmt = currencyFmt;
+  finalTotalRow.getCell('H').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF333333' } };
+  finalTotalRow.getCell('H').border = borderThin;
+  finalTotalRow.getCell('G').border = borderThin;
+
+  currentRow += 3;
+
+
 
   // --- SECOND SHEET: BUSCADOR INTELIGENTE ---
   // ARCHITECTURE:

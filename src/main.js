@@ -949,6 +949,7 @@ async function exportToExcel(sales) {
   finalTotalRow.getCell('H').value = { formula: vendorTotalRows.map(r => `H${r}`).join('+') };
   finalTotalRow.getCell('H').font = { bold: true, color: { argb: 'FFFFFFFF' } };
   finalTotalRow.getCell('H').numFmt = currencyFmt;
+  finalTotalRow.getCell('H').alignment = { horizontal: 'center', vertical: 'middle' };
   finalTotalRow.getCell('H').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF333333' } };
   finalTotalRow.getCell('H').border = borderThin;
   finalTotalRow.getCell('G').border = borderThin;

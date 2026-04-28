@@ -741,7 +741,8 @@ async function exportToExcel(sales) {
     { key: 'time', width: 10 },
     { key: 'total', width: 15 },
     { key: 'pago', width: 18 },
-    { key: 'vendedor', width: 18 }
+    { key: 'vendedor', width: 18 },
+    { key: 'vendorTotal', width: 15 }
   ];
 
   // Set AutoFilter for the header row

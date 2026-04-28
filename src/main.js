@@ -940,9 +940,9 @@ async function exportToExcel(sales) {
 
   // --- FINAL TOTAL VENDIDO POR TODOS ---
   const finalTotalRow = worksheet.getRow(currentRow);
-  finalTotalRow.getCell('G').value = 'TOTAL VENDIDO (TODOS)';
+  finalTotalRow.getCell('G').value = 'TOTAL VENDIDO';
   finalTotalRow.getCell('G').font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  finalTotalRow.getCell('G').alignment = { horizontal: 'right' };
+  finalTotalRow.getCell('G').alignment = { horizontal: 'center', vertical: 'middle' };
   finalTotalRow.getCell('G').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF333333' } };
   
   finalTotalRow.getCell('H').value = { formula: vendorTotalRows.map(r => `H${r}`).join('+') };

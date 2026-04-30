@@ -591,9 +591,13 @@ function saveSale(total) {
   localStorage.setItem('daily_sales', JSON.stringify(sales));
 }
 
-function renderReportContent(sales) {
+function renderReportContent(sales, filter = '') {
+  const filteredSales = filter 
+    ? sales.filter(s => s.items.toLowerCase().includes(filter.toLowerCase())) 
+    : sales;
+
   let totalDia = 0;
-  const tableRows = sales.map(sale => {
+  const tableRows = filteredSales.map(sale => {
     totalDia += sale.total;
     return `
       <tr class="border-b border-slate-700 hover:bg-slate-800/50 transition-colors">
@@ -609,7 +613,7 @@ function renderReportContent(sales) {
     `;
   }).join('');
 
-  return { tableRows, totalDia, totalsHtml: '', isEmpty: sales.length === 0 };
+  return { tableRows, totalDia, totalsHtml: '', isEmpty: filteredSales.length === 0 };
 }
 
 function openReportModal() {
@@ -618,11 +622,10 @@ function openReportModal() {
 
 window.renderReportModal = function() {
   const sales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
-  const { tableRows, totalDia, totalsHtml, isEmpty } = renderReportContent(sales);
-
+  
   modalOverlay.innerHTML = `
     <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl animate-scale-in">
-      <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-800/50 rounded-t-2xl">
+      <div class="p-6 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-800/50 rounded-t-2xl">
         <div>
           <h2 class="text-2xl font-bold font-playfair text-white flex items-center gap-3">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
@@ -630,6 +633,13 @@ window.renderReportModal = function() {
           </h2>
           <p class="text-sm text-slate-400 mt-1">Resumen de transacciones y formas de pago</p>
         </div>
+        
+        <div class="relative w-full md:w-80">
+          <input type="text" id="report-search" placeholder="Filtrar por detalle de pedido..." 
+            class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-xl px-10 py-2.5 focus:outline-none focus:border-amber-500 transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-3 text-slate-500"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+        </div>
+
         <button id="close-report-btn" class="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
         </button>
@@ -650,23 +660,11 @@ window.renderReportModal = function() {
                 <th scope="col" class="px-4 py-4 text-right">TOTAL</th>
               </tr>
             </thead>
-            <tbody>
-              ${!isEmpty ? tableRows : `
-                <tr>
-                  <td colspan="8" class="px-4 py-12 text-center text-slate-500">
-                    <div class="flex flex-col items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mb-3 opacity-50"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg>
-                      No hay ventas
-                    </div>
-                  </td>
-                </tr>
-              `}
+            <tbody id="report-table-body">
+              <!-- Content will be injected here -->
             </tbody>
-            <tfoot class="bg-slate-900 border-t border-slate-800 font-bold text-white">
-              <tr>
-                <td colspan="7" class="px-4 py-4 text-right text-slate-400">Total Mostrado...</td>
-                <td class="px-4 py-4 text-right text-amber-500 text-lg">Q${totalDia.toFixed(2)}</td>
-              </tr>
+            <tfoot id="report-table-footer" class="bg-slate-900 border-t border-slate-800 font-bold text-white">
+              <!-- Footer will be injected here -->
             </tfoot>
           </table>
         </div>
@@ -678,30 +676,64 @@ window.renderReportModal = function() {
         </button>
         <button id="export-excel-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2" ${sales.length === 0 ? 'disabled' : ''}>
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10.4 12.6a2 2 0 1 1 3 3L8 21l-4 1 1-4Z"></path><path d="m18 21-4-4"></path><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z"></path></svg>
-          Descargar Excel (.xlsx)
+          Exportar a Excel
         </button>
       </div>
     </div>
   `;
 
-  modalOverlay.classList.remove('hidden');
+  const tbody = document.getElementById('report-table-body');
+  const tfoot = document.getElementById('report-table-footer');
+  const searchInput = document.getElementById('report-search');
 
-  document.getElementById('close-report-btn').onclick = () => modalOverlay.classList.add('hidden');
+  function updateDisplay(filter = '') {
+    const { tableRows, totalDia, isEmpty } = renderReportContent(sales, filter);
+    
+    tbody.innerHTML = !isEmpty ? tableRows : `
+      <tr>
+        <td colspan="8" class="px-4 py-12 text-center text-slate-500">
+          <div class="flex flex-col items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mb-3 opacity-50"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg>
+            ${filter ? 'No se encontraron pedidos con ese detalle' : 'No hay ventas'}
+          </div>
+        </td>
+      </tr>
+    `;
+
+    tfoot.innerHTML = `
+      <tr>
+        <td colspan="7" class="px-4 py-4 text-right text-slate-400">Total ${filter ? 'Filtrado' : 'General'}</td>
+        <td class="px-4 py-4 text-right text-amber-500 text-lg">Q${totalDia.toFixed(2)}</td>
+      </tr>
+    `;
+  }
+
+  // Initial render
+  updateDisplay();
+
+  // Search event
+  searchInput.addEventListener('input', (e) => {
+    updateDisplay(e.target.value);
+  });
+
+  document.getElementById('close-report-btn').onclick = () => {
+    modalOverlay.classList.add('hidden');
+    modalOverlay.classList.remove('flex');
+  };
 
   document.getElementById('clear-sales-btn').onclick = () => {
-    if (confirm('¿Estás seguro de que deseas borrar TODAS las ventas de hoy? Esta acción no se puede deshacer.')) {
+    if (confirm('¿Estás seguro de que deseas borrar todo el historial de ventas del día?')) {
       localStorage.removeItem('daily_sales');
       window.renderReportModal();
     }
   };
+  document.getElementById('export-excel-btn').onclick = () => {
+    exportToExcel(sales);
+  };
 
-  const exportBtn = document.getElementById('export-excel-btn');
-  if (exportBtn) {
-    exportBtn.onclick = async () => {
-      await exportToExcel(sales); // Export all sales, the excel has summaries
-    };
-  }
-}
+  modalOverlay.classList.remove('hidden');
+  modalOverlay.classList.add('flex');
+};
 
 async function exportToExcel(sales) {
   const workbook = new ExcelJS.Workbook();

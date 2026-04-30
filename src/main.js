@@ -601,6 +601,7 @@ function renderReportContent(sales) {
         <td class="px-4 py-3">${sale.customerName}</td>
         <td class="px-4 py-3 text-center">${sale.phone}</td>
         <td class="px-4 py-3 text-center">${sale.time}</td>
+        <td class="px-4 py-3 text-sm italic text-slate-400 min-w-[200px]">${sale.items}</td>
         <td class="px-4 py-3 text-center font-semibold text-emerald-400">${sale.pago}</td>
         <td class="px-4 py-3 text-center font-semibold text-blue-400">${sale.vendedor}</td>
         <td class="px-4 py-3 text-right font-bold text-amber-400">Q${sale.total.toFixed(2)}</td>
@@ -643,6 +644,7 @@ window.renderReportModal = function() {
                 <th scope="col" class="px-4 py-4">NOMBRE DEL CLIENTE</th>
                 <th scope="col" class="px-4 py-4 text-center">TELÉFONO</th>
                 <th scope="col" class="px-4 py-4 text-center">HORA</th>
+                <th scope="col" class="px-4 py-4">DETALLE DE PEDIDO</th>
                 <th scope="col" class="px-4 py-4 text-center">PAGO</th>
                 <th scope="col" class="px-4 py-4 text-center">VENDEDOR</th>
                 <th scope="col" class="px-4 py-4 text-right">TOTAL</th>
@@ -651,7 +653,7 @@ window.renderReportModal = function() {
             <tbody>
               ${!isEmpty ? tableRows : `
                 <tr>
-                  <td colspan="7" class="px-4 py-12 text-center text-slate-500">
+                  <td colspan="8" class="px-4 py-12 text-center text-slate-500">
                     <div class="flex flex-col items-center justify-center">
                       <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mb-3 opacity-50"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg>
                       No hay ventas
@@ -662,7 +664,7 @@ window.renderReportModal = function() {
             </tbody>
             <tfoot class="bg-slate-900 border-t border-slate-800 font-bold text-white">
               <tr>
-                <td colspan="6" class="px-4 py-4 text-right text-slate-400">Total Mostrado...</td>
+                <td colspan="7" class="px-4 py-4 text-right text-slate-400">Total Mostrado...</td>
                 <td class="px-4 py-4 text-right text-amber-500 text-lg">Q${totalDia.toFixed(2)}</td>
               </tr>
             </tfoot>
@@ -722,7 +724,7 @@ async function exportToExcel(sales) {
   worksheet.getRow(1).height = 30;
 
   // Row 2: Headers
-  const headers = ["No.", "NOMBRE DEL CLIENTE", "TELEFONO", "HORA", "TOTAL", "FORMA DE PAGO", "VENDEDOR"];
+  const headers = ["No.", "NOMBRE DEL CLIENTE", "TELEFONO", "HORA", "DETALLE DE PEDIDO", "TOTAL", "FORMA DE PAGO", "VENDEDOR"];
   const headerRow = worksheet.getRow(2);
   headerRow.values = headers;
   headerRow.height = 20;
@@ -739,14 +741,14 @@ async function exportToExcel(sales) {
     { key: 'name', width: 35 },
     { key: 'phone', width: 25 },
     { key: 'time', width: 10 },
+    { key: 'pedido', width: 45 },
     { key: 'total', width: 15 },
     { key: 'pago', width: 18 },
-    { key: 'vendedor', width: 18 },
-    { key: 'vendorTotal', width: 15 }
+    { key: 'vendedor', width: 18 }
   ];
 
   // Set AutoFilter for the header row
-  worksheet.autoFilter = 'A2:G2';
+  worksheet.autoFilter = 'A2:H2';
 
   // Force Excel to recalculate all formulas when the workbook opens
   workbook.calcProperties.fullCalcOnLoad = true;
@@ -765,23 +767,24 @@ async function exportToExcel(sales) {
       row.getCell('B').value = sale.customerName;
       row.getCell('C').value = sale.phone;
       row.getCell('D').value = sale.time;
-      row.getCell('E').value = sale.total;
+      row.getCell('E').value = sale.items;
+      row.getCell('F').value = sale.total;
       
-      const pagoCell = row.getCell('F');
+      const pagoCell = row.getCell('G');
       pagoCell.value = sale.pago;
       pagoCell.dataValidation = {
         type: 'list', allowBlank: true, showErrorMessage: false,
         formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA"']
       };
 
-      const vendedorCell = row.getCell('G');
+      const vendedorCell = row.getCell('H');
       vendedorCell.value = sale.vendedor;
       vendedorCell.dataValidation = {
         type: 'list', allowBlank: true, showErrorMessage: false,
         formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,LOCAL"']
       };
       
-      row.getCell('E').numFmt = currencyFmt;
+      row.getCell('F').numFmt = currencyFmt;
       currentRow++;
     });
     return { start, end: currentRow - 1 };
@@ -790,19 +793,19 @@ async function exportToExcel(sales) {
   const totalRowFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
   const addTotalRow = (label, range) => {
     const row = worksheet.getRow(currentRow);
-    row.getCell('D').value = label;
-    row.getCell('D').font = { bold: true };
-    row.getCell('D').alignment = { horizontal: 'right' };
-    if (range.start <= range.end) {
-      row.getCell('E').value = { formula: `SUM(E${range.start}:E${range.end})` };
-    } else {
-      row.getCell('E').value = 0;
-    }
-    row.getCell('E').numFmt = currencyFmt;
+    row.getCell('E').value = label;
     row.getCell('E').font = { bold: true };
+    row.getCell('E').alignment = { horizontal: 'right' };
+    if (range.start <= range.end) {
+      row.getCell('F').value = { formula: `SUM(F${range.start}:F${range.end})` };
+    } else {
+      row.getCell('F').value = 0;
+    }
+    row.getCell('F').numFmt = currencyFmt;
+    row.getCell('F').font = { bold: true };
     
     // Apply gray fill to cells A-G
-    ['A','B','C','D','E','F','G'].forEach(col => {
+    ['A','B','C','D','E','F','G','H'].forEach(col => {
       row.getCell(col).fill = totalRowFill;
       row.getCell(col).border = borderThin;
     });
@@ -823,15 +826,15 @@ async function exportToExcel(sales) {
 
   // Grand Total
   const grandTotalRow = worksheet.getRow(currentRow);
-  grandTotalRow.getCell('D').value = 'TOTAL GENERAL DEL DÍA';
-  grandTotalRow.getCell('D').font = { bold: true, size: 12 };
-  grandTotalRow.getCell('D').alignment = { horizontal: 'right' };
-  grandTotalRow.getCell('E').value = { formula: `E${morningTotalIndex} + E${afternoonTotalIndex}` };
-  grandTotalRow.getCell('E').numFmt = currencyFmt;
+  grandTotalRow.getCell('E').value = 'TOTAL GENERAL DEL DÍA';
   grandTotalRow.getCell('E').font = { bold: true, size: 12 };
+  grandTotalRow.getCell('E').alignment = { horizontal: 'right' };
+  grandTotalRow.getCell('F').value = { formula: `F${morningTotalIndex} + F${afternoonTotalIndex}` };
+  grandTotalRow.getCell('F').numFmt = currencyFmt;
+  grandTotalRow.getCell('F').font = { bold: true, size: 12 };
   
   // Apply gray fill
-  ['A','B','C','D','E','F','G'].forEach(col => {
+  ['A','B','C','D','E','F','G','H'].forEach(col => {
     grandTotalRow.getCell(col).fill = totalRowFill;
     grandTotalRow.getCell(col).border = borderThin;
   });
@@ -839,9 +842,9 @@ async function exportToExcel(sales) {
   currentRow += 3;
 
 
-  // Add elegant conditional formatting for the VENDEDOR column (G)
+  // Add elegant conditional formatting for the VENDEDOR column (H)
   worksheet.addConditionalFormatting({
-    ref: 'G3:G1000',
+    ref: 'H3:H1000',
     rules: [
       {
         type: 'cellIs', operator: 'equal', formulae: ['"FREDY"'],
@@ -881,6 +884,13 @@ async function exportToExcel(sales) {
     ]
   });
   // Summaries by Vendor
+  const vendorColors = {
+    'FREDY': { font: 'FF154360', fill: 'FFD4E6F1' },
+    'JAIME': { font: 'FF145A32', fill: 'FFD5F5E3' },
+    'VIEJO': { font: 'FF7E5109', fill: 'FFFDEBD0' },
+    'ANDRES Jr.': { font: 'FF512E5F', fill: 'FFF5EEF8' },
+    'LOCAL': { font: 'FF424949', fill: 'FFE5E8E8' }
+  };
   const vendors = ['FREDY', 'JAIME', 'VIEJO', 'ANDRES Jr.', 'LOCAL'];
   const vendorTotalRows = [];
   
@@ -892,14 +902,6 @@ async function exportToExcel(sales) {
     headRow.getCell('F').value = 'TRANSFERENCIA';
     headRow.getCell('G').value = 'TARJETA';
     headRow.getCell('H').value = 'TOTAL';
-    
-    const vendorColors = {
-      'FREDY': { font: 'FF154360', fill: 'FFD4E6F1' },
-      'JAIME': { font: 'FF145A32', fill: 'FFD5F5E3' },
-      'VIEJO': { font: 'FF7E5109', fill: 'FFFDEBD0' },
-      'ANDRES Jr.': { font: 'FF512E5F', fill: 'FFF5EEF8' },
-      'LOCAL': { font: 'FF424949', fill: 'FFE5E8E8' }
-    };
 
     ['D','E','F','G','H'].forEach(col => {
       const cell = headRow.getCell(col);
@@ -919,7 +921,7 @@ async function exportToExcel(sales) {
     // Data for this vendor table
     const dataRow = worksheet.getRow(currentRow);
     const maxRow = (afternoonRange.end || morningRange.end || 3);
-    const formulaBase = `SUMIFS(E3:E${maxRow}, G3:G${maxRow}, "${v}", F3:F${maxRow}, `;
+    const formulaBase = `SUMIFS(F3:F${maxRow}, H3:H${maxRow}, "${v}", G3:G${maxRow}, `;
     
     dataRow.getCell('E').value = { formula: formulaBase + '"EFECTIVO")' };
     dataRow.getCell('F').value = { formula: formulaBase + '"TRANSFERENCIA")' };
@@ -972,9 +974,10 @@ async function exportToExcel(sales) {
     { width: 35 }, // B - Nombre del Cliente
     { width: 20 }, // C - Teléfono
     { width: 12 }, // D - Hora
-    { width: 15 }, // E - Total
-    { width: 18 }, // F - Forma de Pago
-    { width: 18 }, // G - Vendedor
+    { width: 45 }, // E - Detalle de Pedido
+    { width: 15 }, // F - Total
+    { width: 18 }, // G - Forma de Pago
+    { width: 18 }, // H - Vendedor
   ];
 
   // ---- Row 1: Title ----
@@ -1032,7 +1035,7 @@ async function exportToExcel(sales) {
 
   // ---- Row 6: Results table header ----
   const sHeader = searchSheet.getRow(6);
-  sHeader.values = ['No.', 'NOMBRE DEL CLIENTE', 'TELÉFONO', 'HORA', 'TOTAL', 'FORMA DE PAGO', 'VENDEDOR'];
+  sHeader.values = ['No.', 'NOMBRE DEL CLIENTE', 'TELÉFONO', 'HORA', 'DETALLE DE PEDIDO', 'TOTAL', 'FORMA DE PAGO', 'VENDEDOR'];
   sHeader.height = 22;
   sHeader.eachCell(cell => {
     cell.fill = headerFill;
@@ -1053,6 +1056,7 @@ async function exportToExcel(sales) {
     dr.getCell('E').value = { formula: `'Reporte de Ventas'!E${sale.excelRow}` };
     dr.getCell('F').value = { formula: `'Reporte de Ventas'!F${sale.excelRow}` };
     dr.getCell('G').value = { formula: `'Reporte de Ventas'!G${sale.excelRow}` };
+    dr.getCell('H').value = { formula: `'Reporte de Ventas'!H${sale.excelRow}` };
     dr.hidden = true; // hide from view; INDEX/MATCH still reads them
     dataRow++;
   });
@@ -1061,13 +1065,13 @@ async function exportToExcel(sales) {
   // ---- Row 7: INDEX/MATCH formulas for universal compatibility ----
   // FILTER() causes corruption in older Excel versions when exported by ExcelJS.
   // We use a helper column H to tag matching rows, and INDEX/MATCH to pull them up.
-  searchSheet.getCell('H999').value = 0; // Base for MAX
+  searchSheet.getCell('J999').value = 0; // Base for MAX
 
   if (DATA_END >= DATA_START) {
     // 1. Helper column formulas in rows 1000+
     for (let i = DATA_START; i <= DATA_END; i++) {
-      searchSheet.getCell(`H${i}`).value = { 
-        formula: `IF(AND(OR($C$4="", G${i}=$C$4), OR($E$4="", F${i}=$E$4)), MAX($H$999:H${i-1})+1, "")` 
+      searchSheet.getCell(`J${i}`).value = { 
+        formula: `IF(AND(OR($C$4="", H${i}=$C$4), OR($E$4="", G${i}=$E$4)), MAX($J$999:J${i-1})+1, "")` 
       };
     }
 
@@ -1075,15 +1079,15 @@ async function exportToExcel(sales) {
     const resultsEndRow = 7 + sales.length - 1;
     for (let i = 7; i <= resultsEndRow; i++) {
       const rowNumOffset = i - 6; // Row 7 is match #1
-      ['A','B','C','D','E','F','G'].forEach(col => {
+      ['A','B','C','D','E','F','G', 'H'].forEach(col => {
         const cell = searchSheet.getCell(`${col}${i}`);
         cell.value = { 
-          formula: `IFERROR(INDEX(${col}$${DATA_START}:${col}$${DATA_END}, MATCH(${rowNumOffset}, $H$${DATA_START}:$H$${DATA_END}, 0)), "")` 
+          formula: `IFERROR(INDEX(${col}$${DATA_START}:${col}$${DATA_END}, MATCH(${rowNumOffset}, $J$${DATA_START}:$J$${DATA_END}, 0)), "")` 
         };
         // Apply styling to results area
-        if (col === 'E') cell.numFmt = currencyFmt;
+        if (col === 'F') cell.numFmt = currencyFmt;
         cell.border = borderThin;
-        if (col !== 'B') cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        if (col !== 'B' && col !== 'E') cell.alignment = { horizontal: 'center', vertical: 'middle' };
       });
     }
   } else {

@@ -597,8 +597,23 @@ function renderReportContent(sales, filter = '') {
     : sales;
 
   let totalDia = 0;
+  let cantidadFiltrada = 0;
+
   const tableRows = filteredSales.map(sale => {
     totalDia += sale.total;
+
+    if (filter) {
+      const itemsArray = sale.items.split(', ');
+      itemsArray.forEach(item => {
+        if (item.toLowerCase().includes(filter.toLowerCase())) {
+          const match = item.match(/^(\d+)x/);
+          if (match) {
+            cantidadFiltrada += parseInt(match[1], 10);
+          }
+        }
+      });
+    }
+
     return `
       <tr class="border-b border-slate-700 hover:bg-slate-800/50 transition-colors">
         <td class="px-4 py-3 text-center">${sale.id}</td>
@@ -613,7 +628,7 @@ function renderReportContent(sales, filter = '') {
     `;
   }).join('');
 
-  return { tableRows, totalDia, totalsHtml: '', isEmpty: filteredSales.length === 0 };
+  return { tableRows, totalDia, cantidadFiltrada, isEmpty: filteredSales.length === 0 };
 }
 
 function openReportModal() {
@@ -687,7 +702,7 @@ window.renderReportModal = function() {
   const searchInput = document.getElementById('report-search');
 
   function updateDisplay(filter = '') {
-    const { tableRows, totalDia, isEmpty } = renderReportContent(sales, filter);
+    const { tableRows, totalDia, cantidadFiltrada, isEmpty } = renderReportContent(sales, filter);
     
     tbody.innerHTML = !isEmpty ? tableRows : `
       <tr>
@@ -702,8 +717,10 @@ window.renderReportModal = function() {
 
     tfoot.innerHTML = `
       <tr>
-        <td colspan="7" class="px-4 py-4 text-right text-slate-400">Total ${filter ? 'Filtrado' : 'General'}</td>
-        <td class="px-4 py-4 text-right text-amber-500 text-lg">Q${totalDia.toFixed(2)}</td>
+        <td colspan="4" class="px-4 py-4 text-right"></td>
+        <td class="px-4 py-4 text-left font-bold text-emerald-400 text-xs">${filter ? `CANTIDAD VENDIDA: <span class="text-white text-base bg-emerald-600/20 px-2 py-1 rounded ml-1">${cantidadFiltrada}</span>` : ''}</td>
+        <td colspan="2" class="px-4 py-4 text-right text-slate-400 uppercase tracking-wider font-bold text-xs">Total ${filter ? 'Filtrado' : 'General'}</td>
+        <td class="px-4 py-4 text-right text-amber-500 text-xl font-black">Q${totalDia.toFixed(2)}</td>
       </tr>
     `;
   }

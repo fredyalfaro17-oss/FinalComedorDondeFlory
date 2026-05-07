@@ -591,21 +591,33 @@ function saveSale(total) {
   localStorage.setItem('daily_sales', JSON.stringify(sales));
 }
 
-function renderReportContent(sales, filter = '') {
-  const filteredSales = filter 
-    ? sales.filter(s => s.items.toLowerCase().includes(filter.toLowerCase())) 
-    : sales;
+function renderReportContent(sales, textFilter = '', vendorFilter = '') {
+  let filteredSales = sales;
+  
+  if (vendorFilter) {
+    filteredSales = filteredSales.filter(s => s.vendedor === vendorFilter);
+  }
+  
+  if (textFilter) {
+    filteredSales = filteredSales.filter(s => s.items.toLowerCase().includes(textFilter.toLowerCase()));
+  }
 
   let totalDia = 0;
+  let totalEfectivo = 0;
+  let totalTransferencia = 0;
+  let totalTarjeta = 0;
   let cantidadFiltrada = 0;
 
   const tableRows = filteredSales.map(sale => {
     totalDia += sale.total;
+    if (sale.pago === 'EFECTIVO') totalEfectivo += sale.total;
+    if (sale.pago === 'TRANSFERENCIA') totalTransferencia += sale.total;
+    if (sale.pago === 'TARJETA') totalTarjeta += sale.total;
 
-    if (filter) {
+    if (textFilter) {
       const itemsArray = sale.items.split(', ');
       itemsArray.forEach(item => {
-        if (item.toLowerCase().includes(filter.toLowerCase())) {
+        if (item.toLowerCase().includes(textFilter.toLowerCase())) {
           const match = item.match(/^(\d+)x/);
           if (match) {
             cantidadFiltrada += parseInt(match[1], 10);
@@ -617,23 +629,48 @@ function renderReportContent(sales, filter = '') {
     return `
       <tr class="border-b border-slate-700 hover:bg-slate-800/50 transition-colors">
         <td class="px-4 py-3 text-center">${sale.id}</td>
-        <td class="px-4 py-3">${sale.customerName}</td>
+        <td class="px-4 py-3 whitespace-nowrap">${sale.customerName}</td>
         <td class="px-4 py-3 text-center">${sale.phone}</td>
         <td class="px-4 py-3 text-center">${sale.time}</td>
-        <td class="px-4 py-3 text-sm italic text-slate-400 min-w-[200px]">${sale.items}</td>
-        <td class="px-4 py-3 text-center font-semibold text-emerald-400">${sale.pago}</td>
-        <td class="px-4 py-3 text-center font-semibold text-blue-400">${sale.vendedor}</td>
-        <td class="px-4 py-3 text-right font-bold text-amber-400">Q${sale.total.toFixed(2)}</td>
+        <td class="px-4 py-3 text-sm italic text-slate-400 min-w-[200px] whitespace-nowrap">${sale.items}</td>
+        <td class="px-4 py-3 text-center font-semibold text-emerald-400">
+          <select onchange="window.updateSaleProperty(${sale.id}, 'pago', this.value)" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-emerald-400 font-semibold focus:outline-none focus:border-amber-500 cursor-pointer w-full max-w-[120px]">
+            <option value="-" ${sale.pago === '-' ? 'selected' : ''}>-</option>
+            <option value="EFECTIVO" ${sale.pago === 'EFECTIVO' ? 'selected' : ''}>EFECTIVO</option>
+            <option value="TRANSFERENCIA" ${sale.pago === 'TRANSFERENCIA' ? 'selected' : ''}>TRANSFERENCIA</option>
+            <option value="TARJETA" ${sale.pago === 'TARJETA' ? 'selected' : ''}>TARJETA</option>
+          </select>
+        </td>
+        <td class="px-4 py-3 text-center font-semibold text-blue-400">
+          <select onchange="window.updateSaleProperty(${sale.id}, 'vendedor', this.value)" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-blue-400 font-semibold focus:outline-none focus:border-amber-500 cursor-pointer w-full max-w-[120px]">
+            <option value="-" ${sale.vendedor === '-' ? 'selected' : ''}>-</option>
+            <option value="FREDY" ${sale.vendedor === 'FREDY' ? 'selected' : ''}>FREDY</option>
+            <option value="JAIME" ${sale.vendedor === 'JAIME' ? 'selected' : ''}>JAIME</option>
+            <option value="VIEJO" ${sale.vendedor === 'VIEJO' ? 'selected' : ''}>VIEJO</option>
+            <option value="ANDRES Jr." ${sale.vendedor === 'ANDRES Jr.' ? 'selected' : ''}>ANDRES Jr.</option>
+            <option value="LOCAL" ${sale.vendedor === 'LOCAL' ? 'selected' : ''}>LOCAL</option>
+          </select>
+        </td>
+        <td class="px-4 py-3 text-right font-bold text-amber-400 whitespace-nowrap">Q${sale.total.toFixed(2)}</td>
       </tr>
     `;
   }).join('');
 
-  return { tableRows, totalDia, cantidadFiltrada, isEmpty: filteredSales.length === 0 };
+  return { tableRows, totalDia, totalEfectivo, totalTransferencia, totalTarjeta, cantidadFiltrada, isEmpty: filteredSales.length === 0 };
 }
 
 function openReportModal() {
   window.renderReportModal();
 }
+
+window.updateSaleProperty = function(saleId, property, value) {
+  const sales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
+  const saleIndex = sales.findIndex(s => s.id === saleId);
+  if (saleIndex !== -1) {
+    sales[saleIndex][property] = value;
+    localStorage.setItem('daily_sales', JSON.stringify(sales));
+  }
+};
 
 window.renderReportModal = function() {
   const sales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
@@ -649,10 +686,20 @@ window.renderReportModal = function() {
           <p class="text-sm text-slate-400 mt-1">Resumen de transacciones y formas de pago</p>
         </div>
         
-        <div class="relative w-full md:w-80">
-          <input type="text" id="report-search" placeholder="Filtrar por detalle de pedido..." 
-            class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-xl px-10 py-2.5 focus:outline-none focus:border-amber-500 transition-all">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-3 text-slate-500"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <div class="relative w-full sm:w-64">
+            <input type="text" id="report-search" placeholder="Filtrar por detalle..." 
+              class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-xl px-10 py-2.5 focus:outline-none focus:border-amber-500 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-3 text-slate-500"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+          </div>
+          <select id="report-vendor-filter" class="bg-slate-950 border border-slate-700 text-white text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-amber-500 transition-all w-full sm:w-44 cursor-pointer font-semibold">
+            <option value="">Todos los vendedores</option>
+            <option value="FREDY">FREDY</option>
+            <option value="JAIME">JAIME</option>
+            <option value="VIEJO">VIEJO</option>
+            <option value="ANDRES Jr.">ANDRES Jr.</option>
+            <option value="LOCAL">LOCAL</option>
+          </select>
         </div>
 
         <button id="close-report-btn" class="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
@@ -661,18 +708,18 @@ window.renderReportModal = function() {
       </div>
 
       <div class="flex-1 overflow-auto p-6 bg-slate-950">
-        <div class="rounded-xl border border-slate-800 overflow-hidden">
-          <table class="w-full text-sm text-left text-slate-300">
+        <div class="rounded-xl border border-slate-800 overflow-x-auto">
+          <table class="w-full min-w-max text-sm text-left text-slate-300">
             <thead class="text-xs text-slate-400 uppercase bg-slate-900 border-b border-slate-800">
               <tr>
                 <th scope="col" class="px-4 py-4 text-center w-16">No.</th>
-                <th scope="col" class="px-4 py-4">NOMBRE DEL CLIENTE</th>
+                <th scope="col" class="px-4 py-4 whitespace-nowrap">NOMBRE DEL CLIENTE</th>
                 <th scope="col" class="px-4 py-4 text-center">TELÉFONO</th>
                 <th scope="col" class="px-4 py-4 text-center">HORA</th>
                 <th scope="col" class="px-4 py-4">DETALLE DE PEDIDO</th>
                 <th scope="col" class="px-4 py-4 text-center">PAGO</th>
                 <th scope="col" class="px-4 py-4 text-center">VENDEDOR</th>
-                <th scope="col" class="px-4 py-4 text-right">TOTAL</th>
+                <th scope="col" class="px-4 py-4 text-right whitespace-nowrap">TOTAL</th>
               </tr>
             </thead>
             <tbody id="report-table-body">
@@ -700,27 +747,49 @@ window.renderReportModal = function() {
   const tbody = document.getElementById('report-table-body');
   const tfoot = document.getElementById('report-table-footer');
   const searchInput = document.getElementById('report-search');
+  const vendorFilter = document.getElementById('report-vendor-filter');
 
-  function updateDisplay(filter = '') {
-    const { tableRows, totalDia, cantidadFiltrada, isEmpty } = renderReportContent(sales, filter);
+  function updateDisplay() {
+    const textFilter = searchInput.value;
+    const vendFilter = vendorFilter.value;
+    const currentSales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
+    const { tableRows, totalDia, totalEfectivo, totalTransferencia, totalTarjeta, cantidadFiltrada, isEmpty } = renderReportContent(currentSales, textFilter, vendFilter);
     
     tbody.innerHTML = !isEmpty ? tableRows : `
       <tr>
         <td colspan="8" class="px-4 py-12 text-center text-slate-500">
           <div class="flex flex-col items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mb-3 opacity-50"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg>
-            ${filter ? 'No se encontraron pedidos con ese detalle' : 'No hay ventas'}
+            ${(textFilter || vendFilter) ? 'No se encontraron resultados para esta búsqueda' : 'No hay ventas'}
           </div>
         </td>
       </tr>
     `;
 
+    const isFiltered = textFilter || vendFilter;
+    let paymentTotalsHtml = '';
+    
+    if (vendFilter) {
+      paymentTotalsHtml = `
+        <div class="flex gap-4 text-xs border-r border-slate-700 pr-6 whitespace-nowrap">
+          <span class="text-emerald-400">EFEC: <span class="text-white font-bold">Q${totalEfectivo.toFixed(2)}</span></span>
+          <span class="text-blue-400">TRANS: <span class="text-white font-bold">Q${totalTransferencia.toFixed(2)}</span></span>
+          <span class="text-purple-400">TARJ: <span class="text-white font-bold">Q${totalTarjeta.toFixed(2)}</span></span>
+        </div>
+      `;
+    }
+
     tfoot.innerHTML = `
       <tr>
-        <td colspan="4" class="px-4 py-4 text-right"></td>
-        <td class="px-4 py-4 text-left font-bold text-emerald-400 text-xs">${filter ? `CANTIDAD VENDIDA: <span class="text-white text-base bg-emerald-600/20 px-2 py-1 rounded ml-1">${cantidadFiltrada}</span>` : ''}</td>
-        <td colspan="2" class="px-4 py-4 text-right text-slate-400 uppercase tracking-wider font-bold text-xs">Total ${filter ? 'Filtrado' : 'General'}</td>
-        <td class="px-4 py-4 text-right text-amber-500 text-xl font-black">Q${totalDia.toFixed(2)}</td>
+        <td colspan="2" class="px-4 py-4 text-right"></td>
+        <td colspan="2" class="px-4 py-4 text-left font-bold text-emerald-400 text-xs whitespace-nowrap">${textFilter ? `CANTIDAD VENDIDA: <span class="text-white text-base bg-emerald-600/20 px-2 py-1 rounded ml-1">${cantidadFiltrada}</span>` : ''}</td>
+        <td colspan="3" class="px-4 py-4 whitespace-nowrap">
+          <div class="flex items-center justify-end gap-6">
+            ${paymentTotalsHtml}
+            <div class="text-slate-400 uppercase tracking-wider font-bold text-xs whitespace-nowrap">Total ${isFiltered ? 'Filtrado' : 'General'}</div>
+          </div>
+        </td>
+        <td class="px-4 py-4 text-right text-amber-500 text-xl font-black align-middle whitespace-nowrap">Q${totalDia.toFixed(2)}</td>
       </tr>
     `;
   }
@@ -728,10 +797,9 @@ window.renderReportModal = function() {
   // Initial render
   updateDisplay();
 
-  // Search event
-  searchInput.addEventListener('input', (e) => {
-    updateDisplay(e.target.value);
-  });
+  // Search events
+  searchInput.addEventListener('input', () => updateDisplay());
+  vendorFilter.addEventListener('change', () => updateDisplay());
 
   document.getElementById('close-report-btn').onclick = () => {
     modalOverlay.classList.add('hidden');
@@ -745,7 +813,8 @@ window.renderReportModal = function() {
     }
   };
   document.getElementById('export-excel-btn').onclick = () => {
-    exportToExcel(sales);
+    const latestSales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
+    exportToExcel(latestSales);
   };
 
   modalOverlay.classList.remove('hidden');

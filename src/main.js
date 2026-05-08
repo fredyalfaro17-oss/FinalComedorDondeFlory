@@ -725,11 +725,12 @@ window.renderReportModal = function() {
             <tbody id="report-table-body">
               <!-- Content will be injected here -->
             </tbody>
-            <tfoot id="report-table-footer" class="bg-slate-900 border-t border-slate-800 font-bold text-white">
-              <!-- Footer will be injected here -->
-            </tfoot>
           </table>
         </div>
+      </div>
+
+      <div id="report-summary-bar" class="bg-slate-800/80 border-t border-slate-700 p-4 px-6 shrink-0 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <!-- Totals will be injected here -->
       </div>
 
       <div class="p-6 border-t border-slate-800 bg-slate-900 rounded-b-2xl flex justify-between items-center shrink-0">
@@ -745,7 +746,7 @@ window.renderReportModal = function() {
   `;
 
   const tbody = document.getElementById('report-table-body');
-  const tfoot = document.getElementById('report-table-footer');
+  const summaryBar = document.getElementById('report-summary-bar');
   const searchInput = document.getElementById('report-search');
   const vendorFilter = document.getElementById('report-vendor-filter');
 
@@ -771,26 +772,32 @@ window.renderReportModal = function() {
     
     if (vendFilter) {
       paymentTotalsHtml = `
-        <div class="flex gap-4 text-xs border-r border-slate-700 pr-6 whitespace-nowrap">
-          <span class="text-emerald-400">EFEC: <span class="text-white font-bold">Q${totalEfectivo.toFixed(2)}</span></span>
-          <span class="text-blue-400">TRANS: <span class="text-white font-bold">Q${totalTransferencia.toFixed(2)}</span></span>
-          <span class="text-purple-400">TARJ: <span class="text-white font-bold">Q${totalTarjeta.toFixed(2)}</span></span>
+        <div class="flex flex-wrap justify-center sm:justify-start gap-4 text-sm bg-slate-900/50 px-4 py-2 rounded-lg border border-slate-700/50">
+          <span class="text-emerald-400">EFEC: <span class="text-white font-bold text-base">Q${totalEfectivo.toFixed(2)}</span></span>
+          <span class="text-blue-400">TRANS: <span class="text-white font-bold text-base">Q${totalTransferencia.toFixed(2)}</span></span>
+          <span class="text-purple-400">TARJ: <span class="text-white font-bold text-base">Q${totalTarjeta.toFixed(2)}</span></span>
         </div>
       `;
     }
 
-    tfoot.innerHTML = `
-      <tr>
-        <td colspan="2" class="px-4 py-4 text-right"></td>
-        <td colspan="2" class="px-4 py-4 text-left font-bold text-emerald-400 text-xs whitespace-nowrap">${textFilter ? `CANTIDAD VENDIDA: <span class="text-white text-base bg-emerald-600/20 px-2 py-1 rounded ml-1">${cantidadFiltrada}</span>` : ''}</td>
-        <td colspan="3" class="px-4 py-4 whitespace-nowrap">
-          <div class="flex items-center justify-end gap-6">
-            ${paymentTotalsHtml}
-            <div class="text-slate-400 uppercase tracking-wider font-bold text-xs whitespace-nowrap">Total ${isFiltered ? 'Filtrado' : 'General'}</div>
+    summaryBar.innerHTML = `
+      <div class="flex flex-wrap items-center justify-center sm:justify-start gap-4 w-full sm:w-auto">
+        ${textFilter ? `
+          <div class="text-sm font-bold text-emerald-400 whitespace-nowrap">
+            CANTIDAD VENDIDA: <span class="text-white text-base bg-emerald-600/20 px-2 py-1 rounded ml-1">${cantidadFiltrada}</span>
           </div>
-        </td>
-        <td class="px-4 py-4 text-right text-amber-500 text-xl font-black align-middle whitespace-nowrap">Q${totalDia.toFixed(2)}</td>
-      </tr>
+        ` : ''}
+        ${paymentTotalsHtml}
+      </div>
+      
+      <div class="flex items-center justify-center sm:justify-end gap-3 mt-4 sm:mt-0 w-full sm:w-auto">
+        <div class="text-slate-400 uppercase tracking-wider font-bold text-sm whitespace-nowrap">
+          Total ${isFiltered ? 'Filtrado' : 'General'}:
+        </div>
+        <div class="text-amber-500 text-2xl md:text-3xl font-black whitespace-nowrap">
+          Q${totalDia.toFixed(2)}
+        </div>
+      </div>
     `;
   }
 
@@ -822,8 +829,17 @@ window.renderReportModal = function() {
 };
 
 async function exportToExcel(sales) {
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Reporte de Ventas');
+  if (!sales || sales.length === 0) {
+    alert('No hay ventas para exportar.');
+    return;
+  }
+
+  console.log('🚀 Iniciando exportación a Excel...');
+  console.log('Datos a procesar:', sales.length, 'ventas');
+
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Reporte de Ventas');
 
   worksheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 2 }];
 
@@ -833,7 +849,7 @@ async function exportToExcel(sales) {
   const currencyFmt = 'Q#,##0.00';
 
   // Row 1: Title
-  worksheet.mergeCells('A1:G1');
+  worksheet.mergeCells('A1:H1');
   const titleCell = worksheet.getCell('A1');
   titleCell.value = 'INFORME DE VENTAS DEL DÍA';
   titleCell.fill = headerFill;
@@ -871,8 +887,20 @@ async function exportToExcel(sales) {
   // Force Excel to recalculate all formulas when the workbook opens
   workbook.calcProperties.fullCalcOnLoad = true;
 
-  const morningSales = sales.filter(s => parseInt(s.time.split(':')[0]) < 11);
-  const afternoonSales = sales.filter(s => parseInt(s.time.split(':')[0]) >= 11);
+  console.log('Filtrando ventas por horario...');
+  const morningSales = sales.filter(s => {
+    if (!s.time || typeof s.time !== 'string') return true; // Default to morning if time is weird
+    const hour = parseInt(s.time.split(':')[0]);
+    return isNaN(hour) ? true : hour < 11;
+  });
+  
+  const afternoonSales = sales.filter(s => {
+    if (!s.time || typeof s.time !== 'string') return false;
+    const hour = parseInt(s.time.split(':')[0]);
+    return isNaN(hour) ? false : hour >= 11;
+  });
+
+  console.log(`Ventas filtradas: Mañana(${morningSales.length}), Tarde(${afternoonSales.length})`);
 
   let currentRow = 3;
 
@@ -959,7 +987,7 @@ async function exportToExcel(sales) {
   
   currentRow += 3;
 
-
+  console.log('Adding conditional formatting...');
   // Add elegant conditional formatting for the VENDEDOR column (H)
   worksheet.addConditionalFormatting({
     ref: 'H3:H1000',
@@ -1099,7 +1127,7 @@ async function exportToExcel(sales) {
   ];
 
   // ---- Row 1: Title ----
-  searchSheet.mergeCells('A1:G1');
+  searchSheet.mergeCells('A1:H1');
   const sTitle = searchSheet.getCell('A1');
   sTitle.value = '🔍 BUSCADOR INTELIGENTE DE VENTAS — Comedor Donde Flory';
   sTitle.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -1108,7 +1136,7 @@ async function exportToExcel(sales) {
   searchSheet.getRow(1).height = 30;
 
   // ---- Row 2: Instruction banner ----
-  searchSheet.mergeCells('A2:G2');
+  searchSheet.mergeCells('A2:H2');
   const instrCell = searchSheet.getCell('A2');
   instrCell.value = 'Selecciona Vendedor en C4 y/o Forma de Pago en E4 — los resultados aparecen solos ↓';
   instrCell.font = { italic: true, size: 10, color: { argb: 'FF475569' } };
@@ -1179,6 +1207,7 @@ async function exportToExcel(sales) {
     dataRow++;
   });
   const DATA_END = dataRow - 1;
+  console.log('Adding formulas for Buscador Inteligente...');
 
   // ---- Row 7: INDEX/MATCH formulas for universal compatibility ----
   // FILTER() causes corruption in older Excel versions when exported by ExcelJS.
@@ -1214,13 +1243,42 @@ async function exportToExcel(sales) {
 
 
   // Export
+  console.log('Generando buffer del archivo...');
   try {
     const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(blob, `REPORTE_DONDE_FLORY_${new Date().toISOString().split('T')[0]}.xlsx`);
+    // Validate buffer — XLSX files always start with PK (ZIP magic bytes 0x50 0x4B)
+    const uint8 = new Uint8Array(buffer);
+    console.log('Buffer generado exitosamente (Tamaño:', buffer.byteLength, 'bytes)');
+    console.log('Magic bytes:', uint8[0].toString(16), uint8[1].toString(16), '(debe ser 50 4b)');
+    if (uint8[0] !== 0x50 || uint8[1] !== 0x4B) {
+      throw new Error(`El buffer generado no es un archivo ZIP/XLSX válido. Magic bytes: ${uint8[0].toString(16)} ${uint8[1].toString(16)}`);
+    }
+    
+    const blob = new Blob([uint8], { 
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    });
+    
+    const fileName = `REPORTE_FLORY_${new Date().toISOString().split('T')[0]}.xlsx`;
+    console.log('Disparando descarga:', fileName);
+    
+    // Use URL.createObjectURL for reliable binary download in all browsers
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    
+    console.log('✅ Exportación completada.');
+    } catch (error) {
+      console.error('❌ Error en el proceso de ExcelJS:', error);
+      alert('Error al construir el libro de Excel: ' + error.message);
+    }
   } catch (error) {
-    console.error('Error al generar el Excel:', error);
-    alert('Hubo un error al generar el archivo de Excel. Por favor, revisa la consola.');
+    console.error('❌ Error fatal en exportToExcel:', error);
+    alert('No se pudo iniciar la exportación. Error: ' + error.message);
   }
 }
 

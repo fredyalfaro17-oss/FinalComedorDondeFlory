@@ -628,12 +628,12 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '') {
 
     return `
       <tr class="border-b border-slate-700 hover:bg-slate-800/50 transition-colors">
-        <td class="px-4 py-3 text-center">${sale.id}</td>
-        <td class="px-4 py-3 whitespace-nowrap">${sale.customerName}</td>
-        <td class="px-4 py-3 text-center">${sale.phone}</td>
-        <td class="px-4 py-3 text-center">${sale.time}</td>
-        <td class="px-4 py-3 text-sm italic text-slate-400 min-w-[200px] whitespace-nowrap">${sale.items}</td>
-        <td class="px-4 py-3 text-center font-semibold text-emerald-400">
+        <td class="px-3 py-3 text-center">${sale.id}</td>
+        <td class="px-3 py-3 min-w-[120px]">${sale.customerName}</td>
+        <td class="px-3 py-3 text-center">${sale.phone}</td>
+        <td class="px-3 py-3 text-center">${sale.time}</td>
+        <td class="px-3 py-3 text-sm italic text-slate-400 min-w-[150px] leading-relaxed">${sale.items}</td>
+        <td class="px-3 py-3 text-center font-semibold text-emerald-400">
           <select onchange="window.updateSaleProperty(${sale.id}, 'pago', this.value)" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-emerald-400 font-semibold focus:outline-none focus:border-amber-500 cursor-pointer w-full max-w-[120px]">
             <option value="-" ${sale.pago === '-' ? 'selected' : ''}>-</option>
             <option value="EFECTIVO" ${sale.pago === 'EFECTIVO' ? 'selected' : ''}>EFECTIVO</option>
@@ -641,7 +641,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '') {
             <option value="TARJETA" ${sale.pago === 'TARJETA' ? 'selected' : ''}>TARJETA</option>
           </select>
         </td>
-        <td class="px-4 py-3 text-center font-semibold text-blue-400">
+        <td class="px-3 py-3 text-center font-semibold text-blue-400">
           <select onchange="window.updateSaleProperty(${sale.id}, 'vendedor', this.value)" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-blue-400 font-semibold focus:outline-none focus:border-amber-500 cursor-pointer w-full max-w-[120px]">
             <option value="-" ${sale.vendedor === '-' ? 'selected' : ''}>-</option>
             <option value="FREDY" ${sale.vendedor === 'FREDY' ? 'selected' : ''}>FREDY</option>
@@ -651,7 +651,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '') {
             <option value="LOCAL" ${sale.vendedor === 'LOCAL' ? 'selected' : ''}>LOCAL</option>
           </select>
         </td>
-        <td class="px-4 py-3 text-right font-bold text-amber-400 whitespace-nowrap">Q${sale.total.toFixed(2)}</td>
+        <td class="px-3 py-3 text-right font-bold text-amber-400 whitespace-nowrap">Q${sale.total.toFixed(2)}</td>
       </tr>
     `;
   }).join('');
@@ -677,7 +677,7 @@ window.renderReportModal = function() {
   
   modalOverlay.innerHTML = `
     <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl animate-scale-in">
-      <div class="p-6 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-800/50 rounded-t-2xl">
+      <div class="p-6 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-800/50 rounded-t-2xl shrink-0">
         <div>
           <h2 class="text-2xl font-bold font-playfair text-white flex items-center gap-3">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
@@ -702,24 +702,24 @@ window.renderReportModal = function() {
           </select>
         </div>
 
-        <button id="close-report-btn" class="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+        <button id="close-report-btn" class="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors absolute top-4 right-4 md:static">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
         </button>
       </div>
 
-      <div class="flex-1 overflow-auto p-6 bg-slate-950">
+      <div class="flex-1 min-h-0 overflow-auto p-4 sm:p-6 bg-slate-950">
         <div class="rounded-xl border border-slate-800 overflow-x-auto">
-          <table class="w-full min-w-max text-sm text-left text-slate-300">
+          <table class="w-full text-sm text-left text-slate-300">
             <thead class="text-xs text-slate-400 uppercase bg-slate-900 border-b border-slate-800">
               <tr>
-                <th scope="col" class="px-4 py-4 text-center w-16">No.</th>
-                <th scope="col" class="px-4 py-4 whitespace-nowrap">NOMBRE DEL CLIENTE</th>
-                <th scope="col" class="px-4 py-4 text-center">TELÉFONO</th>
-                <th scope="col" class="px-4 py-4 text-center">HORA</th>
-                <th scope="col" class="px-4 py-4">DETALLE DE PEDIDO</th>
-                <th scope="col" class="px-4 py-4 text-center">PAGO</th>
-                <th scope="col" class="px-4 py-4 text-center">VENDEDOR</th>
-                <th scope="col" class="px-4 py-4 text-right whitespace-nowrap">TOTAL</th>
+                <th scope="col" class="px-3 py-4 text-center w-12">No.</th>
+                <th scope="col" class="px-3 py-4">NOMBRE DEL CLIENTE</th>
+                <th scope="col" class="px-3 py-4 text-center">TELÉFONO</th>
+                <th scope="col" class="px-3 py-4 text-center">HORA</th>
+                <th scope="col" class="px-3 py-4">DETALLE DE PEDIDO</th>
+                <th scope="col" class="px-3 py-4 text-center">PAGO</th>
+                <th scope="col" class="px-3 py-4 text-center">VENDEDOR</th>
+                <th scope="col" class="px-3 py-4 text-right whitespace-nowrap">TOTAL</th>
               </tr>
             </thead>
             <tbody id="report-table-body">

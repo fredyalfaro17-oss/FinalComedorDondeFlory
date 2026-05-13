@@ -591,7 +591,7 @@ function saveSale(total) {
   localStorage.setItem('daily_sales', JSON.stringify(sales));
 }
 
-function renderReportContent(sales, textFilter = '', vendorFilter = '') {
+function renderReportContent(sales, textFilter = '', vendorFilter = '', customerFilter = '') {
   let filteredSales = sales;
   
   if (vendorFilter) {
@@ -600,6 +600,10 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '') {
   
   if (textFilter) {
     filteredSales = filteredSales.filter(s => s.items.toLowerCase().includes(textFilter.toLowerCase()));
+  }
+
+  if (customerFilter) {
+    filteredSales = filteredSales.filter(s => s.customerName.toLowerCase().includes(customerFilter.toLowerCase()));
   }
 
   let totalDia = 0;
@@ -678,9 +682,9 @@ window.renderReportModal = function() {
   modalOverlay.innerHTML = `
     <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl animate-scale-in">
       <div class="p-6 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-800/50 rounded-t-2xl shrink-0">
-        <div>
-          <h2 class="text-2xl font-bold font-playfair text-white flex items-center gap-3">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        <div class="shrink-0">
+          <h2 class="text-xl sm:text-2xl font-bold font-playfair text-white flex items-center gap-3 whitespace-nowrap">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-500 shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
             INFORME DE VENTAS DEL DÍA
           </h2>
           <p class="text-sm text-slate-400 mt-1">Resumen de transacciones y formas de pago</p>
@@ -688,7 +692,12 @@ window.renderReportModal = function() {
         
         <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           <div class="relative w-full sm:w-64">
-            <input type="text" id="report-search" placeholder="Filtrar por detalle..." 
+            <input type="text" id="report-customer-search" placeholder="Filtrar por cliente..." 
+              class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-xl px-10 py-2.5 focus:outline-none focus:border-amber-500 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-3 text-slate-500"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </div>
+          <div class="relative w-full sm:w-48">
+            <input type="text" id="report-search" placeholder="Filtrar detalle..." 
               class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-xl px-10 py-2.5 focus:outline-none focus:border-amber-500 transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-3 text-slate-500"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
           </div>
@@ -748,26 +757,28 @@ window.renderReportModal = function() {
   const tbody = document.getElementById('report-table-body');
   const summaryBar = document.getElementById('report-summary-bar');
   const searchInput = document.getElementById('report-search');
+  const customerSearchInput = document.getElementById('report-customer-search');
   const vendorFilter = document.getElementById('report-vendor-filter');
 
   function updateDisplay() {
     const textFilter = searchInput.value;
     const vendFilter = vendorFilter.value;
+    const custFilter = customerSearchInput.value;
     const currentSales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
-    const { tableRows, totalDia, totalEfectivo, totalTransferencia, totalTarjeta, cantidadFiltrada, isEmpty } = renderReportContent(currentSales, textFilter, vendFilter);
+    const { tableRows, totalDia, totalEfectivo, totalTransferencia, totalTarjeta, cantidadFiltrada, isEmpty } = renderReportContent(currentSales, textFilter, vendFilter, custFilter);
     
     tbody.innerHTML = !isEmpty ? tableRows : `
       <tr>
         <td colspan="8" class="px-4 py-12 text-center text-slate-500">
           <div class="flex flex-col items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mb-3 opacity-50"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg>
-            ${(textFilter || vendFilter) ? 'No se encontraron resultados para esta búsqueda' : 'No hay ventas'}
+            ${(textFilter || vendFilter || custFilter) ? 'No se encontraron resultados para esta búsqueda' : 'No hay ventas'}
           </div>
         </td>
       </tr>
     `;
 
-    const isFiltered = textFilter || vendFilter;
+    const isFiltered = textFilter || vendFilter || custFilter;
     let paymentTotalsHtml = '';
     
     if (vendFilter) {
@@ -806,6 +817,7 @@ window.renderReportModal = function() {
 
   // Search events
   searchInput.addEventListener('input', () => updateDisplay());
+  customerSearchInput.addEventListener('input', () => updateDisplay());
   vendorFilter.addEventListener('change', () => updateDisplay());
 
   document.getElementById('close-report-btn').onclick = () => {

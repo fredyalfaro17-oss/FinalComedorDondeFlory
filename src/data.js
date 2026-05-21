@@ -6,7 +6,7 @@ export const menuData = {
       color: "#be123c", // rose-700
       items: [
         { name: "Caldo de Res con Verduras", price: 30 },
-        { name: "Pollo Frito", price: 25 },
+        { name: "Pollo Frito", price: 30 },
         { name: "Pechuga Frita", price: 30 },
         { name: "Milanesa de Res", price: 30 },
         { name: "Pollo en Crema", price: 30 },
@@ -22,10 +22,10 @@ export const menuData = {
         { name: "Caldo de Pata con Verduras", price: 30 },
         { name: "Filete de Pechuga a la Plancha", price: 30 },
         { name: "Ensalada Latina con Filete", price: 30 },
-        { name: "Pollo Guisado", price: 25 },
+        { name: "Pollo Guisado", price: 30 },
         { name: "Tortitas de Carne", price: 30 },
         { name: "Bistec de Res", price: 30 },
-        { name: "Panza en Amarillo", price: 25 },
+        { name: "Panza en Amarillo", price: 30 },
         { name: "Hilachas", price: 30 },
         { name: "Filete de Pechuga en Crema", price: 30 },
         { name: "Chomín mixto (res y cerdo)", price: 30 },
@@ -38,13 +38,13 @@ export const menuData = {
       color: "#1d4ed8", // blue-700
       items: [
         { name: "Pepián de Res", price: 30 },
-        { name: "Pepián de Pollo", price: 25 },
+        { name: "Pepián de Pollo", price: 30 },
         { name: "Pepián de Pechuga", price: 30 },
         { name: "Chapsui Mixto (Res, Cerdo)", price: 30 },
         { name: "Bistec a la Plancha", price: 30 },
         { name: "Salpicón de Res", price: 30 },
         { name: "Tortilla de Harina Res", price: 30 },
-        { name: "Pollo Guisado", price: 25 },
+        { name: "Pollo Guisado", price: 30 },
         { name: "Pollo Crunchy", price: 30 }
       ]
     },
@@ -54,7 +54,7 @@ export const menuData = {
       color: "#b45309", // amber-700
       items: [
         { name: "Frijol Colorado con Costilla", price: 30 },
-        { name: "Frijol Colorado con Chicharrón", price: 25 },
+        { name: "Frijol Colorado con Chicharrón", price: 30 },
         { name: "Pechuga Rellena de Mozzarella", price: 30 },
         { name: "Tortillas de Harina de Res", price: 30 },
         { name: "Costilla", price: 30 },
@@ -70,7 +70,7 @@ export const menuData = {
       items: [
         { name: "Carne Asada", price: 30 },
         { name: "Costilla Asada", price: 30 },
-        { name: "Pollo Asado", price: 25 },
+        { name: "Pollo Asado", price: 30 },
         { name: "Pechuga Asada", price: 30 },
         { name: "Caldo de Pollo Amarillo", price: 30 },
         { name: "Ceviche de Camarón", price: 35 },
@@ -84,7 +84,7 @@ export const menuData = {
       name: "Combos",
       color: "#d97706", // amber-600
       items: [
-        { name: "Combo 1 - 1 Doblada", price: 25, description: "1 Doblada + Fresco" },
+        { name: "ALMUERZO DE 1 DOBLADA", price: 25, description: "+ 2 acompañamientos + fresco" },
         { name: "Combo 2 - 2 Dobladas", price: 30, description: "2 Dobladas + Fresco" },
         { name: "Combo 3 - 1 Doblada + 1 Bebida", price: 20, description: "1 Doblada + 1 Bebida" }
       ]

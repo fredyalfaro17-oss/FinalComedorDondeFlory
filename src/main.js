@@ -610,6 +610,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
   let totalEfectivo = 0;
   let totalTransferencia = 0;
   let totalTarjeta = 0;
+  let totalNoPago = 0;
   let cantidadFiltrada = 0;
 
   const tableRows = filteredSales.map(sale => {
@@ -617,6 +618,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
     if (sale.pago === 'EFECTIVO') totalEfectivo += sale.total;
     if (sale.pago === 'TRANSFERENCIA') totalTransferencia += sale.total;
     if (sale.pago === 'TARJETA') totalTarjeta += sale.total;
+    if (sale.pago === 'NO PAGO') totalNoPago += sale.total;
 
     if (textFilter) {
       const itemsArray = sale.items.split(', ');
@@ -637,12 +639,13 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
         <td class="px-3 py-3 text-center">${sale.phone}</td>
         <td class="px-3 py-3 text-center">${sale.time}</td>
         <td class="px-3 py-3 text-sm italic text-slate-400 min-w-[150px] leading-relaxed">${sale.items}</td>
-        <td class="px-3 py-3 text-center font-semibold text-emerald-400">
-          <select onchange="window.updateSaleProperty(${sale.id}, 'pago', this.value)" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-emerald-400 font-semibold focus:outline-none focus:border-amber-500 cursor-pointer w-full max-w-[120px]">
+        <td class="px-3 py-3 text-center font-semibold text-emerald-400" ${sale.pago === 'NO PAGO' ? 'style="color: #ef4444;"' : ''}>
+          <select onchange="window.updateSaleProperty(${sale.id}, 'pago', this.value); if (this.value === 'NO PAGO') { this.style.color = '#ef4444'; this.parentElement.style.color = '#ef4444'; } else { this.style.color = ''; this.parentElement.style.color = ''; }" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-emerald-400 font-semibold focus:outline-none focus:border-amber-500 cursor-pointer w-full max-w-[120px]" ${sale.pago === 'NO PAGO' ? 'style="color: #ef4444;"' : ''}>
             <option value="-" ${sale.pago === '-' ? 'selected' : ''}>-</option>
             <option value="EFECTIVO" ${sale.pago === 'EFECTIVO' ? 'selected' : ''}>EFECTIVO</option>
             <option value="TRANSFERENCIA" ${sale.pago === 'TRANSFERENCIA' ? 'selected' : ''}>TRANSFERENCIA</option>
             <option value="TARJETA" ${sale.pago === 'TARJETA' ? 'selected' : ''}>TARJETA</option>
+            <option value="NO PAGO" ${sale.pago === 'NO PAGO' ? 'selected' : ''}>NO PAGO</option>
           </select>
         </td>
         <td class="px-3 py-3 text-center font-semibold text-blue-400">
@@ -653,6 +656,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
             <option value="VIEJO" ${sale.vendedor === 'VIEJO' ? 'selected' : ''}>VIEJO</option>
             <option value="ANDRES Jr." ${sale.vendedor === 'ANDRES Jr.' ? 'selected' : ''}>ANDRES Jr.</option>
             <option value="LOCAL" ${sale.vendedor === 'LOCAL' ? 'selected' : ''}>LOCAL</option>
+            <option value="FERNANDO" ${sale.vendedor === 'FERNANDO' ? 'selected' : ''}>FERNANDO</option>
           </select>
         </td>
         <td class="px-3 py-3 text-right font-bold text-amber-400 whitespace-nowrap">Q${sale.total.toFixed(2)}</td>
@@ -660,7 +664,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
     `;
   }).join('');
 
-  return { tableRows, totalDia, totalEfectivo, totalTransferencia, totalTarjeta, cantidadFiltrada, isEmpty: filteredSales.length === 0 };
+  return { tableRows, totalDia, totalEfectivo, totalTransferencia, totalTarjeta, totalNoPago, cantidadFiltrada, isEmpty: filteredSales.length === 0 };
 }
 
 function openReportModal() {
@@ -708,6 +712,7 @@ window.renderReportModal = function() {
             <option value="VIEJO">VIEJO</option>
             <option value="ANDRES Jr.">ANDRES Jr.</option>
             <option value="LOCAL">LOCAL</option>
+            <option value="FERNANDO">FERNANDO</option>
           </select>
         </div>
 
@@ -765,7 +770,7 @@ window.renderReportModal = function() {
     const vendFilter = vendorFilter.value;
     const custFilter = customerSearchInput.value;
     const currentSales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
-    const { tableRows, totalDia, totalEfectivo, totalTransferencia, totalTarjeta, cantidadFiltrada, isEmpty } = renderReportContent(currentSales, textFilter, vendFilter, custFilter);
+    const { tableRows, totalDia, totalEfectivo, totalTransferencia, totalTarjeta, totalNoPago, cantidadFiltrada, isEmpty } = renderReportContent(currentSales, textFilter, vendFilter, custFilter);
     
     tbody.innerHTML = !isEmpty ? tableRows : `
       <tr>
@@ -787,6 +792,7 @@ window.renderReportModal = function() {
           <span class="text-emerald-400">EFEC: <span class="text-white font-bold text-base">Q${totalEfectivo.toFixed(2)}</span></span>
           <span class="text-blue-400">TRANS: <span class="text-white font-bold text-base">Q${totalTransferencia.toFixed(2)}</span></span>
           <span class="text-purple-400">TARJ: <span class="text-white font-bold text-base">Q${totalTarjeta.toFixed(2)}</span></span>
+          <span style="color: #ef4444;" class="font-bold">NO PAGO: <span style="color: #ef4444;" class="font-bold text-base">Q${totalNoPago.toFixed(2)}</span></span>
         </div>
       `;
     }
@@ -890,7 +896,8 @@ async function exportToExcel(sales) {
     { key: 'pedido', width: 45 },
     { key: 'total', width: 15 },
     { key: 'pago', width: 18 },
-    { key: 'vendedor', width: 18 }
+    { key: 'vendedor', width: 18 },
+    { key: 'extra_col', width: 18 }
   ];
 
   // Set AutoFilter for the header row
@@ -932,14 +939,14 @@ async function exportToExcel(sales) {
       pagoCell.value = sale.pago;
       pagoCell.dataValidation = {
         type: 'list', allowBlank: true, showErrorMessage: false,
-        formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA"']
+        formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA,NO PAGO"']
       };
 
       const vendedorCell = row.getCell('H');
       vendedorCell.value = sale.vendedor;
       vendedorCell.dataValidation = {
         type: 'list', allowBlank: true, showErrorMessage: false,
-        formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,LOCAL"']
+        formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,LOCAL,FERNANDO"']
       };
       
       row.getCell('F').numFmt = currencyFmt;
@@ -1038,36 +1045,63 @@ async function exportToExcel(sales) {
           font: { color: { argb: 'FF424949' }, bold: true },
           fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFE5E8E8' } }
         }
+      },
+      {
+        type: 'cellIs', operator: 'equal', formulae: ['"FERNANDO"'],
+        style: { 
+          font: { color: { argb: 'FF7B241C' }, bold: true },
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFDEDEC' } }
+        }
       }
     ]
   });
+
+  // Add elegant conditional formatting for the FORMA DE PAGO column (G)
+  worksheet.addConditionalFormatting({
+    ref: 'G3:G1000',
+    rules: [
+      {
+        type: 'cellIs', operator: 'equal', formulae: ['"NO PAGO"'],
+        style: { 
+          font: { color: { argb: 'FF922B21' }, bold: true },
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FADBD8' } }
+        }
+      }
+    ]
+  });
+
   // Summaries by Vendor
   const vendorColors = {
     'FREDY': { font: 'FF154360', fill: 'FFD4E6F1' },
     'JAIME': { font: 'FF145A32', fill: 'FFD5F5E3' },
     'VIEJO': { font: 'FF7E5109', fill: 'FFFDEBD0' },
     'ANDRES Jr.': { font: 'FF512E5F', fill: 'FFF5EEF8' },
-    'LOCAL': { font: 'FF424949', fill: 'FFE5E8E8' }
+    'LOCAL': { font: 'FF424949', fill: 'FFE5E8E8' },
+    'FERNANDO': { font: 'FF7B241C', fill: 'FFFDEDEC' }
   };
-  const vendors = ['FREDY', 'JAIME', 'VIEJO', 'ANDRES Jr.', 'LOCAL'];
+  const vendors = ['FREDY', 'JAIME', 'VIEJO', 'ANDRES Jr.', 'LOCAL', 'FERNANDO'];
   const vendorTotalRows = [];
   
   vendors.forEach(v => {
     // Header for this vendor table
     const headRow = worksheet.getRow(currentRow);
-    headRow.getCell('D').value = v;
-    headRow.getCell('E').value = 'EFECTIVO';
-    headRow.getCell('F').value = 'TRANSFERENCIA';
-    headRow.getCell('G').value = 'TARJETA';
+    headRow.getCell('C').value = v;
+    headRow.getCell('D').value = 'EFECTIVO';
+    headRow.getCell('E').value = 'TRANSFERENCIA';
+    headRow.getCell('F').value = 'TARJETA';
+    headRow.getCell('G').value = 'NO PAGO';
     headRow.getCell('H').value = 'TOTAL';
 
-    ['D','E','F','G','H'].forEach(col => {
+    ['C','D','E','F','G','H'].forEach(col => {
       const cell = headRow.getCell(col);
       let fontColor = 'FF000000';
       let fillColor = 'FFA6A6A6';
-      if (col === 'D') {
+      if (col === 'C') {
         fontColor = vendorColors[v].font;
         fillColor = vendorColors[v].fill;
+      } else if (col === 'G') {
+        fontColor = 'FF922B21';
+        fillColor = 'FFFADBD8';
       }
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
       cell.font = { bold: true, color: { argb: fontColor } };
@@ -1081,17 +1115,23 @@ async function exportToExcel(sales) {
     const maxRow = (afternoonRange.end || morningRange.end || 3);
     const formulaBase = `SUMIFS(F3:F${maxRow}, H3:H${maxRow}, "${v}", G3:G${maxRow}, `;
     
-    dataRow.getCell('E').value = { formula: formulaBase + '"EFECTIVO")' };
-    dataRow.getCell('F').value = { formula: formulaBase + '"TRANSFERENCIA")' };
-    dataRow.getCell('G').value = { formula: formulaBase + '"TARJETA")' };
-    dataRow.getCell('H').value = { formula: `E${currentRow} + F${currentRow} + G${currentRow}` };
+    dataRow.getCell('D').value = { formula: formulaBase + '"EFECTIVO")' };
+    dataRow.getCell('E').value = { formula: formulaBase + '"TRANSFERENCIA")' };
+    dataRow.getCell('F').value = { formula: formulaBase + '"TARJETA")' };
+    dataRow.getCell('G').value = { formula: formulaBase + '"NO PAGO")' };
+    dataRow.getCell('H').value = { formula: `D${currentRow} + E${currentRow} + F${currentRow} + G${currentRow}` };
     
     vendorTotalRows.push(currentRow);
 
-    ['D','E','F','G','H'].forEach(col => {
+    ['C','D','E','F','G','H'].forEach(col => {
       const cell = dataRow.getCell(col);
-      if(col !== 'D') cell.numFmt = currencyFmt;
-      if (col === 'H') cell.font = { bold: true };
+      if(col !== 'C') cell.numFmt = currencyFmt;
+      if (col === 'H') {
+        cell.font = { bold: true };
+      } else if (col === 'G') {
+        cell.font = { bold: true, color: { argb: 'FF922B21' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFADBD8' } };
+      }
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
       cell.border = borderThin;
     });
@@ -1169,7 +1209,7 @@ async function exportToExcel(sales) {
   const vendorInput = searchSheet.getCell('C4');
   vendorInput.dataValidation = {
     type: 'list', allowBlank: true, showErrorMessage: false,
-    formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,LOCAL,OTROS"']
+    formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,LOCAL,OTROS,FERNANDO"']
   };
   vendorInput.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } };
   vendorInput.border = borderThin;
@@ -1179,7 +1219,7 @@ async function exportToExcel(sales) {
   const pagoInput = searchSheet.getCell('E4');
   pagoInput.dataValidation = {
     type: 'list', allowBlank: true, showErrorMessage: false,
-    formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA"']
+    formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA,NO PAGO"']
   };
   pagoInput.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } };
   pagoInput.border = borderThin;
@@ -1253,6 +1293,19 @@ async function exportToExcel(sales) {
     searchSheet.getCell('A7').value = 'No hay ventas registradas.';
   }
 
+  // Add elegant conditional formatting for the FORMA DE PAGO column (G) on Buscador Inteligente
+  searchSheet.addConditionalFormatting({
+    ref: 'G7:G1000',
+    rules: [
+      {
+        type: 'cellIs', operator: 'equal', formulae: ['"NO PAGO"'],
+        style: { 
+          font: { color: { argb: 'FF922B21' }, bold: true },
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FADBD8' } }
+        }
+      }
+    ]
+  });
 
   // Export
   console.log('Generando buffer del archivo...');

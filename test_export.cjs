@@ -40,7 +40,8 @@ async function exportToExcel(sales) {
     { key: 'time', width: 10 },
     { key: 'total', width: 15 },
     { key: 'pago', width: 18 },
-    { key: 'vendedor', width: 18 }
+    { key: 'vendedor', width: 18 },
+    { key: 'extra_col', width: 18 }
   ];
 
   // Set AutoFilter for the header row
@@ -123,23 +124,44 @@ async function exportToExcel(sales) {
   
   currentRow += 3;
 
+  // Add elegant conditional formatting for the FORMA DE PAGO column (F)
+  worksheet.addConditionalFormatting({
+    ref: 'F3:F1000',
+    rules: [
+      {
+        type: 'cellIs', operator: 'equal', formulae: ['"NO PAGO"'],
+        style: { 
+          font: { color: { argb: 'FF922B21' }, bold: true },
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FADBD8' } }
+        }
+      }
+    ]
+  });
+
   // Summaries by Vendor
-  const vendors = ['FREDY', 'JAIME', 'VIEJO', 'ANDRES Jr.', 'LOCAL'];
+  const vendors = ['FREDY', 'JAIME', 'VIEJO', 'ANDRES Jr.', 'LOCAL', 'FERNANDO'];
   
   vendors.forEach(v => {
     const vSales = sales.filter(s => s.vendedor === v);
     
     // Header for this vendor table
     const headRow = worksheet.getRow(currentRow);
-    headRow.getCell('D').value = v;
-    headRow.getCell('E').value = 'EFECTIVO';
-    headRow.getCell('F').value = 'TRANSFERENCIA';
-    headRow.getCell('G').value = 'TARJETA';
+    headRow.getCell('C').value = v;
+    headRow.getCell('D').value = 'EFECTIVO';
+    headRow.getCell('E').value = 'TRANSFERENCIA';
+    headRow.getCell('F').value = 'TARJETA';
+    headRow.getCell('G').value = 'NO PAGO';
     
-    ['D','E','F','G'].forEach(col => {
+    ['C','D','E','F','G'].forEach(col => {
       const cell = headRow.getCell(col);
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFA6A6A6' } };
-      cell.font = { bold: true };
+      let fontColor = 'FF000000';
+      let fillColor = 'FFA6A6A6';
+      if (col === 'G') {
+        fontColor = 'FF922B21';
+        fillColor = 'FFFADBD8';
+      }
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
+      cell.font = { bold: true, color: { argb: fontColor } };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
       cell.border = borderThin;
     });
@@ -151,13 +173,18 @@ async function exportToExcel(sales) {
     const maxRow = (afternoonRange.end || morningRange.end || 3);
     const formulaBase = `SUMIFS(E3:E${maxRow}, G3:G${maxRow}, "${v}", F3:F${maxRow}, `;
     
-    dataRow.getCell('E').value = { formula: formulaBase + '"EFECTIVO")' };
-    dataRow.getCell('F').value = { formula: formulaBase + '"TRANSFERENCIA")' };
-    dataRow.getCell('G').value = { formula: formulaBase + '"TARJETA")' };
+    dataRow.getCell('D').value = { formula: formulaBase + '"EFECTIVO")' };
+    dataRow.getCell('E').value = { formula: formulaBase + '"TRANSFERENCIA")' };
+    dataRow.getCell('F').value = { formula: formulaBase + '"TARJETA")' };
+    dataRow.getCell('G').value = { formula: formulaBase + '"NO PAGO")' };
     
-    ['D','E','F','G'].forEach(col => {
+    ['C','D','E','F','G'].forEach(col => {
       const cell = dataRow.getCell(col);
-    if(col !== 'D') cell.numFmt = currencyFmt;
+      if(col !== 'C') cell.numFmt = currencyFmt;
+      if (col === 'G') {
+        cell.font = { bold: true, color: { argb: 'FF922B21' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFADBD8' } };
+      }
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
       cell.border = borderThin;
     });
@@ -210,7 +237,7 @@ async function exportToExcel(sales) {
   const vendorInput = searchSheet.getCell('C4');
   vendorInput.dataValidation = {
     type: 'list', allowBlank: true, showErrorMessage: false,
-    formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,LOCAL,OTROS"']
+    formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,LOCAL,OTROS,FERNANDO"']
   };
   vendorInput.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } };
   vendorInput.border = borderThin;
@@ -220,7 +247,7 @@ async function exportToExcel(sales) {
   const pagoInput = searchSheet.getCell('E4');
   pagoInput.dataValidation = {
     type: 'list', allowBlank: true, showErrorMessage: false,
-    formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA"']
+    formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA,NO PAGO"']
   };
   pagoInput.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } };
   pagoInput.border = borderThin;
@@ -270,6 +297,20 @@ async function exportToExcel(sales) {
   } else {
     searchSheet.getCell('A7').value = 'No hay ventas registradas.';
   }
+
+  // Add elegant conditional formatting for the FORMA DE PAGO column (F) on Buscador Inteligente
+  searchSheet.addConditionalFormatting({
+    ref: 'F7:F1000',
+    rules: [
+      {
+        type: 'cellIs', operator: 'equal', formulae: ['"NO PAGO"'],
+        style: { 
+          font: { color: { argb: 'FF922B21' }, bold: true },
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FADBD8' } }
+        }
+      }
+    ]
+  });
 
   await workbook.xlsx.writeFile('test_export_real.xlsx');
 }

@@ -295,9 +295,10 @@ body {
 #modal-overlay {
   transition: opacity 0.4s ease;
   display: none;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 1rem;
+  overflow-y: auto;
 }
 
 #modal-overlay:not(.hidden) {

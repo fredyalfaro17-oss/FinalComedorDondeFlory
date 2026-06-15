@@ -199,7 +199,7 @@ function openItemModal(item) {
   const itemImage = getItemImage(item);
 
   modalOverlay.innerHTML = `
-    <div id="modal-content" class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm overflow-hidden animate-scale-in ${itemImage ? 'special-bg' : ''}" ${itemImage ? `style="--modal-bg-image: url('${itemImage}')"` : ''}>
+    <div id="modal-content" class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm overflow-hidden animate-scale-in m-auto my-8 ${itemImage ? 'special-bg' : ''}" ${itemImage ? `style="--modal-bg-image: url('${itemImage}')"` : ''}>
       <div class="bg-gradient-to-br from-red-600 to-red-900 p-8 text-white relative">
         <button id="close-modal-btn" class="absolute top-4 right-4 text-white/50 hover:text-white transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
@@ -263,7 +263,7 @@ function openTicketModal() {
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
   modalOverlay.innerHTML = `
-    <div class="flex flex-col items-center gap-6 animate-scale-in w-full max-w-sm">
+    <div class="flex flex-col items-center gap-6 animate-scale-in w-full max-w-sm m-auto my-8">
       <div id="ticket-preview" class="ticket-container bg-white shadow-2xl rounded-lg text-black">
         <div class="ticket-header space-y-0.5">
           <h2 class="text-xl font-bold uppercase tracking-tighter">Comedor Donde Flory</h2>
@@ -709,7 +709,7 @@ window.renderReportModal = function() {
   const sales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
   
   modalOverlay.innerHTML = `
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl animate-scale-in">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl animate-scale-in m-auto my-4">
       <div class="p-6 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-800/50 rounded-t-2xl shrink-0">
         <div class="shrink-0">
           <h2 class="text-xl sm:text-2xl font-bold font-playfair text-white flex items-center gap-3 whitespace-nowrap">

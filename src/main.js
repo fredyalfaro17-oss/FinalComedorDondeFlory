@@ -90,7 +90,7 @@ function renderMenu() {
     <div class="menu-item-card bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-col justify-between group cursor-pointer animate-slide-up" data-item='${JSON.stringify(item)}'>
       <div class="flex justify-between items-start gap-4 mb-2">
         <div>
-          <h3 class="font-black text-xl text-white group-hover:text-red-400 transition-colors">${item.name}</h3>
+          <h3 class="font-black text-lg md:text-xl text-white group-hover:text-red-400 transition-colors">${item.name}</h3>
           ${item.description ? `<p class="text-xs text-slate-500 mt-1.5 leading-relaxed">${item.description}</p>` : ''}
         </div>
         <span class="font-black text-red-500 text-xl">Q${item.price.toFixed(0)}</span>

@@ -28,6 +28,11 @@ const clearCartBtn = document.getElementById('clear-cart-btn');
 const generateTicketBtn = document.getElementById('generate-ticket-btn');
 const modalOverlay = document.getElementById('modal-overlay');
 
+const mobileCartBtn = document.getElementById('mobile-cart-btn');
+const closeCartMobileBtn = document.getElementById('close-cart-mobile-btn');
+const cartSidebar = document.getElementById('cart-sidebar');
+const mobileCartBadge = document.getElementById('mobile-cart-badge');
+
 // --- Initialization ---
 function init() {
   renderCategories();
@@ -118,6 +123,7 @@ function updateCartUI() {
     cartTotalEl.textContent = 'Q0.00';
     clearCartBtn.classList.add('hidden');
     generateTicketBtn.disabled = true;
+    if (mobileCartBadge) mobileCartBadge.classList.add('hidden');
     return;
   }
 
@@ -156,6 +162,17 @@ function updateCartUI() {
       updateCartUI();
     });
   });
+
+  // Update mobile badge
+  if (mobileCartBadge) {
+    const totalQty = cart.reduce((acc, item) => acc + item.quantity, 0);
+    if (totalQty > 0) {
+      mobileCartBadge.textContent = totalQty;
+      mobileCartBadge.classList.remove('hidden');
+    } else {
+      mobileCartBadge.classList.add('hidden');
+    }
+  }
 }
 
 function getItemImage(item) {
@@ -560,6 +577,14 @@ function setupEventListeners() {
 
   const viewReportBtn = document.getElementById('view-report-btn');
   if (viewReportBtn) viewReportBtn.onclick = openReportModal;
+
+  if (mobileCartBtn && cartSidebar) {
+    mobileCartBtn.onclick = () => cartSidebar.classList.remove('hidden');
+  }
+  
+  if (closeCartMobileBtn && cartSidebar) {
+    closeCartMobileBtn.onclick = () => cartSidebar.classList.add('hidden');
+  }
 
   // Close modal on background click
   modalOverlay.onclick = (e) => {

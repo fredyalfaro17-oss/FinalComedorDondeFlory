@@ -87,7 +87,7 @@ function renderMenu() {
   if (!category) return;
 
   menuContainer.innerHTML = category.items.map(item => `
-    <div class="menu-item-card bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-col justify-between group cursor-pointer animate-slide-up" data-item='${JSON.stringify(item)}'>
+    <div class="menu-item-card bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-col justify-between group cursor-pointer" data-item='${JSON.stringify(item)}'>
       <div class="flex justify-between items-start gap-4 mb-2">
         <div>
           <h3 class="font-black text-lg md:text-xl text-white group-hover:text-red-400 transition-colors">${item.name}</h3>
@@ -135,7 +135,7 @@ function updateCartUI() {
     const subtotal = item.price * item.quantity;
     total += subtotal;
     return `
-      <div class="bg-slate-800/80 border border-slate-700/50 p-4 rounded-xl flex items-center justify-between gap-4 animate-slide-right">
+      <div class="bg-slate-800/80 border border-slate-700/50 p-4 rounded-xl flex items-center justify-between gap-4">
         <div class="flex-1 min-w-0">
           <h4 class="font-black text-base text-white truncate">${item.name}</h4>
           ${item.description ? `<p class="text-sm text-slate-400 font-medium italic mt-0.5 line-clamp-2">${item.description}</p>` : ''}

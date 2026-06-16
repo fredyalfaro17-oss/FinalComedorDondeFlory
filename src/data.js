@@ -84,9 +84,9 @@ export const menuData = {
       name: "Combos",
       color: "#d97706", // amber-600
       items: [
-        { name: "ALMUERZO DE 1 DOBLADA", price: 25, description: "+ 2 acompañamientos + fresco" },
-        { name: "Combo 2 - 2 Dobladas", price: 30, description: "2 Dobladas + Fresco" },
-        { name: "Combo 3 - 1 Doblada + 1 Bebida", price: 20, description: "1 Doblada + 1 Bebida" }
+        { name: "ALMUERZO DE 1 DOBLADA", price: 30, description: "+ 2 acompañamientos + fresco" },
+        { name: "Combo 2 - 2 Dobladas", price: 35, description: "2 Dobladas + Fresco" },
+        { name: "Combo 3 - 1 Doblada + 1 Bebida", price: 25, description: "1 Doblada + 1 Bebida" }
       ]
     },
     {
@@ -120,7 +120,7 @@ export const menuData = {
       items: [
         { name: "Café", price: 5 },
         { name: "Café Grande", price: 7 },
-        { name: "Doblada Tipo San Carlos", price: 15 },
+        { name: "Doblada Tipo San Carlos", price: 18 },
         { name: "Fresco", price: 5 },
         { name: "Pan", price: 2 },
         { name: "Porción de Crema", price: 3 },

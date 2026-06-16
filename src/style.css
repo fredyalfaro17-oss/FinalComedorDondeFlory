@@ -341,6 +341,15 @@ body {
     width: 58mm !important;
     margin: 0 !important;
     padding: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  #modal-overlay {
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+    display: block !important;
   }
 
   /* Force system fonts to avoid bitmap blurring of webfonts */
@@ -356,7 +365,7 @@ body {
   }
 
   #ticket-preview {
-    position: absolute !important;
+    position: relative !important;
     left: 0 !important;
     top: 0 !important;
     width: 58mm !important;

@@ -308,20 +308,22 @@ function openTicketModal() {
       </div>
 
       <div class="flex flex-col gap-2 w-full">
+        <button id="print-rawbt-btn" class="w-full bg-amber-600 hover:bg-amber-500 text-white py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2">
+          ⚡ Imprimir (Directo Xprinter/RawBT)
+        </button>
         <div class="flex gap-3 w-full">
           <button id="close-ticket-btn" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-4 rounded-xl font-bold transition-all">
             Cerrar
           </button>
           <button id="print-ticket-btn" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-            Imprimir
+            Imprimir (Sistema)
           </button>
         </div>
         <button id="copy-ticket-btn" class="w-full bg-green-600 hover:bg-green-500 text-white py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
           Copiar Ticket
         </button>
-        <span class="text-center text-[10px] text-slate-500 mt-1">Soporte Xprinter v2.2</span>
+        <span class="text-center text-[10px] text-slate-500 mt-1">Soporte Xprinter v2.3</span>
       </div>
     </div>
   `;
@@ -329,6 +331,19 @@ function openTicketModal() {
   modalOverlay.classList.remove('hidden');
 
   document.getElementById('close-ticket-btn').onclick = () => modalOverlay.classList.add('hidden');
+
+  document.getElementById('print-rawbt-btn').onclick = () => {
+    saveSale(total);
+    const ticketText = copyTicketText(true);
+    // Base64 encode for RawBT
+    const base64Text = btoa(unescape(encodeURIComponent(ticketText)));
+    window.location.href = "rawbt:data:text/plain;base64," + base64Text;
+    
+    cart = [];
+    updateCartUI();
+    resetCustomerInfo();
+    modalOverlay.classList.add('hidden');
+  };
 
   document.getElementById('print-ticket-btn').onclick = () => {
     saveSale(total);

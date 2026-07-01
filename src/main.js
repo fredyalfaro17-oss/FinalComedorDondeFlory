@@ -331,7 +331,79 @@ function openTicketModal() {
 
   document.getElementById('print-ticket-btn').onclick = () => {
     saveSale(total);
-    window.print();
+    
+    // Create a hidden iframe for isolated printing (fixes blank ticket issue on Android/iOS tablets)
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+    
+    const ticketText = copyTicketText(true);
+    
+    // Create a tiny but renderable iframe (fixes mobile Chrome ignoring 0px elements)
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.left = '-9999px';
+    iframe.style.top = '0';
+    iframe.style.width = '10px';
+    iframe.style.height = '10px';
+    iframe.style.border = '0';
+    iframe.style.opacity = '0.01';
+    document.body.appendChild(iframe);
+    
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html style="color-scheme: light; background: #ffffff;">
+        <head>
+          <meta charset="utf-8">
+          <style>
+            @page { margin: 0; size: 58mm auto; }
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              color: #000000 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            pre {
+              font-family: 'Courier New', Courier, monospace !important;
+              font-size: 13px !important;
+              line-height: 1.2 !important;
+              white-space: pre-wrap !important;
+              margin: 0 !important;
+              padding: 4px !important;
+              width: 54mm !important;
+              color: #000000 !important;
+              background: #ffffff !important;
+              font-weight: bold !important;
+            }
+          </style>
+        </head>
+        <body>
+          <pre>${ticketText}</pre>
+        </body>
+      </html>
+    `);
+    doc.close();
+    
+    // Delay slightly to allow rendering in DOM before calling print
+    setTimeout(() => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 3000);
+    }, 500);
+
     cart = [];
     updateCartUI();
     resetCustomerInfo();
@@ -373,7 +445,7 @@ function addItemToCart(item, quantity, customDescription) {
   updateCartUI();
 }
 
-function copyTicketText() {
+function copyTicketText(returnOnly = false) {
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-ES');
@@ -501,7 +573,10 @@ function copyTicketText() {
   text += 'Gracias por su preferencia\n\n\n'; // Feed paper
 
 
-  navigator.clipboard.writeText(text);
+  if (!returnOnly) {
+    navigator.clipboard.writeText(text);
+  }
+  return text;
 }
 
 function resetCustomerInfo() {

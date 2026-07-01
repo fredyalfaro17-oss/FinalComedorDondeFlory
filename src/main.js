@@ -473,7 +473,7 @@ function openTicketModal() {
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
           Copiar Ticket
         </button>
-        <span class="text-center text-[10px] text-slate-500 mt-1">Soporte Xprinter v2.5</span>
+        <span class="text-center text-[10px] text-slate-500 mt-1">Soporte Xprinter v2.6</span>
       </div>
     </div>
   `;
@@ -485,15 +485,12 @@ function openTicketModal() {
   document.getElementById('print-rawbt-btn').onclick = () => {
     saveSale(total);
     
-    // Get HTML content
-    const ticketHtml = document.getElementById('ticket-preview').outerHTML;
-    const styledHtml = getHtmlTicketDocument(ticketHtml);
+    const ticketText = copyTicketText(true);
+    // Base64 encode for RawBT text mode
+    const base64Text = btoa(unescape(encodeURIComponent(ticketText)));
     
-    // Base64 encode for RawBT (as HTML format)
-    const base64Html = btoa(unescape(encodeURIComponent(styledHtml)));
-    
-    // Construct Android Chrome Intent URL for HTML printing in RawBT
-    const intentUrl = `intent:data:text/html;base64,${base64Html}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;`;
+    // Construct Android Chrome Intent URL for plain text printing in RawBT
+    const intentUrl = `intent:data:text/plain;base64,${base64Text}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;`;
     window.location.href = intentUrl;
     
     cart = [];
@@ -585,6 +582,25 @@ function copyTicketText(returnOnly = false) {
   const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   const ticketId = Math.random().toString(36).substr(2, 9).toUpperCase();
 
+  // Helper for word wrapping
+  const wrapText = (text, maxLength) => {
+    if (!text) return [""];
+    const words = text.split(' ');
+    let lines = [];
+    let currentLine = words[0];
+
+    for (let i = 1; i < words.length; i++) {
+      if (currentLine.length + 1 + words[i].length <= maxLength) {
+        currentLine += ' ' + words[i];
+      } else {
+        lines.push(currentLine);
+        currentLine = words[i];
+      }
+    }
+    lines.push(currentLine);
+    return lines;
+  };
+
   // Thermal printer width is typically 32 characters
   const width = 32;
   const separator = '-'.repeat(width);
@@ -604,41 +620,27 @@ function copyTicketText(returnOnly = false) {
   text += `${datePadding}${dateLine}\n`;
   text += `${separator}\n`; // Removed extra newline
 
-  // Customer info - if available
+  // Customer info - if available with a nice box
   if (customerInfo.name || customerInfo.phone || customerInfo.deliveryTime) {
+    text += `┌${'─'.repeat(width - 2)}┐\n`;
     if (customerInfo.name) {
-      text += `CLIENTE: ${customerInfo.name.toUpperCase()}\n`;
+      const wrappedName = wrapText(customerInfo.name.toUpperCase(), width - 13);
+      text += `│ CLIENTE: ${wrappedName[0].padEnd(width - 13, ' ')} │\n`;
+      for (let i = 1; i < wrappedName.length; i++) {
+        text += `│          ${wrappedName[i].padEnd(width - 13, ' ')} │\n`;
+      }
     }
     if (customerInfo.phone) {
-      text += `TELÉFONO: ${customerInfo.phone}\n`;
+      text += `│ TEL:     ${customerInfo.phone.padEnd(width - 13, ' ')} │\n`;
     }
     if (customerInfo.deliveryTime) {
-      text += `ENTREGA: ${customerInfo.deliveryTime}\n`;
+      text += `│ ENTREGA: ${customerInfo.deliveryTime.padEnd(width - 13, ' ')} │\n`;
     }
-    text += `${separator}\n`; // Removed extra newline
+    text += `└${'─'.repeat(width - 2)}┘\n`;
   } else {
     // If no customer info, add a small spacer or just continue
     // text += `\n`; 
   }
-
-
-  // Helper for word wrapping
-  const wrapText = (text, maxLength) => {
-    const words = text.split(' ');
-    let lines = [];
-    let currentLine = words[0];
-
-    for (let i = 1; i < words.length; i++) {
-      if (currentLine.length + 1 + words[i].length <= maxLength) {
-        currentLine += ' ' + words[i];
-      } else {
-        lines.push(currentLine);
-        currentLine = words[i];
-      }
-    }
-    lines.push(currentLine);
-    return lines;
-  };
 
   // Items
   cart.forEach(item => {

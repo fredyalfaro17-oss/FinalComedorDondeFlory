@@ -254,6 +254,155 @@ function openItemModal(item) {
   };
 }
 
+function getHtmlTicketDocument(ticketHtml) {
+  return `
+    <!DOCTYPE html>
+    <html style="color-scheme: light; background: #ffffff;">
+      <head>
+        <meta charset="utf-8">
+        <style>
+          @page { margin: 0; size: 58mm auto; }
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+            width: 58mm !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          #ticket-preview {
+            width: 58mm !important;
+            max-width: 58mm !important;
+            padding: 2mm !important;
+            box-sizing: border-box !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+          }
+          .ticket-header {
+            text-align: center !important;
+            margin-bottom: 5px !important;
+          }
+          .ticket-header h2 {
+            font-size: 14pt !important;
+            font-weight: 900 !important;
+            margin: 0 0 2pt 0 !important;
+            text-transform: uppercase !important;
+          }
+          .ticket-info,
+          .ticket-meta {
+            font-size: 10pt !important;
+            font-weight: 600 !important;
+            color: #000000 !important;
+            margin: 0 !important;
+            line-height: 1.1 !important;
+            text-align: center !important;
+          }
+          .ticket-meta {
+            border-top: 1px solid #000000 !important;
+            border-bottom: 1px solid #000000 !important;
+            padding: 3px 0 !important;
+            margin-top: 5px !important;
+            display: block !important;
+          }
+          .customer-section {
+            border: 1px solid #000000 !important;
+            background: #ffffff !important;
+            padding: 6px !important;
+            margin: 8px 0 !important;
+            border-radius: 4px !important;
+          }
+          .customer-data {
+            font-size: 10pt !important;
+            margin: 4px 0 !important;
+            display: block !important;
+            color: #000000 !important;
+          }
+          .customer-data .label {
+            font-weight: 900 !important;
+            margin-right: 2pt !important;
+          }
+          .customer-data .value {
+            font-weight: 900 !important;
+            font-size: 16pt !important;
+          }
+          .items-list {
+            margin-top: 8px !important;
+          }
+          .ticket-row {
+            font-size: 11pt !important;
+            font-weight: 700 !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            border-bottom: 1px dashed #000000 !important;
+            padding: 4px 0 !important;
+            color: #000000 !important;
+          }
+          .ticket-row span:first-child {
+            flex: 1 !important;
+            text-align: left !important;
+          }
+          .ticket-row span:last-child {
+            flex: 0 0 auto !important;
+            text-align: right !important;
+            margin-left: 10px !important;
+          }
+          .item-description {
+            font-size: 12pt !important;
+            font-weight: 500 !important;
+            font-style: italic !important;
+            color: #000000 !important;
+            padding-left: 10px !important;
+            margin-bottom: 4px !important;
+            font-family: 'Playfair Display', Georgia, serif !important;
+          }
+          .total-section {
+            border-top: 2px solid #000000 !important;
+            padding-top: 6px !important;
+            margin-top: 10px !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: flex-end !important;
+            color: #000000 !important;
+          }
+          .total-section .label {
+            font-size: 11pt !important;
+            font-weight: 900 !important;
+          }
+          .total-section .value {
+            font-size: 16pt !important;
+            font-weight: 900 !important;
+          }
+          .ticket-footer {
+            border-top: 1px dashed #000000 !important;
+            padding-top: 8px !important;
+            margin-top: 12px !important;
+            text-align: center !important;
+            color: #000000 !important;
+          }
+          .ticket-footer p {
+            margin: 2px 0 !important;
+          }
+          .ticket-footer p:first-child {
+            font-size: 11pt !important;
+            font-weight: 900 !important;
+          }
+          .ticket-footer p:last-child {
+            font-size: 9pt !important;
+          }
+          .print-hidden {
+            display: none !important;
+          }
+        </style>
+      </head>
+      <body>
+        ${ticketHtml}
+      </body>
+    </html>
+  `;
+}
+
 function openTicketModal() {
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-ES');
@@ -323,7 +472,7 @@ function openTicketModal() {
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
           Copiar Ticket
         </button>
-        <span class="text-center text-[10px] text-slate-500 mt-1">Soporte Xprinter v2.3</span>
+        <span class="text-center text-[10px] text-slate-500 mt-1">Soporte Xprinter v2.4</span>
       </div>
     </div>
   `;
@@ -334,12 +483,16 @@ function openTicketModal() {
 
   document.getElementById('print-rawbt-btn').onclick = () => {
     saveSale(total);
-    const ticketText = copyTicketText(true);
-    // Base64 encode for RawBT
-    const base64Text = btoa(unescape(encodeURIComponent(ticketText)));
     
-    // Construct Android Chrome Intent URL to launch RawBT and pass base64 text
-    const intentUrl = `intent:data:text/plain;base64,${base64Text}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;`;
+    // Get HTML content
+    const ticketHtml = document.getElementById('ticket-preview').outerHTML;
+    const styledHtml = getHtmlTicketDocument(ticketHtml);
+    
+    // Base64 encode for RawBT (as HTML format)
+    const base64Html = btoa(unescape(encodeURIComponent(styledHtml)));
+    
+    // Construct Android Chrome Intent URL for HTML printing in RawBT
+    const intentUrl = `intent:data:text/html;base64,${base64Html}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;`;
     window.location.href = intentUrl;
     
     cart = [];
@@ -351,10 +504,11 @@ function openTicketModal() {
   document.getElementById('print-ticket-btn').onclick = () => {
     saveSale(total);
     
-    const ticketText = copyTicketText(true);
+    // Get HTML content
+    const ticketHtml = document.getElementById('ticket-preview').outerHTML;
+    const styledHtml = getHtmlTicketDocument(ticketHtml);
     
     // Create iframe positioned inside the viewport but behind everything (z-index -9999)
-    // This forces Android Chrome to render the layout, preventing a blank print preview
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
     iframe.style.left = '0';
@@ -368,40 +522,7 @@ function openTicketModal() {
     
     const doc = iframe.contentWindow.document;
     doc.open();
-    doc.write(`
-      <!DOCTYPE html>
-      <html style="color-scheme: light; background: #ffffff;">
-        <head>
-          <meta charset="utf-8">
-          <style>
-            @page { margin: 0; size: 58mm auto; }
-            html, body {
-              margin: 0 !important;
-              padding: 0 !important;
-              background: #ffffff !important;
-              color: #000000 !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            pre {
-              font-family: 'Courier New', Courier, monospace !important;
-              font-size: 13px !important;
-              line-height: 1.2 !important;
-              white-space: pre-wrap !important;
-              margin: 0 !important;
-              padding: 4px !important;
-              width: 54mm !important;
-              color: #000000 !important;
-              background: #ffffff !important;
-              font-weight: bold !important;
-            }
-          </style>
-        </head>
-        <body>
-          <pre>${ticketText}</pre>
-        </body>
-      </html>
-    `);
+    doc.write(styledHtml);
     doc.close();
     
     // Delay to allow rendering in DOM before calling print

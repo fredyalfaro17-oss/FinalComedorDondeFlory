@@ -321,6 +321,7 @@ function openTicketModal() {
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
           Copiar Ticket
         </button>
+        <span class="text-center text-[10px] text-slate-500 mt-1">Soporte Xprinter v2.2</span>
       </div>
     </div>
   `;
@@ -332,25 +333,17 @@ function openTicketModal() {
   document.getElementById('print-ticket-btn').onclick = () => {
     saveSale(total);
     
-    // Create a hidden iframe for isolated printing (fixes blank ticket issue on Android/iOS tablets)
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    document.body.appendChild(iframe);
-    
     const ticketText = copyTicketText(true);
     
-    // Create a tiny but renderable iframe (fixes mobile Chrome ignoring 0px elements)
+    // Create iframe positioned inside the viewport but behind everything (z-index -9999)
+    // This forces Android Chrome to render the layout, preventing a blank print preview
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
-    iframe.style.left = '-9999px';
+    iframe.style.left = '0';
     iframe.style.top = '0';
-    iframe.style.width = '10px';
-    iframe.style.height = '10px';
+    iframe.style.width = '100px';
+    iframe.style.height = '100px';
+    iframe.style.zIndex = '-9999';
     iframe.style.border = '0';
     iframe.style.opacity = '0.01';
     document.body.appendChild(iframe);
@@ -393,7 +386,7 @@ function openTicketModal() {
     `);
     doc.close();
     
-    // Delay slightly to allow rendering in DOM before calling print
+    // Delay to allow rendering in DOM before calling print
     setTimeout(() => {
       iframe.contentWindow.focus();
       iframe.contentWindow.print();
@@ -402,7 +395,7 @@ function openTicketModal() {
           document.body.removeChild(iframe);
         }
       }, 3000);
-    }, 500);
+    }, 600);
 
     cart = [];
     updateCartUI();

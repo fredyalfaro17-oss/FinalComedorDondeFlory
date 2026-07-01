@@ -261,21 +261,22 @@ function getHtmlTicketDocument(ticketHtml) {
       <head>
         <meta charset="utf-8">
         <style>
-          @page { margin: 0; size: 58mm auto; }
+          @page { margin: 0; }
           html, body {
             margin: 0 !important;
             padding: 0 !important;
             background: #ffffff !important;
             color: #000000 !important;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-            width: 58mm !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
           #ticket-preview {
-            width: 58mm !important;
-            max-width: 58mm !important;
-            padding: 2mm !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 4mm !important;
             box-sizing: border-box !important;
             background: #ffffff !important;
             color: #000000 !important;
@@ -472,7 +473,7 @@ function openTicketModal() {
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
           Copiar Ticket
         </button>
-        <span class="text-center text-[10px] text-slate-500 mt-1">Soporte Xprinter v2.4</span>
+        <span class="text-center text-[10px] text-slate-500 mt-1">Soporte Xprinter v2.5</span>
       </div>
     </div>
   `;

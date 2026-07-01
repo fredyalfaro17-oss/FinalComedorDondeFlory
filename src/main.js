@@ -337,7 +337,10 @@ function openTicketModal() {
     const ticketText = copyTicketText(true);
     // Base64 encode for RawBT
     const base64Text = btoa(unescape(encodeURIComponent(ticketText)));
-    window.location.href = "rawbt:data:text/plain;base64," + base64Text;
+    
+    // Construct Android Chrome Intent URL to launch RawBT and pass base64 text
+    const intentUrl = `intent:data:text/plain;base64,${base64Text}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;`;
+    window.location.href = intentUrl;
     
     cart = [];
     updateCartUI();

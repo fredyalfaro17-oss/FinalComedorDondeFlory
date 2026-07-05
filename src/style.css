@@ -357,6 +357,13 @@ body {
     display: block !important;
   }
 
+  #modal-overlay > div {
+    display: block !important;
+    width: 58mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   /* Force system fonts to avoid bitmap blurring of webfonts */
   #ticket-preview,
   #ticket-preview * {

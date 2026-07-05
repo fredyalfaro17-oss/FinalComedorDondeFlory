@@ -502,66 +502,28 @@ function openTicketModal() {
   document.getElementById('print-ticket-btn').onclick = () => {
     saveSale(total);
     
-    // Get HTML content
-    const ticketHtml = document.getElementById('ticket-preview').outerHTML;
+    // We use the browser's native window.print() directly.
+    // The existing @media print rules in src/style.css are already set up to 
+    // hide everything else and print only the #ticket-preview at 58mm.
+    // Using window.print() directly is fully supported on mobile and tablets.
     
-    // Instead of using an iframe which is blocked by mobile browsers (Chrome/Safari),
-    // we use a temporary container in the main body and CSS @media print to hide everything else.
-    const printContainer = document.createElement('div');
-    printContainer.id = 'mobile-print-container';
-    printContainer.innerHTML = ticketHtml;
+    let cleaned = false;
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      cart = [];
+      updateCartUI();
+      resetCustomerInfo();
+      modalOverlay.classList.add('hidden');
+    };
     
-    const style = document.createElement('style');
-    style.id = 'mobile-print-style';
-    style.textContent = `
-      @media print {
-        body > *:not(#mobile-print-container):not(#mobile-print-style) { display: none !important; }
-        body { background: #ffffff !important; margin: 0 !important; padding: 0 !important; }
-        #mobile-print-container { display: block !important; width: 100% !important; padding: 4mm !important; color: #000000 !important; }
-        .ticket-header { text-align: center !important; margin-bottom: 5px !important; }
-        .ticket-header h2 { font-size: 14pt !important; font-weight: 900 !important; margin: 0 0 2pt 0 !important; text-transform: uppercase !important; }
-        .ticket-info, .ticket-meta { font-size: 10pt !important; font-weight: 600 !important; color: #000000 !important; margin: 0 !important; line-height: 1.1 !important; text-align: center !important; }
-        .ticket-meta { border-top: 1px solid #000000 !important; border-bottom: 1px solid #000000 !important; padding: 3px 0 !important; margin-top: 5px !important; display: block !important; }
-        .customer-section { border: 1px solid #000000 !important; background: #ffffff !important; padding: 6px !important; margin: 8px 0 !important; border-radius: 4px !important; }
-        .customer-data { font-size: 10pt !important; margin: 4px 0 !important; display: block !important; color: #000000 !important; }
-        .customer-data .label { font-weight: 900 !important; margin-right: 2pt !important; }
-        .customer-data .value { font-weight: 900 !important; font-size: 16pt !important; }
-        .items-list { margin-top: 8px !important; }
-        .ticket-row { font-size: 11pt !important; font-weight: 700 !important; display: flex !important; justify-content: space-between !important; border-bottom: 1px dashed #000000 !important; padding: 4px 0 !important; color: #000000 !important; }
-        .ticket-row span:first-child { flex: 1 !important; text-align: left !important; }
-        .ticket-row span:last-child { flex: 0 0 auto !important; text-align: right !important; margin-left: 10px !important; }
-        .item-description { font-size: 12pt !important; font-weight: 500 !important; font-style: italic !important; color: #000000 !important; padding-left: 10px !important; margin-bottom: 4px !important; font-family: 'Playfair Display', Georgia, serif !important; }
-        .total-section { border-top: 2px solid #000000 !important; padding-top: 6px !important; margin-top: 10px !important; display: flex !important; justify-content: space-between !important; align-items: flex-end !important; color: #000000 !important; }
-        .total-section .label { font-size: 11pt !important; font-weight: 900 !important; }
-        .total-section .value { font-size: 16pt !important; font-weight: 900 !important; }
-        .ticket-footer { border-top: 1px dashed #000000 !important; padding-top: 8px !important; margin-top: 12px !important; text-align: center !important; color: #000000 !important; }
-        .ticket-footer p { margin: 2px 0 !important; }
-        .ticket-footer p:first-child { font-size: 11pt !important; font-weight: 900 !important; }
-        .ticket-footer p:last-child { font-size: 9pt !important; }
-        .print-hidden { display: none !important; }
-      }
-      @media screen {
-        #mobile-print-container { display: none !important; }
-      }
-    `;
+    // Listen to afterprint event to clean up after print dialog closes
+    window.onafterprint = cleanup;
     
-    document.body.appendChild(style);
-    document.body.appendChild(printContainer);
+    window.print();
     
-    // Delay to allow DOM update
-    setTimeout(() => {
-      window.print();
-      // Cleanup after print dialog
-      setTimeout(() => {
-        if (document.body.contains(printContainer)) document.body.removeChild(printContainer);
-        if (document.body.contains(style)) document.body.removeChild(style);
-      }, 2000);
-    }, 300);
-
-    cart = [];
-    updateCartUI();
-    resetCustomerInfo();
-    modalOverlay.classList.add('hidden');
+    // Fallback for browsers that don't trigger onafterprint immediately
+    setTimeout(cleanup, 2500);
   };
 
   document.getElementById('copy-ticket-btn').onclick = (e) => {

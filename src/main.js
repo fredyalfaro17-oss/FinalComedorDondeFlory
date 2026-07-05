@@ -502,16 +502,47 @@ function openTicketModal() {
   document.getElementById('print-ticket-btn').onclick = () => {
     saveSale(total);
     
-    // Clear the cart immediately so the sale is registered and cart is reset,
-    // but do NOT hide the modal yet. If we hide the modal automatically, mobile browsers
-    // (which render the print preview asynchronously) will render a blank page because
-    // the modal becomes hidden before the print spooler can capture it.
+    // Clear the cart immediately so the sale is registered and cart is reset
     cart = [];
     updateCartUI();
     resetCustomerInfo();
     
     // Trigger the system print dialog
     window.print();
+
+    // To prevent the mobile print preview from rendering blank, we wait until
+    // the print dialog is closed (either printed or canceled).
+    // This is detected when either the 'afterprint' event fires or the window regains focus.
+    let cleaned = false;
+    let lostFocus = false;
+    
+    const onBlur = () => {
+      lostFocus = true;
+    };
+    window.addEventListener('blur', onBlur, { once: true });
+    
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      modalOverlay.classList.add('hidden');
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('afterprint', cleanup);
+    };
+
+    const onFocus = () => {
+      // Only close if we actually lost focus first (meaning the print dialog opened and closed)
+      if (lostFocus) {
+        cleanup();
+      }
+    };
+
+    window.addEventListener('afterprint', cleanup, { once: true });
+    window.addEventListener('focus', onFocus);
+
+    // Fallback for browsers where neither event fires (e.g. if the tab remains in background),
+    // we use a long timeout (20 seconds) so it doesn't interfere with the print preview rendering.
+    setTimeout(cleanup, 20000);
   };
 
   document.getElementById('copy-ticket-btn').onclick = (e) => {

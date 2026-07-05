@@ -502,28 +502,16 @@ function openTicketModal() {
   document.getElementById('print-ticket-btn').onclick = () => {
     saveSale(total);
     
-    // We use the browser's native window.print() directly.
-    // The existing @media print rules in src/style.css are already set up to 
-    // hide everything else and print only the #ticket-preview at 58mm.
-    // Using window.print() directly is fully supported on mobile and tablets.
+    // Clear the cart immediately so the sale is registered and cart is reset,
+    // but do NOT hide the modal yet. If we hide the modal automatically, mobile browsers
+    // (which render the print preview asynchronously) will render a blank page because
+    // the modal becomes hidden before the print spooler can capture it.
+    cart = [];
+    updateCartUI();
+    resetCustomerInfo();
     
-    let cleaned = false;
-    const cleanup = () => {
-      if (cleaned) return;
-      cleaned = true;
-      cart = [];
-      updateCartUI();
-      resetCustomerInfo();
-      modalOverlay.classList.add('hidden');
-    };
-    
-    // Listen to afterprint event to clean up after print dialog closes
-    window.onafterprint = cleanup;
-    
+    // Trigger the system print dialog
     window.print();
-    
-    // Fallback for browsers that don't trigger onafterprint immediately
-    setTimeout(cleanup, 2500);
   };
 
   document.getElementById('copy-ticket-btn').onclick = (e) => {

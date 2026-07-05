@@ -485,12 +485,15 @@ function openTicketModal() {
   document.getElementById('print-rawbt-btn').onclick = () => {
     saveSale(total);
     
-    const ticketText = copyTicketText(true);
-    // Base64 encode for RawBT text mode
-    const base64Text = btoa(unescape(encodeURIComponent(ticketText)));
+    // Get HTML content for better formatting instead of plain text
+    const ticketHtml = document.getElementById('ticket-preview').outerHTML;
+    const styledHtml = getHtmlTicketDocument(ticketHtml);
     
-    // Construct Android Chrome Intent URL for plain text printing in RawBT
-    const intentUrl = `intent:data:text/plain;base64,${base64Text}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;`;
+    // Base64 encode for RawBT HTML mode
+    const base64Html = btoa(unescape(encodeURIComponent(styledHtml)));
+    
+    // Construct Android Chrome Intent URL for HTML printing in RawBT
+    const intentUrl = `intent:data:text/html;base64,${base64Html}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;`;
     window.location.href = intentUrl;
     
     cart = [];

@@ -451,6 +451,30 @@ function openTicketModal() {
           </div>
         </div>
 
+        <div class="payment-checkboxes">
+          <div class="payment-col">
+            <div class="checkbox-row">
+              <span class="checkbox-box"></span>
+              <span class="payment-line"></span>
+            </div>
+            <span class="payment-label">Efect.</span>
+          </div>
+          <div class="payment-col">
+            <div class="checkbox-row">
+              <span class="checkbox-box"></span>
+              <span class="payment-line"></span>
+            </div>
+            <span class="payment-label">Transf.</span>
+          </div>
+          <div class="payment-col">
+            <div class="checkbox-row">
+              <span class="checkbox-box"></span>
+              <span class="payment-line"></span>
+            </div>
+            <span class="payment-label">Tarj.</span>
+          </div>
+        </div>
+
         <div class="ticket-footer space-y-2 mt-4">
           <p class="font-bold">¡Buen provecho!</p>
           <p>Gracias por su preferencia</p>
@@ -706,6 +730,10 @@ function copyTicketText(returnOnly = false) {
 
   // Left aligned format: [Label] [Amount]
   text += `${totalLabel} ${totalAmount}\n`;
+  text += `${separator}\n`;
+
+  // Payment checklists in plain text
+  text += `[ ] Efect.   [ ] Transf.   [ ] Tarj.\n`;
   text += `${separator}\n\n`; // Keep some space at very bottom for tearing
 
   // Footer

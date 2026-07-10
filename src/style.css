@@ -211,9 +211,9 @@ body {
 
 .ticket-header {
   text-align: center;
-  border-bottom: 2px dashed #e2e8f0;
-  padding-bottom: 1.5rem;
-  margin-bottom: 1.5rem;
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
 }
 
 .ticket-row {
@@ -371,6 +371,21 @@ body {
   color: #000000 !important;
   text-align: center !important;
   margin-top: 2px !important;
+}
+
+.ticket-number-container {
+  display: flex !important;
+  justify-content: center !important;
+  margin: 8px 0 !important;
+}
+
+.ticket-number-box {
+  border: 1.5px solid #000000 !important;
+  padding: 2px 10px !important;
+  font-size: 0.85rem !important;
+  font-weight: 900 !important;
+  color: #000000 !important;
+  display: inline-block !important;
 }
 
 /* Thermal Printer (58mm) Print Styles */
@@ -561,6 +576,20 @@ body {
     font-size: 8.5pt !important;
     font-weight: 900 !important;
     margin-top: 1pt !important;
+  }
+
+  .ticket-number-container {
+    display: flex !important;
+    justify-content: center !important;
+    margin: 4pt 0 !important;
+  }
+
+  .ticket-number-box {
+    border: 1.2pt solid #000 !important;
+    padding: 1pt 5pt !important;
+    font-size: 9.5pt !important;
+    font-weight: 900 !important;
+    display: inline-block !important;
   }
 
   .ticket-footer {

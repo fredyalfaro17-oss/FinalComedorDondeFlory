@@ -408,6 +408,8 @@ function openTicketModal() {
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-ES');
   const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const sales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
+  const correlativeNum = sales.length + 1;
   const ticketId = Math.random().toString(36).substr(2, 9).toUpperCase();
 
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
@@ -422,6 +424,12 @@ function openTicketModal() {
           <p class="ticket-info">Tel: 4259-7488</p>
           <div class="py-1 border-y border-slate-200 mt-2 flex justify-center text-center ticket-meta">
             <span>FECHA: ${dateStr} ${timeStr}</span>
+          </div>
+        </div>
+        
+        <div class="ticket-number-container">
+          <div class="ticket-number-box">
+            No. ${correlativeNum}
           </div>
         </div>
         
@@ -609,6 +617,8 @@ function copyTicketText(returnOnly = false) {
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-ES');
   const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const sales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
+  const correlativeNum = sales.length + 1;
   const ticketId = Math.random().toString(36).substr(2, 9).toUpperCase();
 
   // Helper for word wrapping
@@ -648,6 +658,14 @@ function copyTicketText(returnOnly = false) {
   text += `${separator}\n`; // Moving separator up
   text += `${datePadding}${dateLine}\n`;
   text += `${separator}\n`; // Removed extra newline
+
+  // Centered boxed correlative number for ticket
+  const numText = `No. ${correlativeNum}`;
+  const boxWidth = numText.length + 4; // padding & border characters
+  const boxPadding = " ".repeat(Math.max(0, Math.floor((width - boxWidth) / 2)));
+  text += `${boxPadding}┌${'─'.repeat(boxWidth - 2)}┐\n`;
+  text += `${boxPadding}│ ${numText} │\n`;
+  text += `${boxPadding}└${'─'.repeat(boxWidth - 2)}┘\n\n`;
 
   // Customer info - if available with a nice box
   if (customerInfo.name || customerInfo.phone || customerInfo.deliveryTime) {
@@ -733,7 +751,8 @@ function copyTicketText(returnOnly = false) {
   text += `${separator}\n`;
 
   // Payment checklists in plain text
-  text += `[ ] Efect.   [ ] Transf.   [ ] Tarj.\n`;
+  text += `[ ] ____   [ ] ____   [ ] ____\n`;
+  text += ` Efect.    Transf.     Tarj.\n`;
   text += `${separator}\n\n`; // Keep some space at very bottom for tearing
 
   // Footer

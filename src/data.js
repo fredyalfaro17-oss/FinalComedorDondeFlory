@@ -118,10 +118,10 @@ export const menuData = {
       name: "Extras",
       color: "#0e7490", // cyan-700
       items: [
-        { name: "Café", price: 5 },
+        { name: "Café", price: 6 },
         { name: "Café Grande", price: 7 },
         { name: "Doblada Tipo San Carlos", price: 18 },
-        { name: "Fresco", price: 5 },
+        { name: "Fresco", price: 6 },
         { name: "Pan", price: 2 },
         { name: "Porción de Crema", price: 3 },
         { name: "Porción de tortillas", price: 2 },
@@ -133,15 +133,16 @@ export const menuData = {
       name: "Desayunos",
       color: "#a16207", // yellow-700
       items: [
-        { name: "Desayuno Simple", price: 19 },
-        { name: "Desayuno Ranchero", price: 20 },
-        { name: "Desayuno de Chilaquiles", price: 22 },
-        { name: "Desayuno con Embutidos", price: 22 },
-        { name: "Desayuno con Omelette", price: 23 },
-        { name: "Desayuno Campestre", price: 27 },
+        { name: "Desayuno Simple", price: 20 },
+        { name: "Desayuno Ranchero", price: 22 },
+        { name: "Desayuno de Chilaquiles", price: 24 },
+        { name: "Desayuno de Embutidos", price: 24 },
+        { name: "Desayuno de Omelette", price: 24 },
+        { name: "Desayuno Campestre", price: 30 },
+        { name: "Desayuno con Tomate y Cebolla", price: 22 },
         { name: "Panqueques", price: 15 },
         { name: "Plátanos Cocidos", price: 10 },
-        { name: "Tostadas", price: 7 }
+        { name: "Tostadas", price: 8 }
       ]
     },
     {

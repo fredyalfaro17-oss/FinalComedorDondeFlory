@@ -1,7 +1,7 @@
-import './style.css'
 import { menuData } from './data.js'
-import ExcelJS from 'exceljs'
-import { saveAs } from 'file-saver'
+
+const ExcelJS = window.ExcelJS || {};
+const saveAs = window.saveAs || function() {};
 
 
 // --- State ---
@@ -944,6 +944,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
             <option value="ANDRES Jr." ${sale.vendedor === 'ANDRES Jr.' ? 'selected' : ''}>ANDRES Jr.</option>
             <option value="LOCAL" ${sale.vendedor === 'LOCAL' ? 'selected' : ''}>LOCAL</option>
             <option value="FERNANDO" ${sale.vendedor === 'FERNANDO' ? 'selected' : ''}>FERNANDO</option>
+            <option value="HÉCTOR" ${sale.vendedor === 'HÉCTOR' ? 'selected' : ''}>HÉCTOR</option>
           </select>
         </td>
         <td class="px-3 py-3 text-right font-bold text-amber-400 whitespace-nowrap">Q${sale.total.toFixed(2)}</td>
@@ -1000,6 +1001,7 @@ window.renderReportModal = function() {
             <option value="ANDRES Jr.">ANDRES Jr.</option>
             <option value="LOCAL">LOCAL</option>
             <option value="FERNANDO">FERNANDO</option>
+            <option value="HÉCTOR">HÉCTOR</option>
           </select>
         </div>
 
@@ -1233,7 +1235,7 @@ async function exportToExcel(sales) {
       vendedorCell.value = sale.vendedor;
       vendedorCell.dataValidation = {
         type: 'list', allowBlank: true, showErrorMessage: false,
-        formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,LOCAL,FERNANDO"']
+        formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,LOCAL,FERNANDO,HÉCTOR"']
       };
       
       row.getCell('F').numFmt = currencyFmt;
@@ -1339,6 +1341,13 @@ async function exportToExcel(sales) {
           font: { color: { argb: 'FF7B241C' }, bold: true },
           fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFDEDEC' } }
         }
+      },
+      {
+        type: 'cellIs', operator: 'equal', formulae: ['"HÉCTOR"'],
+        style: { 
+          font: { color: { argb: 'FF0E6655' }, bold: true },
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFE8F8F5' } }
+        }
       }
     ]
   });
@@ -1364,9 +1373,10 @@ async function exportToExcel(sales) {
     'VIEJO': { font: 'FF7E5109', fill: 'FFFDEBD0' },
     'ANDRES Jr.': { font: 'FF512E5F', fill: 'FFF5EEF8' },
     'LOCAL': { font: 'FF424949', fill: 'FFE5E8E8' },
-    'FERNANDO': { font: 'FF7B241C', fill: 'FFFDEDEC' }
+    'FERNANDO': { font: 'FF7B241C', fill: 'FFFDEDEC' },
+    'HÉCTOR': { font: 'FF0E6655', fill: 'FFE8F8F5' }
   };
-  const vendors = ['FREDY', 'JAIME', 'VIEJO', 'ANDRES Jr.', 'LOCAL', 'FERNANDO'];
+  const vendors = ['FREDY', 'JAIME', 'VIEJO', 'ANDRES Jr.', 'LOCAL', 'FERNANDO', 'HÉCTOR'];
   const vendorTotalRows = [];
   
   vendors.forEach(v => {
@@ -1496,7 +1506,7 @@ async function exportToExcel(sales) {
   const vendorInput = searchSheet.getCell('C4');
   vendorInput.dataValidation = {
     type: 'list', allowBlank: true, showErrorMessage: false,
-    formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,LOCAL,OTROS,FERNANDO"']
+    formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,LOCAL,OTROS,FERNANDO,HÉCTOR"']
   };
   vendorInput.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } };
   vendorInput.border = borderThin;

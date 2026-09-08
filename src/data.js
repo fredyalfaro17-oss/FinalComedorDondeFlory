@@ -11,7 +11,13 @@ export const menuData = {
         { name: "Milanesa de Res", price: 30 },
         { name: "Pollo en Crema", price: 30 },
         { name: "Tortitas de Carne", price: 30 },
-        { name: "Costilla en Barbacoa", price: 30 }
+        { name: "Costilla en Barbacoa", price: 30 },
+        { name: "Flautas de Pollo", price: 35 },
+        { name: "Alambre de Res con queso Mozzarella", price: 35 },
+        { name: "Estofado de Res", price: 30 },
+        { name: "Estofado de Pollo", price: 30 },
+        { name: "Pollo al Limón (Pierna, Cuadril o Pechuga)", price: 30 },
+        { name: "Fajitas de Res con queso Mozzarella", price: 35 }
       ]
     },
     {
@@ -19,7 +25,7 @@ export const menuData = {
       name: "Martes",
       color: "#c2410c", // orange-700
       items: [
-        { name: "Caldo de Pata con Verduras", price: 30 },
+        { name: "Caldo de Pata con Verduras", price: 35 },
         { name: "Filete de Pechuga a la Plancha", price: 30 },
         { name: "Ensalada Latina con Filete", price: 30 },
         { name: "Pollo Guisado", price: 30 },
@@ -55,7 +61,7 @@ export const menuData = {
       items: [
         { name: "Frijol Colorado con Costilla", price: 30 },
         { name: "Frijol Colorado con Chicharrón", price: 30 },
-        { name: "Pechuga Rellena de Mozzarella", price: 30 },
+        { name: "Pechuga Rellena de Mozzarella", price: 35 },
         { name: "Tortillas de Harina de Res", price: 30 },
         { name: "Costilla", price: 30 },
         { name: "Salpicón de Res", price: 30 },
@@ -76,7 +82,8 @@ export const menuData = {
         { name: "Ceviche de Camarón", price: 35 },
         { name: "Birria", price: 40 },
         { name: "Filete de Pescado", price: 35 },
-        { name: "Aguachile de camarón", price: 35 }
+        { name: "Aguachile de camarón", price: 35 },
+        { name: "Hamburguesa (Carne de Res y Salchicha Molida)", price: 35 }
       ]
     },
     {

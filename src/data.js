@@ -117,7 +117,8 @@ export const menuData = {
         { name: "Pepsi lata", price: 7 },
         { name: "Rica Piña", price: 5 },
         { name: "Rica roja lata", price: 5 },
-        { name: "Te frío Lipton", price: 10 }
+        { name: "Te frío Lipton", price: 10 },
+        { name: "Toronja con Soda Lata", price: 5 }
       ]
     },
     {
@@ -126,13 +127,22 @@ export const menuData = {
       color: "#0e7490", // cyan-700
       items: [
         { name: "Café", price: 6 },
-        { name: "Café Grande", price: 7 },
+        { name: "Café Grande", price: 10 },
         { name: "Doblada Tipo San Carlos", price: 18 },
         { name: "Fresco", price: 6 },
         { name: "Pan", price: 2 },
         { name: "Porción de Crema", price: 3 },
         { name: "Porción de tortillas", price: 2 },
-        { name: "Cocoa", price: 5 }
+        { name: "Cocoa pequeño", price: 6 },
+        { name: "Cocoa Grande", price: 10 },
+        { name: "Frappe de Café", price: 15 },
+        { name: "Frape de Oreo", price: 15 },
+        { name: "Fresa con Soda", price: 15 },
+        { name: "Cereal de Chocolate o Natural", price: 12 },
+        { name: "Mineral Preparada", price: 12 },
+        { name: "Limonada con Chan Natural", price: 12 },
+        { name: "Donas (Chocolate Blanco o Negro)", price: 10 },
+        { name: "Jugo de Naranja Natural", price: 12 }
       ]
     },
     {
@@ -167,7 +177,9 @@ export const menuData = {
         { name: "Pan con Milanesa", price: 10 },
         { name: "Pan con Omelette", price: 10 },
         { name: "Pan con Salchicha", price: 10 },
-        { name: "Pan con Torta de Carne", price: 10 }
+        { name: "Pan con Torta de Carne", price: 10 },
+        { name: "Pan con Chaomein", price: 10 },
+        { name: "Pan con Huevo y Frijol", price: 10 }
       ]
     },
     {

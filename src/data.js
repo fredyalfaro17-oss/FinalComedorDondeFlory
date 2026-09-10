@@ -51,7 +51,8 @@ export const menuData = {
         { name: "Salpicón de Res", price: 30 },
         { name: "Tortilla de Harina Res", price: 30 },
         { name: "Pollo Guisado", price: 30 },
-        { name: "Pollo Crunchy", price: 30 }
+        { name: "Pollo Crunchy", price: 30 },
+        { name: "Hamburguesa", price: 35 }
       ]
     },
     {

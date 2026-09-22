@@ -1,4 +1,4 @@
-// src/db.js - Capa de datos unificada y sincronización en tiempo real (SSE + API + Cloud)
+// src/db.js - Capa de datos unificada y sincronización en tiempo real (Firebase Firestore + LocalStorage + SSE)
 
 export const VENDEDORES = [
   'FREDY',
@@ -17,10 +17,28 @@ export const FORMAS_PAGO = [
   'NO PAGO'
 ];
 
+export const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDplqV6vDZcBx-VnAmtY18bHK2UXdpOsio",
+  authDomain: "comedor-flory.firebaseapp.com",
+  projectId: "comedor-flory",
+  storageBucket: "comedor-flory.firebasestorage.app",
+  messagingSenderId: "952649934921",
+  appId: "1:952649934921:web:2ccabd7d6c50d6b7a5f798"
+};
+
 const STORAGE_KEY = 'daily_sales';
 const syncChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('flory_sales_sync') : null;
 const listeners = new Set();
 let cachedSales = null;
+
+// Obtener fecha local (evita desfases de zona horaria UTC)
+export function getTodayKey() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 // Notificar a observadores locales
 function notifyListeners(sales) {
@@ -49,7 +67,7 @@ export function getSales() {
 }
 
 // Guardar array de ventas y emitir evento
-export function persistSales(sales, emit = true, syncApi = true) {
+export function persistSales(sales, emit = true, syncApi = true, syncCloud = true) {
   try {
     cachedSales = sales;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sales));
@@ -62,8 +80,9 @@ export function persistSales(sales, emit = true, syncApi = true) {
     if (syncApi) {
       postApiAction({ action: 'SAVE_ALL', sales });
     }
-    // Sincronizar con Firebase si está configurado
-    syncWithCloud(sales);
+    if (syncCloud) {
+      syncWithCloud(sales);
+    }
   } catch (err) {
     console.error('Error persisting sales:', err);
   }
@@ -76,8 +95,8 @@ export function addSale(saleData) {
   const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
   const newSale = {
-    id: sales.length > 0 ? Math.max(...sales.map(s => s.id || 0)) + 1 : 1,
-    date: saleData.date || now.toISOString().split('T')[0],
+    id: sales.length > 0 ? Math.max(...sales.map(s => Number(s.id) || 0)) + 1 : 1,
+    date: saleData.date || getTodayKey(),
     time: saleData.time || timeStr,
     customerName: saleData.customerName || 'Cliente Mostrador',
     phone: saleData.phone || '-',
@@ -97,9 +116,9 @@ export function addSale(saleData) {
   }
   notifyListeners(sales);
 
-  // Enviar al servidor central
-  postApiAction({ action: 'ADD_SALE', sale: newSale });
+  // Sincronizar en la nube en tiempo real
   syncWithCloud(sales);
+  postApiAction({ action: 'ADD_SALE', sale: newSale });
 
   return newSale;
 }
@@ -107,7 +126,7 @@ export function addSale(saleData) {
 // Actualizar una propiedad específica de una venta (ej: pago, vendedor)
 export function updateSaleProperty(saleId, property, value) {
   const sales = getSales();
-  const index = sales.findIndex(s => s.id === Number(saleId));
+  const index = sales.findIndex(s => Number(s.id) === Number(saleId));
   if (index !== -1) {
     sales[index][property] = value;
     sales[index].updatedAt = new Date().toISOString();
@@ -119,9 +138,9 @@ export function updateSaleProperty(saleId, property, value) {
     }
     notifyListeners(sales);
 
-    // Enviar cambio al servidor central de inmediato
-    postApiAction({ action: 'UPDATE_PROP', id: Number(saleId), property, value });
+    // Enviar cambio a Firebase y servidor central de inmediato
     syncWithCloud(sales);
+    postApiAction({ action: 'UPDATE_PROP', id: Number(saleId), property, value });
 
     return sales[index];
   }
@@ -136,6 +155,7 @@ export function clearAllSales() {
     syncChannel.postMessage({ type: 'SALES_UPDATED', sales: [] });
   }
   notifyListeners([]);
+  syncWithCloud([]);
   postApiAction({ action: 'CLEAR' });
 }
 
@@ -150,7 +170,7 @@ export function subscribeSales(callback) {
   };
 }
 
-// Comunicación con la API central
+// Comunicación con la API central local (si está en dev server)
 async function postApiAction(payload) {
   try {
     await fetch('/api/sales', {
@@ -159,11 +179,11 @@ async function postApiAction(payload) {
       body: JSON.stringify(payload)
     });
   } catch (e) {
-    console.warn('API sync offline / fallback local:', e);
+    // Modo offline / estático en Vercel
   }
 }
 
-// Conectar Server-Sent Events (SSE) para recibir cambios de cualquier celular o computadora en vivo
+// Conectar Server-Sent Events (SSE) si estamos en servidor local
 function setupRealtimeSSE() {
   if (typeof window === 'undefined' || typeof EventSource === 'undefined') return;
 
@@ -187,14 +207,13 @@ function setupRealtimeSSE() {
       // Reintento automático nativo de SSE
     };
   } catch (err) {
-    console.warn('SSE no disponible:', err);
+    // SSE no disponible en entornos estáticos
   }
 }
 
-// Iniciar conexión en tiempo real
 setupRealtimeSSE();
 
-// Sincronización activa con el servidor central (Fuente única de verdad)
+// Sincronización activa con servidor local (fallback)
 async function syncFromServer() {
   if (typeof window === 'undefined') return;
   try {
@@ -211,24 +230,18 @@ async function syncFromServer() {
       }
     }
   } catch (e) {
-    // Offline / sin conexión
+    // Offline / sin conexión local
   }
 }
 
 if (typeof window !== 'undefined') {
-  // Sincronización inicial
   syncFromServer();
-
-  // Al volver a la app o desbloquear el celular
   window.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       syncFromServer();
     }
   });
   window.addEventListener('focus', syncFromServer);
-
-  // Polling ligero cada 2.5 segundos para garantizar que si Safari duerme el SSE, se sincronice
-  setInterval(syncFromServer, 2500);
 }
 
 // Escuchar sincronización de otras pestañas en la misma máquina
@@ -250,50 +263,94 @@ if (typeof window !== 'undefined') {
   });
 }
 
-// --- Integración Firebase Cloud (Opcional para cuando se aloje en Vercel) ---
-let firebaseDb = null;
-let isCloudSyncing = false;
+// ============================================================================
+// --- Integración Firebase Firestore Cloud (Tiempo Real Teléfono <-> PC) ---
+// ============================================================================
 
-export async function initFirebase(config) {
+// dynamicImport evita que Rollup/Vite rompa el build intentando resolver la URL del CDN
+const dynamicImport = (url) => new Function('u', 'return import(u)')(url);
+
+let firebaseDb = null;
+let isWritingToCloud = false;
+let isFirebaseInitialized = false;
+
+export async function initFirebase(config = FIREBASE_CONFIG) {
+  if (typeof window === 'undefined' || isFirebaseInitialized) return;
   try {
     if (!config || !config.apiKey) return false;
-    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
-    const { getFirestore, doc, onSnapshot, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    isFirebaseInitialized = true;
+
+    // Cargar Firebase Modular SDK desde CDN oficial de Google
+    const { initializeApp } = await dynamicImport('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+    const { getFirestore, doc, onSnapshot, setDoc } = await dynamicImport('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
 
     const app = initializeApp(config);
     firebaseDb = getFirestore(app);
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayKey();
     const todayDocRef = doc(firebaseDb, 'ventas_diarias', today);
 
+    // Escucha en tiempo real instantánea (WebSocket / HTTP push de Google)
     onSnapshot(todayDocRef, (docSnap) => {
-      if (docSnap.exists() && !isCloudSyncing) {
-        const cloudSales = docSnap.data().sales || [];
-        persistSales(cloudSales, true, false);
+      // Ignorar rebotes mientras nosotros mismos estamos escribiendo
+      if (isWritingToCloud) return;
+
+      if (docSnap.exists()) {
+        const cloudData = docSnap.data();
+        const cloudSales = Array.isArray(cloudData.sales) ? cloudData.sales : [];
+        const currentSales = cachedSales !== null ? cachedSales : getSales();
+
+        if (JSON.stringify(cloudSales) !== JSON.stringify(currentSales)) {
+          console.log('⚡ Sincronización recibida de Firebase Cloud:', cloudSales.length, 'ventas');
+          cachedSales = cloudSales;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudSales));
+          if (syncChannel) {
+            syncChannel.postMessage({ type: 'SALES_UPDATED', sales: cloudSales });
+          }
+          notifyListeners(cloudSales);
+        }
+      } else {
+        // Si no hay documento en la nube para hoy, pero este dispositivo tiene ventas, subirlas
+        const localSales = getSales();
+        if (localSales && localSales.length > 0) {
+          syncWithCloud(localSales);
+        }
       }
+    }, (error) => {
+      console.warn('Advertencia en conexión con Firestore:', error);
     });
 
-    console.log('Firebase Firestore conectado.');
+    console.log('✅ Firebase Firestore conectado y sincronizando en tiempo real con la nube.');
     return true;
   } catch (e) {
-    console.warn('Firebase no inicializado:', e);
+    console.warn('Firebase no pudo inicializar:', e);
+    isFirebaseInitialized = false;
     return false;
   }
 }
 
+// Enviar cambios a Firebase Firestore
 async function syncWithCloud(sales) {
   if (!firebaseDb) return;
   try {
-    isCloudSyncing = true;
-    const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-    const today = new Date().toISOString().split('T')[0];
+    isWritingToCloud = true;
+    const { doc, setDoc } = await dynamicImport('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const today = getTodayKey();
     await setDoc(doc(firebaseDb, 'ventas_diarias', today), {
-      sales,
+      sales: sales || [],
       lastUpdated: new Date().toISOString()
     }, { merge: true });
+    console.log('☁️ Ventas sincronizadas en Firebase:', (sales || []).length);
   } catch (err) {
     console.error('Error sincronizando con Firebase:', err);
   } finally {
-    isCloudSyncing = false;
+    setTimeout(() => {
+      isWritingToCloud = false;
+    }, 400);
   }
+}
+
+// Iniciar Firebase automáticamente en cualquier navegador
+if (typeof window !== 'undefined') {
+  initFirebase(FIREBASE_CONFIG);
 }

@@ -83,11 +83,11 @@
 
       <!-- Estado en Vivo y Enlace al Menú -->
       <div class="flex items-center gap-2">
-        <div class="hidden sm:flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-full border border-slate-800 text-xs text-slate-300">
+        <div class="flex items-center gap-2 bg-slate-950/80 px-2.5 sm:px-3 py-1.5 rounded-full border border-slate-800 text-xs text-slate-300 shadow-inner">
           <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span id="current-date" class="font-medium text-slate-400">HOY</span>
-          <span class="text-slate-600">|</span>
-          <span id="live-clock" class="font-mono font-semibold text-amber-400">--:--</span>
+          <span class="font-bold text-[11px] text-emerald-400">☁️ En Vivo</span>
+          <span class="text-slate-600 hidden xs:inline">|</span>
+          <span id="live-clock" class="font-mono font-semibold text-amber-400 hidden xs:inline">--:--</span>
         </div>
 
         <a 

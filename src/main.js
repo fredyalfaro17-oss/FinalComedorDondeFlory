@@ -1,5 +1,5 @@
 import { menuData } from './data.js'
-import { getSales, addSale, updateSaleProperty as dbUpdateSaleProperty, clearAllSales, subscribeSales, VENDEDORES, FORMAS_PAGO } from './db.js'
+import { getSales, addSale, updateSaleProperty as dbUpdateSaleProperty, clearAllSales, subscribeSales, VENDEDORES, FORMAS_PAGO, getTodayKey } from './db.js'
 
 const ExcelJS = window.ExcelJS || {};
 const saveAs = window.saveAs || function() {};
@@ -891,7 +891,7 @@ function saveSale(total) {
   const saleTime = customerInfo.deliveryTime || timeStr;
 
   return addSale({
-    date: now.toISOString().split('T')[0],
+    date: getTodayKey(),
     time: saleTime,
     customerName: customerInfo.name || 'Cliente Mostrador',
     phone: customerInfo.phone || '-',

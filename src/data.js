@@ -92,7 +92,9 @@ export const menuData = {
       items: [
         { name: "ALMUERZO DE 1 DOBLADA", price: 30, description: "+ 2 acompañamientos + fresco" },
         { name: "Combo 2 - 2 Dobladas", price: 35, description: "2 Dobladas + Fresco" },
-        { name: "Combo 3 - 1 Doblada + 1 Bebida", price: 25, description: "1 Doblada + 1 Bebida" }
+        { name: "Combo 3 - 1 Doblada + 1 Bebida", price: 25, description: "1 Doblada + 1 Bebida" },
+        { name: "Doblada Tipo San Carlos", price: 18 },
+        { name: "Queso Mozzarella", price: 5 }
       ]
     },
     {
@@ -127,7 +129,6 @@ export const menuData = {
       items: [
         { name: "Café", price: 6 },
         { name: "Café Grande", price: 10 },
-        { name: "Doblada Tipo San Carlos", price: 18 },
         { name: "Fresco", price: 6 },
         { name: "Pan", price: 2 },
         { name: "Porción de Crema", price: 3 },

@@ -141,7 +141,7 @@ export const menuData = {
         { name: "Cereal de Chocolate o Natural", price: 12 },
         { name: "Mineral Preparada", price: 12 },
         { name: "Limonada con Chan Natural", price: 12 },
-        { name: "Donas (Chocolate Blanco o Negro)", price: 10 },
+        { name: "Donas", price: 10 },
         { name: "Jugo de Naranja Natural", price: 12 }
       ]
     },

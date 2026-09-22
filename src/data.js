@@ -5,19 +5,18 @@ export const menuData = {
       name: "Lunes",
       color: "#be123c", // rose-700
       items: [
-        { name: "Caldo de Res con Verduras", price: 30 },
+        { name: "Caldo de Res con Verduras", price: 35 },
         { name: "Pollo Frito", price: 30 },
         { name: "Pechuga Frita", price: 30 },
+        { name: "Pollo al Limón", price: 30 },
+        { name: "Pechuga al Limón", price: 30 },
         { name: "Milanesa de Res", price: 30 },
         { name: "Pollo en Crema", price: 30 },
         { name: "Tortitas de Carne", price: 30 },
         { name: "Costilla en Barbacoa", price: 30 },
-        { name: "Flautas de Pollo", price: 35 },
-        { name: "Alambre de Res con queso Mozzarella", price: 35 },
         { name: "Estofado de Res", price: 30 },
         { name: "Estofado de Pollo", price: 30 },
-        { name: "Pollo al Limón (Pierna, Cuadril o Pechuga)", price: 30 },
-        { name: "Fajitas de Res con queso Mozzarella", price: 35 }
+        { name: "Fajitas de Res con Queso Mozzarella", price: 35 }
       ]
     },
     {
@@ -25,17 +24,14 @@ export const menuData = {
       name: "Martes",
       color: "#c2410c", // orange-700
       items: [
-        { name: "Caldo de Pata con Verduras", price: 35 },
+        { name: "Frijol Colorado con Costilla", price: 30 },
+        { name: "Frijol Colorado con Chicharrón", price: 30 },
         { name: "Filete de Pechuga a la Plancha", price: 30 },
-        { name: "Ensalada Latina con Filete", price: 30 },
-        { name: "Pollo Guisado", price: 30 },
-        { name: "Tortitas de Carne", price: 30 },
+        { name: "Ensalada Latina", price: 30 },
         { name: "Bistec de Res", price: 30 },
-        { name: "Panza en Amarillo", price: 30 },
-        { name: "Hilachas", price: 30 },
         { name: "Filete de Pechuga en Crema", price: 30 },
-        { name: "Chomín mixto (res y cerdo)", price: 30 },
-        { name: "Canelones rellenos de verdura y carne molida", price: 30 }
+        { name: "Chomin Mixto", price: 30 },
+        { name: "Canelones Rellenos", price: 35 }
       ]
     },
     {
@@ -46,13 +42,13 @@ export const menuData = {
         { name: "Pepián de Res", price: 30 },
         { name: "Pepián de Pollo", price: 30 },
         { name: "Pepián de Pechuga", price: 30 },
-        { name: "Chapsui Mixto (Res, Cerdo)", price: 30 },
+        { name: "Chapsui Mixto (Res y Cerdo)", price: 30 },
         { name: "Bistec a la Plancha", price: 30 },
         { name: "Salpicón de Res", price: 30 },
         { name: "Tortilla de Harina Res", price: 30 },
-        { name: "Pollo Guisado", price: 30 },
         { name: "Pollo Crunchy", price: 30 },
-        { name: "Hamburguesa", price: 35 }
+        { name: "Alambre", price: 35 },
+        { name: "Flautas", price: 35 }
       ]
     },
     {
@@ -60,14 +56,15 @@ export const menuData = {
       name: "Jueves",
       color: "#b45309", // amber-700
       items: [
-        { name: "Frijol Colorado con Costilla", price: 30 },
-        { name: "Frijol Colorado con Chicharrón", price: 30 },
         { name: "Pechuga Rellena de Mozzarella", price: 35 },
         { name: "Tortillas de Harina de Res", price: 30 },
         { name: "Costilla", price: 30 },
-        { name: "Salpicón de Res", price: 30 },
-        { name: "Carne guisada", price: 30 },
-        { name: "Pollo guisado Pechuga", price: 30 }
+        { name: "Caldo de Patas", price: 35 },
+        { name: "Hilachas", price: 30 },
+        { name: "Panza en Amarillo", price: 30 },
+        { name: "Salpicón", price: 30 },
+        { name: "Carne Guisada", price: 30 },
+        { name: "Pollo Guisado", price: 30 }
       ]
     },
     {
@@ -79,12 +76,13 @@ export const menuData = {
         { name: "Costilla Asada", price: 30 },
         { name: "Pollo Asado", price: 30 },
         { name: "Pechuga Asada", price: 30 },
-        { name: "Caldo de Pollo Amarillo", price: 30 },
+        { name: "Caldo de Pollo en Amarillo", price: 30 },
         { name: "Ceviche de Camarón", price: 40 },
         { name: "Birria", price: 40 },
         { name: "Filete de Pescado", price: 35 },
-        { name: "Aguachile de camarón", price: 35 },
-        { name: "Hamburguesa (Carne de Res y Salchicha Molida)", price: 35 }
+        { name: "Aguachile de Camarón", price: 40 },
+        { name: "Hamburguesa", price: 35 },
+        { name: "Camarones Empanizados", price: 40 }
       ]
     },
     {

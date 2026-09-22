@@ -1,4 +1,5 @@
 import { menuData } from './data.js'
+import { getSales, addSale, updateSaleProperty as dbUpdateSaleProperty, clearAllSales, subscribeSales, VENDEDORES, FORMAS_PAGO } from './db.js'
 
 const ExcelJS = window.ExcelJS || {};
 const saveAs = window.saveAs || function() {};
@@ -16,7 +17,9 @@ let cart = [];
 let customerInfo = {
   name: '',
   phone: '',
-  deliveryTime: ''
+  deliveryTime: '',
+  vendedor: '-',
+  pago: '-'
 };
 
 // --- DOM Elements ---
@@ -41,6 +44,10 @@ function init() {
   renderMenu();
   setupEventListeners();
   updateCartUI();
+
+  if (window.location.hash === '#vendedores' || window.location.search.includes('vendedores') || window.location.search.includes('qr')) {
+    setTimeout(openShareVendorsModal, 200);
+  }
 }
 
 // --- Rendering ---
@@ -408,8 +415,8 @@ function openTicketModal() {
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-ES');
   const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-  const sales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
-  const correlativeNum = sales.length + 1;
+  const sales = getSales();
+  const correlativeNum = sales.length > 0 ? Math.max(...sales.map(s => s.id || 0)) + 1 : 1;
   const ticketId = Math.random().toString(36).substr(2, 9).toUpperCase();
 
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
@@ -617,8 +624,8 @@ function copyTicketText(returnOnly = false) {
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-ES');
   const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-  const sales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
-  const correlativeNum = sales.length + 1;
+  const sales = getSales();
+  const correlativeNum = sales.length > 0 ? Math.max(...sales.map(s => s.id || 0)) + 1 : 1;
   const ticketId = Math.random().toString(36).substr(2, 9).toUpperCase();
 
   // Helper for word wrapping
@@ -770,11 +777,20 @@ function resetCustomerInfo() {
   customerInfo = {
     name: '',
     phone: '',
-    deliveryTime: ''
+    deliveryTime: '',
+    vendedor: '-',
+    pago: '-'
   };
-  document.getElementById('customer-name').value = '';
-  document.getElementById('customer-phone').value = '';
-  document.getElementById('customer-time').value = '';
+  const elName = document.getElementById('customer-name');
+  const elPhone = document.getElementById('customer-phone');
+  const elTime = document.getElementById('customer-time');
+  const elVendedor = document.getElementById('customer-vendedor');
+  const elPago = document.getElementById('customer-pago');
+  if (elName) elName.value = '';
+  if (elPhone) elPhone.value = '';
+  if (elTime) elTime.value = '';
+  if (elVendedor) elVendedor.value = '-';
+  if (elPago) elPago.value = '-';
 }
 
 // --- Utilities ---
@@ -797,17 +813,27 @@ function formatPhoneNumber(value) {
 
 function setupEventListeners() {
   // Sync Customer Info
-  document.getElementById('customer-name').oninput = (e) => customerInfo.name = e.target.value;
+  const elName = document.getElementById('customer-name');
+  if (elName) elName.oninput = (e) => customerInfo.name = e.target.value;
 
   // Phone with auto-formatting
   const phoneInput = document.getElementById('customer-phone');
-  phoneInput.oninput = (e) => {
-    const formatted = formatPhoneNumber(e.target.value);
-    e.target.value = formatted;
-    customerInfo.phone = formatted;
-  };
+  if (phoneInput) {
+    phoneInput.oninput = (e) => {
+      const formatted = formatPhoneNumber(e.target.value);
+      e.target.value = formatted;
+      customerInfo.phone = formatted;
+    };
+  }
 
-  document.getElementById('customer-time').oninput = (e) => customerInfo.deliveryTime = e.target.value;
+  const elTime = document.getElementById('customer-time');
+  if (elTime) elTime.oninput = (e) => customerInfo.deliveryTime = e.target.value;
+
+  const elVendedor = document.getElementById('customer-vendedor');
+  if (elVendedor) elVendedor.onchange = (e) => customerInfo.vendedor = e.target.value;
+
+  const elPago = document.getElementById('customer-pago');
+  if (elPago) elPago.onchange = (e) => customerInfo.pago = e.target.value;
 
   // Manual Add
   const addManual = () => {
@@ -840,6 +866,9 @@ function setupEventListeners() {
   const viewReportBtn = document.getElementById('view-report-btn');
   if (viewReportBtn) viewReportBtn.onclick = openReportModal;
 
+  const vendorsLinkBtn = document.getElementById('vendors-link-btn');
+  if (vendorsLinkBtn) vendorsLinkBtn.onclick = openShareVendorsModal;
+
   if (mobileCartBtn && cartSidebar) {
     mobileCartBtn.onclick = () => cartSidebar.classList.remove('hidden');
   }
@@ -857,13 +886,11 @@ function setupEventListeners() {
 // --- Reports ---
 
 function saveSale(total) {
-  const sales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
   const now = new Date();
   const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   const saleTime = customerInfo.deliveryTime || timeStr;
 
-  const sale = {
-    id: sales.length + 1,
+  return addSale({
     date: now.toISOString().split('T')[0],
     time: saleTime,
     customerName: customerInfo.name || 'Cliente Mostrador',
@@ -872,10 +899,7 @@ function saveSale(total) {
     pago: customerInfo.pago || '-',
     total: total,
     items: cart.map(i => `${i.quantity}x ${i.name}`).join(', ')
-  };
-
-  sales.push(sale);
-  localStorage.setItem('daily_sales', JSON.stringify(sales));
+  });
 }
 
 function renderReportContent(sales, textFilter = '', vendorFilter = '', customerFilter = '') {
@@ -960,16 +984,21 @@ function openReportModal() {
 }
 
 window.updateSaleProperty = function(saleId, property, value) {
-  const sales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
-  const saleIndex = sales.findIndex(s => s.id === saleId);
-  if (saleIndex !== -1) {
-    sales[saleIndex][property] = value;
-    localStorage.setItem('daily_sales', JSON.stringify(sales));
+  dbUpdateSaleProperty(saleId, property, value);
+  if (typeof window.__refreshReportModal === 'function') {
+    window.__refreshReportModal();
   }
 };
 
+// Sincronización en vivo: si el informe está abierto y un vendedor cobra desde el teléfono, refrescar tabla
+subscribeSales(() => {
+  if (typeof window.__refreshReportModal === 'function' && document.getElementById('report-table-body')) {
+    window.__refreshReportModal();
+  }
+});
+
 window.renderReportModal = function() {
-  const sales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
+  const sales = getSales();
   
   modalOverlay.innerHTML = `
     <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl animate-scale-in mx-auto my-8">
@@ -979,7 +1008,7 @@ window.renderReportModal = function() {
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-500 shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
             INFORME DE VENTAS DEL DÍA
           </h2>
-          <p class="text-sm text-slate-400 mt-1">Resumen de transacciones y formas de pago</p>
+          <p class="text-sm text-slate-400 mt-1">Resumen de transacciones y formas de pago sincronizado en tiempo real</p>
         </div>
         
         <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
@@ -1055,10 +1084,11 @@ window.renderReportModal = function() {
   const vendorFilter = document.getElementById('report-vendor-filter');
 
   function updateDisplay() {
-    const textFilter = searchInput.value;
-    const vendFilter = vendorFilter.value;
-    const custFilter = customerSearchInput.value;
-    const currentSales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
+    if (!tbody || !summaryBar) return;
+    const textFilter = searchInput ? searchInput.value : '';
+    const vendFilter = vendorFilter ? vendorFilter.value : '';
+    const custFilter = customerSearchInput ? customerSearchInput.value : '';
+    const currentSales = getSales();
     const { tableRows, totalDia, totalEfectivo, totalTransferencia, totalTarjeta, totalNoPago, cantidadFiltrada, isEmpty } = renderReportContent(currentSales, textFilter, vendFilter, custFilter);
     
     tbody.innerHTML = !isEmpty ? tableRows : `
@@ -1107,32 +1137,225 @@ window.renderReportModal = function() {
     `;
   }
 
+  // Registrar callback para refresco dinámico
+  window.__refreshReportModal = updateDisplay;
+
   // Initial render
   updateDisplay();
 
   // Search events
-  searchInput.addEventListener('input', () => updateDisplay());
-  customerSearchInput.addEventListener('input', () => updateDisplay());
-  vendorFilter.addEventListener('change', () => updateDisplay());
+  if (searchInput) searchInput.addEventListener('input', () => updateDisplay());
+  if (customerSearchInput) customerSearchInput.addEventListener('input', () => updateDisplay());
+  if (vendorFilter) vendorFilter.addEventListener('change', () => updateDisplay());
 
   document.getElementById('close-report-btn').onclick = () => {
+    window.__refreshReportModal = null;
     modalOverlay.classList.add('hidden');
     modalOverlay.classList.remove('flex');
   };
 
   document.getElementById('clear-sales-btn').onclick = () => {
     if (confirm('¿Estás seguro de que deseas borrar todo el historial de ventas del día?')) {
-      localStorage.removeItem('daily_sales');
+      clearAllSales();
       window.renderReportModal();
     }
   };
   document.getElementById('export-excel-btn').onclick = () => {
-    const latestSales = JSON.parse(localStorage.getItem('daily_sales') || '[]');
+    const latestSales = getSales();
     exportToExcel(latestSales);
   };
 
   modalOverlay.classList.remove('hidden');
   modalOverlay.classList.add('flex');
+};
+
+function openShareVendorsModal() {
+  const origin = window.location.origin;
+  const isLocal = origin.includes('localhost') || origin.includes('127.0.0.1');
+  
+  // En la computadora usamos el túnel público HTTPS para que el celular pueda conectarse
+  let publicHost = localStorage.getItem('flory_public_tunnel') || 'https://within-nails-both-got.trycloudflare.com';
+  let effectiveDomain = isLocal ? publicHost : origin;
+  let baseUrl = `${effectiveDomain.replace(/\/+$/, '')}/vendedores.html`;
+  
+  const renderModalContent = () => {
+    modalOverlay.innerHTML = `
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl max-h-[92vh] flex flex-col shadow-2xl animate-scale-in mx-auto my-6 overflow-hidden">
+        <!-- Modal Header -->
+        <div class="p-5 sm:p-6 border-b border-slate-800 bg-slate-850 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-xl">
+              📱
+            </div>
+            <div>
+              <h2 class="text-lg sm:text-xl font-bold font-playfair text-white">Portal de Vendedores</h2>
+              <p class="text-xs text-slate-400">Acceso móvil para registrar cobros en tiempo real</p>
+            </div>
+          </div>
+          <button id="close-share-modal" class="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800/50 hover:bg-slate-800 transition-colors">
+            ✕
+          </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-5 sm:p-6 space-y-5 overflow-y-auto">
+          
+          <!-- QR Code & Quick Scan -->
+          <div class="bg-slate-950/80 rounded-2xl p-4 sm:p-5 border border-slate-800 flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
+            <div class="bg-white p-3 rounded-2xl shrink-0 shadow-xl shadow-black/60 flex items-center justify-center">
+              <img 
+                id="qr-image"
+                src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=0&data=${encodeURIComponent(baseUrl)}" 
+                alt="Código QR Portal Vendedores" 
+                class="w-36 h-36 object-contain"
+              />
+            </div>
+            <div class="space-y-2">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Escanear con Cámara del Celular
+              </span>
+              <h3 class="text-base font-bold text-white leading-snug">
+                Abre la cámara de tu iPhone o Android y enfoca este código QR.
+              </h3>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                Te abrirá directamente el portal móvil de cobros con conexión segura HTTPS.
+              </p>
+            </div>
+          </div>
+
+          <!-- Enlace Público del Celular -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Enlace Público para Celular:</label>
+              ${isLocal ? `<span class="text-[10px] text-amber-500 font-semibold">(Túnel HTTPS Activo)</span>` : ''}
+            </div>
+            <div class="flex gap-2">
+              <input 
+                id="general-link-input"
+                type="text" 
+                value="${baseUrl}" 
+                class="flex-1 bg-slate-950 border border-slate-700 text-xs text-amber-300 font-mono rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500"
+              />
+              <button 
+                id="copy-general-link-btn"
+                class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-1 shrink-0"
+              >
+                <span>📋</span> Copiar
+              </button>
+            </div>
+          </div>
+
+          <!-- Enlaces Directos por Vendedor (WhatsApp) -->
+          <div class="space-y-2">
+            <label class="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+              Enviar enlace directo a cada vendedor por WhatsApp:
+            </label>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+              ${VENDEDORES.map(v => {
+                const vendorUrl = `${baseUrl}?vendedor=${encodeURIComponent(v)}`;
+                const waText = encodeURIComponent(`Hola ${v}, aquí tienes tu enlace de Comedor Donde Flory para ver tus pedidos y marcar tus cobros (Efectivo/Transferencia/Tarjeta) en vivo: ${vendorUrl}`);
+                return `
+                  <div class="flex items-center justify-between p-2.5 bg-slate-950/60 border border-slate-800 rounded-xl hover:border-slate-700 transition-all">
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs">🛵</span>
+                      <span class="text-xs font-bold text-white">${v}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <button 
+                        onclick="navigator.clipboard.writeText('${vendorUrl}'); window.showMiniNotice('¡Link de ${v} copiado!');"
+                        class="text-[11px] font-semibold text-slate-300 hover:text-white bg-slate-800 px-2 py-1 rounded-lg border border-slate-700 transition-colors"
+                        title="Copiar link"
+                      >
+                        Copiar
+                      </button>
+                      <a 
+                        href="https://api.whatsapp.com/send?text=${waText}" 
+                        target="_blank"
+                        class="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-950/50 hover:bg-emerald-900/50 px-2.5 py-1 rounded-lg border border-emerald-800/60 flex items-center gap-1 transition-colors"
+                        title="Enviar a WhatsApp"
+                      >
+                        <span>💬</span> WhatsApp
+                      </a>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- Botón para Abrir Portal -->
+          <div class="pt-3 border-t border-slate-800 flex justify-between items-center">
+            <span class="text-xs text-slate-500">¿Quieres revisar la vista móvil?</span>
+            <a 
+              href="${baseUrl}" 
+              target="_blank" 
+              class="inline-flex items-center gap-1.5 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-amber-400 px-4 py-2 rounded-xl border border-slate-700 transition-all"
+            >
+              Abrir Vista de Vendedores ↗
+            </a>
+          </div>
+
+        </div>
+      </div>
+    `;
+
+    modalOverlay.classList.remove('hidden');
+    modalOverlay.classList.add('flex');
+
+    const closeBtn = document.getElementById('close-share-modal');
+    if (closeBtn) {
+      closeBtn.onclick = () => {
+        modalOverlay.classList.add('hidden');
+        modalOverlay.classList.remove('flex');
+      };
+    }
+
+    const copyBtn = document.getElementById('copy-general-link-btn');
+    if (copyBtn) {
+      copyBtn.onclick = (e) => {
+        const input = document.getElementById('general-link-input');
+        navigator.clipboard.writeText(input.value);
+        e.target.innerHTML = '<span>✅</span> ¡Copiado!';
+        setTimeout(() => {
+          e.target.innerHTML = '<span>📋</span> Copiar';
+        }, 2000);
+      };
+    }
+
+    const inputLink = document.getElementById('general-link-input');
+    if (inputLink) {
+      inputLink.onchange = (e) => {
+        const val = e.target.value.trim();
+        if (val) {
+          baseUrl = val;
+          const hostPart = val.replace(/\/vendedores\.html.*/, '');
+          localStorage.setItem('flory_public_tunnel', hostPart);
+          renderModalContent();
+        }
+      };
+    }
+  };
+
+  renderModalContent();
+}
+
+window.showMiniNotice = function(msg) {
+  let notice = document.getElementById('flory-mini-notice');
+  if (!notice) {
+    notice = document.createElement('div');
+    notice.id = 'flory-mini-notice';
+    notice.className = 'fixed bottom-6 right-6 z-[300] bg-slate-900 text-amber-400 px-4 py-2.5 rounded-xl border border-amber-500/50 shadow-2xl text-xs font-bold pointer-events-none transition-all duration-300 opacity-0';
+    document.body.appendChild(notice);
+  }
+  notice.textContent = msg;
+  notice.classList.remove('opacity-0');
+  notice.classList.add('opacity-100');
+  setTimeout(() => {
+    notice.classList.remove('opacity-100');
+    notice.classList.add('opacity-0');
+  }, 2000);
 };
 
 async function exportToExcel(sales) {

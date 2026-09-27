@@ -877,9 +877,14 @@ function setupEventListeners() {
     closeCartMobileBtn.onclick = () => cartSidebar.classList.add('hidden');
   }
 
-  // Close modal on background click
+  // Close modal on background click (except if report modal is open to avoid accidental close while editing on phones)
   modalOverlay.onclick = (e) => {
-    if (e.target === modalOverlay) modalOverlay.classList.add('hidden');
+    if (e.target === modalOverlay) {
+      if (document.getElementById('report-table-body') || document.getElementById('report-cards-container')) {
+        return;
+      }
+      modalOverlay.classList.add('hidden');
+    }
   };
 }
 
@@ -902,6 +907,41 @@ function saveSale(total) {
   });
 }
 
+function getPaymentSelectStyle(pago) {
+  switch (pago) {
+    case 'EFECTIVO':
+      return 'bg-emerald-950/90 text-emerald-300 border-emerald-500/80 shadow-emerald-950/50';
+    case 'TRANSFERENCIA':
+      return 'bg-sky-950/90 text-sky-300 border-sky-500/80 shadow-sky-950/50';
+    case 'TARJETA':
+      return 'bg-purple-950/90 text-purple-300 border-purple-500/80 shadow-purple-950/50';
+    case 'NO PAGO':
+      return 'bg-red-950/90 text-red-300 border-red-500/80 shadow-red-950/50';
+    default:
+      return 'bg-amber-950/40 text-amber-300 border-amber-500/60 shadow-amber-950/30';
+  }
+}
+
+function showReportToast(message) {
+  let toast = document.getElementById('report-action-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'report-action-toast';
+    toast.className = 'fixed top-6 left-1/2 -translate-x-1/2 z-[300] bg-slate-900/95 text-white px-5 py-3 rounded-2xl border border-emerald-500/60 shadow-2xl shadow-black text-xs sm:text-sm font-bold flex items-center gap-2 backdrop-blur-md transition-all duration-300 pointer-events-none opacity-0 -translate-y-4';
+    document.body.appendChild(toast);
+  }
+
+  toast.innerHTML = `<span>⚡</span> ${message}`;
+  toast.classList.remove('opacity-0', '-translate-y-4');
+  toast.classList.add('opacity-100', 'translate-y-0');
+
+  clearTimeout(window.__reportActionToastTimer);
+  window.__reportActionToastTimer = setTimeout(() => {
+    toast.classList.remove('opacity-100', 'translate-y-0');
+    toast.classList.add('opacity-0', '-translate-y-4');
+  }, 2200);
+}
+
 function renderReportContent(sales, textFilter = '', vendorFilter = '', customerFilter = '') {
   let filteredSales = sales;
   
@@ -910,11 +950,11 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
   }
   
   if (textFilter) {
-    filteredSales = filteredSales.filter(s => s.items.toLowerCase().includes(textFilter.toLowerCase()));
+    filteredSales = filteredSales.filter(s => (s.items || '').toLowerCase().includes(textFilter.toLowerCase()));
   }
 
   if (customerFilter) {
-    filteredSales = filteredSales.filter(s => s.customerName.toLowerCase().includes(customerFilter.toLowerCase()));
+    filteredSales = filteredSales.filter(s => (s.customerName || '').toLowerCase().includes(customerFilter.toLowerCase()));
   }
 
   let totalDia = 0;
@@ -925,14 +965,14 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
   let cantidadFiltrada = 0;
 
   const tableRows = filteredSales.map(sale => {
-    totalDia += sale.total;
-    if (sale.pago === 'EFECTIVO') totalEfectivo += sale.total;
-    if (sale.pago === 'TRANSFERENCIA') totalTransferencia += sale.total;
-    if (sale.pago === 'TARJETA') totalTarjeta += sale.total;
-    if (sale.pago === 'NO PAGO') totalNoPago += sale.total;
+    totalDia += Number(sale.total) || 0;
+    if (sale.pago === 'EFECTIVO') totalEfectivo += Number(sale.total) || 0;
+    if (sale.pago === 'TRANSFERENCIA') totalTransferencia += Number(sale.total) || 0;
+    if (sale.pago === 'TARJETA') totalTarjeta += Number(sale.total) || 0;
+    if (sale.pago === 'NO PAGO') totalNoPago += Number(sale.total) || 0;
 
     if (textFilter) {
-      const itemsArray = sale.items.split(', ');
+      const itemsArray = (sale.items || '').split(', ');
       itemsArray.forEach(item => {
         if (item.toLowerCase().includes(textFilter.toLowerCase())) {
           const match = item.match(/^(\d+)x/);
@@ -943,145 +983,398 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
       });
     }
 
+    const cleanPhone = sale.phone ? String(sale.phone).replace(/[^0-9]/g, '') : '';
+    const phoneHtml = cleanPhone && cleanPhone.length >= 8
+      ? `<a href="tel:${cleanPhone}" class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-300 hover:text-white bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-700">📞 ${sale.phone}</a>`
+      : `<span class="text-slate-500 text-xs">${sale.phone || '-'}</span>`;
+
     return `
-      <tr class="border-b border-slate-700 hover:bg-slate-800/50 transition-colors">
-        <td class="px-3 py-3 text-center">${sale.id}</td>
-        <td class="px-3 py-3 min-w-[120px]">${sale.customerName}</td>
-        <td class="px-3 py-3 text-center">${sale.phone}</td>
-        <td class="px-3 py-3 text-center">${sale.time}</td>
-        <td class="px-3 py-3 text-sm italic text-slate-400 min-w-[150px] leading-relaxed">${sale.items}</td>
-        <td class="px-3 py-3 text-center font-semibold text-emerald-400" ${sale.pago === 'NO PAGO' ? 'style="color: #ef4444;"' : ''}>
-          <select onchange="window.updateSaleProperty(${sale.id}, 'pago', this.value); if (this.value === 'NO PAGO') { this.style.color = '#ef4444'; this.parentElement.style.color = '#ef4444'; } else { this.style.color = ''; this.parentElement.style.color = ''; }" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-emerald-400 font-semibold focus:outline-none focus:border-amber-500 cursor-pointer w-full max-w-[120px]" ${sale.pago === 'NO PAGO' ? 'style="color: #ef4444;"' : ''}>
-            <option value="-" ${sale.pago === '-' ? 'selected' : ''}>-</option>
-            <option value="EFECTIVO" ${sale.pago === 'EFECTIVO' ? 'selected' : ''}>EFECTIVO</option>
-            <option value="TRANSFERENCIA" ${sale.pago === 'TRANSFERENCIA' ? 'selected' : ''}>TRANSFERENCIA</option>
-            <option value="TARJETA" ${sale.pago === 'TARJETA' ? 'selected' : ''}>TARJETA</option>
-            <option value="NO PAGO" ${sale.pago === 'NO PAGO' ? 'selected' : ''}>NO PAGO</option>
+      <tr id="report-row-${sale.id}" class="border-b border-slate-800 hover:bg-slate-800/40 transition-colors">
+        <td class="px-3 py-3.5 text-center font-mono font-bold text-amber-400 min-w-[50px] whitespace-nowrap">#${sale.id}</td>
+        <td class="px-3 py-3.5 min-w-[140px] font-semibold text-white">${sale.customerName || 'Cliente Mostrador'}</td>
+        <td class="px-3 py-3.5 text-center min-w-[120px] whitespace-nowrap">${phoneHtml}</td>
+        <td class="px-3 py-3.5 text-center min-w-[75px] whitespace-nowrap text-xs text-slate-400 font-mono font-medium">🕒 ${sale.time || '--:--'}</td>
+        <td class="px-3 py-3.5 text-xs italic text-slate-300 min-w-[180px] leading-relaxed">${sale.items || '-'}</td>
+        <td class="px-3 py-3.5 text-center min-w-[175px] whitespace-nowrap">
+          <select 
+            id="report-pago-${sale.id}"
+            onchange="window.updateSaleProperty(${sale.id}, 'pago', this.value, this)" 
+            class="w-full min-w-[165px] text-xs sm:text-sm font-bold py-2 px-3 rounded-xl border cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm ${getPaymentSelectStyle(sale.pago)}"
+          >
+            <option value="-" ${sale.pago === '-' || !sale.pago ? 'selected' : ''}>⏳ PENDIENTE</option>
+            <option value="EFECTIVO" ${sale.pago === 'EFECTIVO' ? 'selected' : ''}>💵 EFECTIVO</option>
+            <option value="TRANSFERENCIA" ${sale.pago === 'TRANSFERENCIA' ? 'selected' : ''}>📲 TRANSFERENCIA</option>
+            <option value="TARJETA" ${sale.pago === 'TARJETA' ? 'selected' : ''}>💳 TARJETA</option>
+            <option value="NO PAGO" ${sale.pago === 'NO PAGO' ? 'selected' : ''}>❌ NO PAGÓ</option>
           </select>
         </td>
-        <td class="px-3 py-3 text-center font-semibold text-blue-400">
-          <select onchange="window.updateSaleProperty(${sale.id}, 'vendedor', this.value)" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-blue-400 font-semibold focus:outline-none focus:border-amber-500 cursor-pointer w-full max-w-[120px]">
-            <option value="-" ${sale.vendedor === '-' ? 'selected' : ''}>-</option>
-            <option value="FREDY" ${sale.vendedor === 'FREDY' ? 'selected' : ''}>FREDY</option>
-            <option value="JAIME" ${sale.vendedor === 'JAIME' ? 'selected' : ''}>JAIME</option>
-            <option value="VIEJO" ${sale.vendedor === 'VIEJO' ? 'selected' : ''}>VIEJO</option>
-            <option value="ANDRES Jr." ${sale.vendedor === 'ANDRES Jr.' ? 'selected' : ''}>ANDRES Jr.</option>
-            <option value="LOCAL" ${sale.vendedor === 'LOCAL' ? 'selected' : ''}>LOCAL</option>
-            <option value="FERNANDO" ${sale.vendedor === 'FERNANDO' ? 'selected' : ''}>FERNANDO</option>
-            <option value="HÉCTOR" ${sale.vendedor === 'HÉCTOR' ? 'selected' : ''}>HÉCTOR</option>
+        <td class="px-3 py-3.5 text-center min-w-[150px] whitespace-nowrap">
+          <select 
+            id="report-vendor-${sale.id}"
+            onchange="window.updateSaleProperty(${sale.id}, 'vendedor', this.value, this)" 
+            class="w-full min-w-[140px] text-xs sm:text-sm font-bold py-2 px-3 rounded-xl bg-slate-900 border border-slate-700 text-blue-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm"
+          >
+            <option value="-" ${sale.vendedor === '-' || !sale.vendedor ? 'selected' : ''}>🛵 - Sin Asignar -</option>
+            ${VENDEDORES.map(v => `<option value="${v}" ${sale.vendedor === v ? 'selected' : ''}>🛵 ${v}</option>`).join('')}
           </select>
         </td>
-        <td class="px-3 py-3 text-right font-bold text-amber-400 whitespace-nowrap">Q${sale.total.toFixed(2)}</td>
+        <td class="px-3 py-3.5 text-right font-black text-amber-400 whitespace-nowrap min-w-[95px] text-sm">Q${(Number(sale.total) || 0).toFixed(2)}</td>
       </tr>
     `;
   }).join('');
 
-  return { tableRows, totalDia, totalEfectivo, totalTransferencia, totalTarjeta, totalNoPago, cantidadFiltrada, isEmpty: filteredSales.length === 0 };
+  const cardRows = filteredSales.map(sale => {
+    const cleanPhone = sale.phone ? String(sale.phone).replace(/[^0-9]/g, '') : '';
+    const phoneActions = cleanPhone && cleanPhone.length >= 8 ? `
+      <div class="flex items-center gap-2 mt-1.5">
+        <a href="tel:${cleanPhone}" class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-300 hover:text-white bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">
+          📞 Llamar
+        </a>
+        <a href="https://wa.me/502${cleanPhone}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-800/50">
+          💬 WhatsApp
+        </a>
+      </div>
+    ` : '';
+
+    return `
+      <div id="report-card-${sale.id}" class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg hover:border-slate-700 transition-all">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-amber-400 border border-slate-700">
+                #${sale.id}
+              </span>
+              <span class="text-xs text-slate-400 font-medium">🕒 ${sale.time || '--:--'}</span>
+            </div>
+            <h4 class="text-base font-bold text-white mt-1 leading-snug">
+              ${sale.customerName || 'Cliente Mostrador'}
+            </h4>
+            ${phoneActions}
+          </div>
+          <div class="text-right shrink-0">
+            <div class="text-xl font-black text-amber-400 font-sans">
+              Q${(Number(sale.total) || 0).toFixed(2)}
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-slate-950/70 rounded-xl p-3 text-xs text-slate-300 border border-slate-800/80 leading-relaxed">
+          <span class="text-slate-500 font-bold uppercase text-[10px] block mb-1">Platillos del pedido:</span>
+          ${sale.items || 'Sin detalle especificado'}
+        </div>
+
+        <div class="space-y-2 pt-2 border-t border-slate-800">
+          <div>
+            <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+              Forma de Pago:
+            </label>
+            <select 
+              id="report-card-pago-${sale.id}"
+              onchange="window.updateSaleProperty(${sale.id}, 'pago', this.value, this)"
+              class="w-full text-xs sm:text-sm font-bold py-2.5 px-3 rounded-xl border cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm ${getPaymentSelectStyle(sale.pago)}"
+            >
+              <option value="-" ${sale.pago === '-' || !sale.pago ? 'selected' : ''}>⏳ PENDIENTE DE COBRO</option>
+              <option value="EFECTIVO" ${sale.pago === 'EFECTIVO' ? 'selected' : ''}>💵 EFECTIVO</option>
+              <option value="TRANSFERENCIA" ${sale.pago === 'TRANSFERENCIA' ? 'selected' : ''}>📲 TRANSFERENCIA</option>
+              <option value="TARJETA" ${sale.pago === 'TARJETA' ? 'selected' : ''}>💳 TARJETA</option>
+              <option value="NO PAGO" ${sale.pago === 'NO PAGO' ? 'selected' : ''}>❌ NO PAGÓ</option>
+            </select>
+          </div>
+
+          <div class="flex items-center justify-between gap-2 pt-1">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 shrink-0">Vendedor:</span>
+            <select 
+              id="report-card-vendor-${sale.id}"
+              onchange="window.updateSaleProperty(${sale.id}, 'vendedor', this.value, this)"
+              class="flex-1 text-xs font-bold py-2 px-2.5 rounded-xl bg-slate-950 border border-slate-700 text-blue-300 cursor-pointer"
+            >
+              <option value="-" ${sale.vendedor === '-' || !sale.vendedor ? 'selected' : ''}>🛵 - Sin Asignar -</option>
+              ${VENDEDORES.map(v => `<option value="${v}" ${sale.vendedor === v ? 'selected' : ''}>🛵 ${v}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return { tableRows, cardRows, totalDia, totalEfectivo, totalTransferencia, totalTarjeta, totalNoPago, cantidadFiltrada, isEmpty: filteredSales.length === 0 };
 }
 
 function openReportModal() {
   window.renderReportModal();
 }
 
-window.updateSaleProperty = function(saleId, property, value) {
+window.updateSaleProperty = function(saleId, property, value, targetElement) {
+  // 1. Guardar en base de datos local y sincronizar con la nube
   dbUpdateSaleProperty(saleId, property, value);
-  if (typeof window.__refreshReportModal === 'function') {
-    window.__refreshReportModal();
+
+  // 2. Si es cambio de forma de pago y tenemos el elemento select, actualizar estilos en el DOM en tiempo real
+  if (targetElement && property === 'pago') {
+    targetElement.className = targetElement.className
+      .replace(/bg-\S+/g, '')
+      .replace(/text-\S+/g, '')
+      .replace(/border-\S+/g, '')
+      .replace(/shadow-\S+/g, '')
+      .trim() + ` ${getPaymentSelectStyle(value)}`;
+
+    // También sincronizar el otro select (tarjeta <-> tabla) si ambos existen
+    const isCard = targetElement.id && targetElement.id.startsWith('report-card-pago-');
+    const otherId = isCard ? `report-pago-${saleId}` : `report-card-pago-${saleId}`;
+    const otherEl = document.getElementById(otherId);
+    if (otherEl) {
+      otherEl.value = value;
+      otherEl.className = otherEl.className
+        .replace(/bg-\S+/g, '')
+        .replace(/text-\S+/g, '')
+        .replace(/border-\S+/g, '')
+        .replace(/shadow-\S+/g, '')
+        .trim() + ` ${getPaymentSelectStyle(value)}`;
+    }
   }
+
+  // 3. Si es cambio de vendedor, sincronizar en ambos lados
+  if (targetElement && property === 'vendedor') {
+    const isCard = targetElement.id && targetElement.id.startsWith('report-card-vendor-');
+    const otherVendorId = isCard ? `report-vendor-${saleId}` : `report-card-vendor-${saleId}`;
+    const otherVendorEl = document.getElementById(otherVendorId);
+    if (otherVendorEl) {
+      otherVendorEl.value = value;
+    }
+  }
+
+  // 4. Refrescar barra de totales financieros sin destruir los elementos del DOM de la tabla
+  if (typeof window.__refreshReportSummary === 'function') {
+    window.__refreshReportSummary();
+  }
+
+  // 5. Mostrar confirmación visual táctil inmediata (Toast flotante)
+  showReportToast(`Pedido #${saleId} guardado: ${value}`);
 };
 
 // Sincronización en vivo: si el informe está abierto y un vendedor cobra desde el teléfono, refrescar tabla
 subscribeSales(() => {
-  if (typeof window.__refreshReportModal === 'function' && document.getElementById('report-table-body')) {
+  if (typeof window.__refreshReportModal === 'function') {
+    const activeEl = document.activeElement;
+    const isInteracting = activeEl && (
+      activeEl.tagName === 'SELECT' || 
+      activeEl.tagName === 'INPUT'
+    ) && (
+      document.getElementById('report-table-body')?.contains(activeEl) || 
+      document.getElementById('report-cards-container')?.contains(activeEl)
+    );
+
+    if (isInteracting) {
+      // Posponer el refresco hasta que el usuario termine de interactuar con el control
+      const handleBlur = () => {
+        activeEl.removeEventListener('blur', handleBlur);
+        if (typeof window.__refreshReportModal === 'function') {
+          window.__refreshReportModal();
+        }
+      };
+      activeEl.addEventListener('blur', handleBlur, { once: true });
+      return;
+    }
+
     window.__refreshReportModal();
   }
 });
 
 window.renderReportModal = function() {
   const sales = getSales();
+  let currentReportView = localStorage.getItem('flory_report_view') || (window.innerWidth < 768 ? 'cards' : 'table');
   
   modalOverlay.innerHTML = `
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl animate-scale-in mx-auto my-8">
-      <div class="p-6 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-800/50 rounded-t-2xl shrink-0">
-        <div class="shrink-0">
-          <h2 class="text-xl sm:text-2xl font-bold font-playfair text-white flex items-center gap-3 whitespace-nowrap">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-500 shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-            INFORME DE VENTAS DEL DÍA
-          </h2>
-          <p class="text-sm text-slate-400 mt-1">Resumen de transacciones y formas de pago sincronizado en tiempo real</p>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl h-[95vh] sm:h-auto sm:max-h-[92vh] flex flex-col shadow-2xl animate-scale-in mx-auto my-auto overflow-hidden">
+      <!-- Modal Header -->
+      <div class="p-4 sm:p-6 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-slate-800/50 shrink-0">
+        <div class="shrink-0 flex items-center justify-between w-full md:w-auto">
+          <div>
+            <h2 class="text-lg sm:text-2xl font-bold font-playfair text-white flex items-center gap-2.5 whitespace-nowrap">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-500 shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              INFORME DE VENTAS DEL DÍA
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-400 mt-0.5">Sincronizado en tiempo real con teléfonos y computadoras</p>
+          </div>
+          
+          <button id="close-report-btn" class="p-2 text-slate-400 hover:text-white hover:bg-slate-700/80 rounded-xl transition-colors md:hidden border border-slate-700/50" title="Cerrar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+          </button>
         </div>
         
-        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-          <div class="relative w-full sm:w-64">
-            <input type="text" id="report-customer-search" placeholder="Filtrar por cliente..." 
-              class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-xl px-10 py-2.5 focus:outline-none focus:border-amber-500 transition-all">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-3 text-slate-500"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        <!-- Controls: Filters and View Toggle -->
+        <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+          <!-- View Toggle (Table vs Cards) -->
+          <div class="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-700 shrink-0">
+            <button id="report-view-table-btn" type="button" class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-amber-500 text-slate-950 shadow">
+              <span>📋</span> Tabla
+            </button>
+            <button id="report-view-cards-btn" type="button" class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white">
+              <span>📱</span> Tarjetas
+            </button>
           </div>
-          <div class="relative w-full sm:w-48">
-            <input type="text" id="report-search" placeholder="Filtrar detalle..." 
-              class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-xl px-10 py-2.5 focus:outline-none focus:border-amber-500 transition-all">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-3 text-slate-500"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
-          </div>
-          <select id="report-vendor-filter" class="bg-slate-950 border border-slate-700 text-white text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-amber-500 transition-all w-full sm:w-44 cursor-pointer font-semibold">
-            <option value="">Todos los vendedores</option>
-            <option value="FREDY">FREDY</option>
-            <option value="JAIME">JAIME</option>
-            <option value="VIEJO">VIEJO</option>
-            <option value="ANDRES Jr.">ANDRES Jr.</option>
-            <option value="LOCAL">LOCAL</option>
-            <option value="FERNANDO">FERNANDO</option>
-            <option value="HÉCTOR">HÉCTOR</option>
-          </select>
-        </div>
 
-        <button id="close-report-btn" class="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors absolute top-4 right-4 md:static">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
-        </button>
+          <div class="relative flex-1 sm:w-56 min-w-[140px]">
+            <input type="text" id="report-customer-search" placeholder="Filtrar por cliente..." 
+              class="w-full bg-slate-950 border border-slate-700 text-white text-xs sm:text-sm rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:border-amber-500 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-2.5 top-2.5 text-slate-500"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </div>
+
+          <div class="relative flex-1 sm:w-44 min-w-[140px]">
+            <input type="text" id="report-search" placeholder="Filtrar detalle..." 
+              class="w-full bg-slate-950 border border-slate-700 text-white text-xs sm:text-sm rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:border-amber-500 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-2.5 top-2.5 text-slate-500"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+          </div>
+
+          <select id="report-vendor-filter" class="bg-slate-950 border border-slate-700 text-white text-xs sm:text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500 transition-all w-full sm:w-40 cursor-pointer font-semibold shrink-0">
+            <option value="">Todos los vendedores</option>
+            ${VENDEDORES.map(v => `<option value="${v}">${v}</option>`).join('')}
+          </select>
+
+          <button id="close-report-btn-desktop" class="hidden md:flex p-2 text-slate-400 hover:text-white hover:bg-slate-700/80 rounded-xl transition-colors border border-slate-700/50" title="Cerrar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+          </button>
+        </div>
       </div>
 
-      <div class="flex-1 min-h-0 overflow-auto p-4 sm:p-6 bg-slate-950">
-        <div class="rounded-xl border border-slate-800 overflow-x-auto">
-          <table class="w-full text-sm text-left text-slate-300">
-            <thead class="text-xs text-slate-400 uppercase bg-slate-900 border-b border-slate-800">
+      <!-- Modal Body (Scrollable) -->
+      <div class="flex-1 min-h-0 overflow-y-auto p-3 sm:p-6 bg-slate-950">
+        
+        <!-- Mobile Table Scroll Tip -->
+        <div id="report-table-tip" class="sm:hidden flex items-center justify-between bg-slate-900/90 border border-amber-500/30 px-3 py-2 rounded-xl mb-3 text-xs text-amber-400">
+          <span class="flex items-center gap-1.5 font-medium">
+            <span>👉</span> Desliza la tabla horizontalmente para ver todos los datos
+          </span>
+          <span class="text-[10px] bg-amber-500/20 px-2 py-0.5 rounded font-bold uppercase">
+            ↔ 950px
+          </span>
+        </div>
+
+        <!-- Table View -->
+        <div id="report-table-view" class="rounded-2xl border border-slate-800 overflow-x-auto shadow-inner bg-slate-900/40">
+          <table class="w-full text-sm text-left text-slate-300 min-w-[950px] border-collapse">
+            <thead class="text-xs text-slate-400 uppercase bg-slate-900/90 border-b border-slate-800 sticky top-0 z-10 backdrop-blur-sm">
               <tr>
-                <th scope="col" class="px-3 py-4 text-center w-12">No.</th>
-                <th scope="col" class="px-3 py-4">NOMBRE DEL CLIENTE</th>
-                <th scope="col" class="px-3 py-4 text-center">TELÉFONO</th>
-                <th scope="col" class="px-3 py-4 text-center">HORA</th>
-                <th scope="col" class="px-3 py-4">DETALLE DE PEDIDO</th>
-                <th scope="col" class="px-3 py-4 text-center">PAGO</th>
-                <th scope="col" class="px-3 py-4 text-center">VENDEDOR</th>
-                <th scope="col" class="px-3 py-4 text-right whitespace-nowrap">TOTAL</th>
+                <th scope="col" class="px-3 py-4 text-center min-w-[50px]">No.</th>
+                <th scope="col" class="px-3 py-4 min-w-[140px]">NOMBRE DEL CLIENTE</th>
+                <th scope="col" class="px-3 py-4 text-center min-w-[120px]">TELÉFONO</th>
+                <th scope="col" class="px-3 py-4 text-center min-w-[75px]">HORA</th>
+                <th scope="col" class="px-3 py-4 min-w-[180px]">DETALLE DE PEDIDO</th>
+                <th scope="col" class="px-3 py-4 text-center min-w-[175px]">FORMA DE PAGO</th>
+                <th scope="col" class="px-3 py-4 text-center min-w-[150px]">VENDEDOR</th>
+                <th scope="col" class="px-3 py-4 text-right min-w-[95px] whitespace-nowrap">TOTAL</th>
               </tr>
             </thead>
             <tbody id="report-table-body">
-              <!-- Content will be injected here -->
+              <!-- Rows injected here -->
             </tbody>
           </table>
         </div>
+
+        <!-- Cards View (for mobile) -->
+        <div id="report-cards-view" class="hidden">
+          <div id="report-cards-container" class="grid grid-cols-1 md:grid-cols-2 gap-3 pb-2">
+            <!-- Cards injected here -->
+          </div>
+        </div>
+
       </div>
 
-      <div id="report-summary-bar" class="bg-slate-800/80 border-t border-slate-700 p-4 px-6 shrink-0 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <!-- Totals will be injected here -->
+      <!-- Financial Summary Bar -->
+      <div id="report-summary-bar" class="bg-slate-800/90 border-t border-slate-700/80 p-3 sm:p-4 px-4 sm:px-6 shrink-0 flex flex-col sm:flex-row justify-between items-center gap-3">
+        <!-- Totals injected here -->
       </div>
 
-      <div class="p-6 border-t border-slate-800 bg-slate-900 rounded-b-2xl flex justify-between items-center shrink-0">
-        <button id="clear-sales-btn" class="text-sm font-bold text-red-500 hover:text-red-400 hover:bg-red-500/10 px-4 py-2 rounded-lg transition-colors border border-transparent hover:border-red-500/20">
-          Borrar Historial
+      <!-- Modal Footer -->
+      <div class="p-3.5 sm:p-5 border-t border-slate-800 bg-slate-900 rounded-b-2xl flex flex-wrap justify-between items-center gap-3 shrink-0">
+        <button id="clear-sales-btn" class="text-xs sm:text-sm font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3.5 py-2 rounded-xl transition-colors border border-transparent hover:border-red-500/20 active:scale-95">
+          🗑️ Borrar Historial
         </button>
-        <button id="export-excel-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2" ${sales.length === 0 ? 'disabled' : ''}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10.4 12.6a2 2 0 1 1 3 3L8 21l-4 1 1-4Z"></path><path d="m18 21-4-4"></path><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z"></path></svg>
-          Exportar a Excel
-        </button>
+
+        <div class="flex items-center gap-2">
+          <button id="close-report-bottom-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 px-4 rounded-xl border border-slate-700 transition-all flex items-center gap-1.5 active:scale-95 text-xs sm:text-sm">
+            ✕ Cerrar
+          </button>
+          <button id="export-excel-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2 active:scale-95 text-xs sm:text-sm" ${sales.length === 0 ? 'disabled' : ''}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10.4 12.6a2 2 0 1 1 3 3L8 21l-4 1 1-4Z"></path><path d="m18 21-4-4"></path><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z"></path></svg>
+            Exportar a Excel
+          </button>
+        </div>
       </div>
     </div>
   `;
 
   const tbody = document.getElementById('report-table-body');
+  const cardsContainer = document.getElementById('report-cards-container');
   const summaryBar = document.getElementById('report-summary-bar');
   const searchInput = document.getElementById('report-search');
   const customerSearchInput = document.getElementById('report-customer-search');
   const vendorFilter = document.getElementById('report-vendor-filter');
+
+  function setView(view) {
+    currentReportView = view;
+    localStorage.setItem('flory_report_view', view);
+    const tableView = document.getElementById('report-table-view');
+    const cardsView = document.getElementById('report-cards-view');
+    const tip = document.getElementById('report-table-tip');
+    const tableBtn = document.getElementById('report-view-table-btn');
+    const cardsBtn = document.getElementById('report-view-cards-btn');
+
+    if (view === 'cards') {
+      if (tableView) tableView.classList.add('hidden');
+      if (cardsView) cardsView.classList.remove('hidden');
+      if (tip) tip.classList.add('hidden');
+      if (cardsBtn) {
+        cardsBtn.className = 'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-amber-500 text-slate-950 shadow';
+      }
+      if (tableBtn) {
+        tableBtn.className = 'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white';
+      }
+    } else {
+      if (tableView) tableView.classList.remove('hidden');
+      if (cardsView) cardsView.classList.add('hidden');
+      if (tip) tip.classList.remove('hidden');
+      if (tableBtn) {
+        tableBtn.className = 'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-amber-500 text-slate-950 shadow';
+      }
+      if (cardsBtn) {
+        cardsBtn.className = 'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white';
+      }
+    }
+  }
+
+  function renderSummaryBar(totalDia, totalEfectivo, totalTransferencia, totalTarjeta, totalNoPago, cantidadFiltrada, textFilter, vendFilter, custFilter) {
+    if (!summaryBar) return;
+    const isFiltered = textFilter || vendFilter || custFilter;
+    
+    const paymentTotalsHtml = `
+      <div class="flex flex-wrap justify-center sm:justify-start gap-2.5 sm:gap-4 text-xs sm:text-sm bg-slate-900/70 px-3 sm:px-4 py-2 rounded-xl border border-slate-700/60">
+        <span class="text-emerald-400 font-medium">💵 EFEC: <span class="text-white font-bold text-sm sm:text-base">Q${totalEfectivo.toFixed(2)}</span></span>
+        <span class="text-sky-400 font-medium">📲 TRANS: <span class="text-white font-bold text-sm sm:text-base">Q${totalTransferencia.toFixed(2)}</span></span>
+        <span class="text-purple-400 font-medium">💳 TARJ: <span class="text-white font-bold text-sm sm:text-base">Q${totalTarjeta.toFixed(2)}</span></span>
+        <span class="text-red-400 font-bold">❌ NO PAGO: <span class="text-red-400 font-bold text-sm sm:text-base">Q${totalNoPago.toFixed(2)}</span></span>
+      </div>
+    `;
+
+    summaryBar.innerHTML = `
+      <div class="flex flex-wrap items-center justify-center sm:justify-start gap-3 w-full sm:w-auto">
+        ${textFilter ? `
+          <div class="text-xs sm:text-sm font-bold text-emerald-400 whitespace-nowrap">
+            CANTIDAD VENDIDA: <span class="text-white text-sm sm:text-base bg-emerald-600/20 px-2 py-1 rounded ml-1">${cantidadFiltrada}</span>
+          </div>
+        ` : ''}
+        ${paymentTotalsHtml}
+      </div>
+      
+      <div class="flex items-center justify-center sm:justify-end gap-2.5 mt-2 sm:mt-0 w-full sm:w-auto">
+        <div class="text-slate-400 uppercase tracking-wider font-bold text-xs sm:text-sm whitespace-nowrap">
+          Total ${isFiltered ? 'Filtrado' : 'General'}:
+        </div>
+        <div class="text-amber-500 text-xl sm:text-3xl font-black whitespace-nowrap">
+          Q${totalDia.toFixed(2)}
+        </div>
+      </div>
+    `;
+  }
 
   function updateDisplay() {
     if (!tbody || !summaryBar) return;
@@ -1089,7 +1382,7 @@ window.renderReportModal = function() {
     const vendFilter = vendorFilter ? vendorFilter.value : '';
     const custFilter = customerSearchInput ? customerSearchInput.value : '';
     const currentSales = getSales();
-    const { tableRows, totalDia, totalEfectivo, totalTransferencia, totalTarjeta, totalNoPago, cantidadFiltrada, isEmpty } = renderReportContent(currentSales, textFilter, vendFilter, custFilter);
+    const { tableRows, cardRows, totalDia, totalEfectivo, totalTransferencia, totalTarjeta, totalNoPago, cantidadFiltrada, isEmpty } = renderReportContent(currentSales, textFilter, vendFilter, custFilter);
     
     tbody.innerHTML = !isEmpty ? tableRows : `
       <tr>
@@ -1102,57 +1395,74 @@ window.renderReportModal = function() {
       </tr>
     `;
 
-    const isFiltered = textFilter || vendFilter || custFilter;
-    let paymentTotalsHtml = '';
-    
-    if (vendFilter) {
-      paymentTotalsHtml = `
-        <div class="flex flex-wrap justify-center sm:justify-start gap-4 text-sm bg-slate-900/50 px-4 py-2 rounded-lg border border-slate-700/50">
-          <span class="text-emerald-400">EFEC: <span class="text-white font-bold text-base">Q${totalEfectivo.toFixed(2)}</span></span>
-          <span class="text-blue-400">TRANS: <span class="text-white font-bold text-base">Q${totalTransferencia.toFixed(2)}</span></span>
-          <span class="text-purple-400">TARJ: <span class="text-white font-bold text-base">Q${totalTarjeta.toFixed(2)}</span></span>
-          <span style="color: #ef4444;" class="font-bold">NO PAGO: <span style="color: #ef4444;" class="font-bold text-base">Q${totalNoPago.toFixed(2)}</span></span>
+    if (cardsContainer) {
+      cardsContainer.innerHTML = !isEmpty ? cardRows : `
+        <div class="col-span-full py-12 text-center text-slate-500 bg-slate-900/40 rounded-2xl border border-slate-800">
+          <p class="text-sm">No se encontraron ventas para este filtro</p>
         </div>
       `;
     }
 
-    summaryBar.innerHTML = `
-      <div class="flex flex-wrap items-center justify-center sm:justify-start gap-4 w-full sm:w-auto">
-        ${textFilter ? `
-          <div class="text-sm font-bold text-emerald-400 whitespace-nowrap">
-            CANTIDAD VENDIDA: <span class="text-white text-base bg-emerald-600/20 px-2 py-1 rounded ml-1">${cantidadFiltrada}</span>
-          </div>
-        ` : ''}
-        ${paymentTotalsHtml}
-      </div>
-      
-      <div class="flex items-center justify-center sm:justify-end gap-3 mt-4 sm:mt-0 w-full sm:w-auto">
-        <div class="text-slate-400 uppercase tracking-wider font-bold text-sm whitespace-nowrap">
-          Total ${isFiltered ? 'Filtrado' : 'General'}:
-        </div>
-        <div class="text-amber-500 text-2xl md:text-3xl font-black whitespace-nowrap">
-          Q${totalDia.toFixed(2)}
-        </div>
-      </div>
-    `;
+    renderSummaryBar(totalDia, totalEfectivo, totalTransferencia, totalTarjeta, totalNoPago, cantidadFiltrada, textFilter, vendFilter, custFilter);
   }
+
+  // Permite recalcular totales sin redibujar la tabla completa
+  window.__refreshReportSummary = () => {
+    const textFilter = searchInput ? searchInput.value : '';
+    const vendFilter = vendorFilter ? vendorFilter.value : '';
+    const custFilter = customerSearchInput ? customerSearchInput.value : '';
+    const currentSales = getSales();
+    let totalDia = 0, totalEfectivo = 0, totalTransferencia = 0, totalTarjeta = 0, totalNoPago = 0, cantidadFiltrada = 0;
+    
+    let filteredSales = currentSales;
+    if (vendFilter) filteredSales = filteredSales.filter(s => s.vendedor === vendFilter);
+    if (textFilter) filteredSales = filteredSales.filter(s => (s.items || '').toLowerCase().includes(textFilter.toLowerCase()));
+    if (custFilter) filteredSales = filteredSales.filter(s => (s.customerName || '').toLowerCase().includes(custFilter.toLowerCase()));
+
+    filteredSales.forEach(s => {
+      const tot = Number(s.total) || 0;
+      totalDia += tot;
+      if (s.pago === 'EFECTIVO') totalEfectivo += tot;
+      if (s.pago === 'TRANSFERENCIA') totalTransferencia += tot;
+      if (s.pago === 'TARJETA') totalTarjeta += tot;
+      if (s.pago === 'NO PAGO') totalNoPago += tot;
+    });
+
+    renderSummaryBar(totalDia, totalEfectivo, totalTransferencia, totalTarjeta, totalNoPago, cantidadFiltrada, textFilter, vendFilter, custFilter);
+  };
 
   // Registrar callback para refresco dinámico
   window.__refreshReportModal = updateDisplay;
 
   // Initial render
   updateDisplay();
+  setView(currentReportView);
 
   // Search events
   if (searchInput) searchInput.addEventListener('input', () => updateDisplay());
   if (customerSearchInput) customerSearchInput.addEventListener('input', () => updateDisplay());
   if (vendorFilter) vendorFilter.addEventListener('change', () => updateDisplay());
 
-  document.getElementById('close-report-btn').onclick = () => {
+  // View switch buttons
+  const tableBtn = document.getElementById('report-view-table-btn');
+  const cardsBtn = document.getElementById('report-view-cards-btn');
+  if (tableBtn) tableBtn.addEventListener('click', () => setView('table'));
+  if (cardsBtn) cardsBtn.addEventListener('click', () => setView('cards'));
+
+  // Close handlers
+  const handleClose = () => {
     window.__refreshReportModal = null;
+    window.__refreshReportSummary = null;
     modalOverlay.classList.add('hidden');
     modalOverlay.classList.remove('flex');
   };
+
+  const closeBtn = document.getElementById('close-report-btn');
+  const closeBtnDesktop = document.getElementById('close-report-btn-desktop');
+  const closeBottomBtn = document.getElementById('close-report-bottom-btn');
+  if (closeBtn) closeBtn.onclick = handleClose;
+  if (closeBtnDesktop) closeBtnDesktop.onclick = handleClose;
+  if (closeBottomBtn) closeBottomBtn.onclick = handleClose;
 
   document.getElementById('clear-sales-btn').onclick = () => {
     if (confirm('¿Estás seguro de que deseas borrar todo el historial de ventas del día?')) {
@@ -1160,6 +1470,7 @@ window.renderReportModal = function() {
       window.renderReportModal();
     }
   };
+
   document.getElementById('export-excel-btn').onclick = () => {
     const latestSales = getSales();
     exportToExcel(latestSales);

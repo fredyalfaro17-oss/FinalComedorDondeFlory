@@ -213,19 +213,44 @@ function setupRealtimeSSE() {
 
 setupRealtimeSSE();
 
+// Comparar si dos listas de ventas tienen cambios reales (evita rebotes por orden de llaves JSON)
+export function areSalesEqual(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b)) return false;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const sA = a[i];
+    const sB = b[i];
+    if (!sA || !sB) return false;
+    if (
+      Number(sA.id) !== Number(sB.id) ||
+      String(sA.pago || '-') !== String(sB.pago || '-') ||
+      String(sA.vendedor || '-') !== String(sB.vendedor || '-') ||
+      Number(sA.total) !== Number(sB.total) ||
+      String(sA.customerName || '') !== String(sB.customerName || '') ||
+      String(sA.items || '') !== String(sB.items || '')
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 // Sincronización activa con servidor local (fallback)
 async function syncFromServer() {
   if (typeof window === 'undefined') return;
+  // En Vercel o hosting estático en la nube, la API local /api/sales no existe
+  if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('github.io')) {
+    return;
+  }
   try {
     const res = await fetch('/api/sales');
     if (!res.ok) return;
     const serverSales = await res.json();
     if (Array.isArray(serverSales)) {
-      const serverStr = JSON.stringify(serverSales);
-      const currentStr = JSON.stringify(cachedSales !== null ? cachedSales : getSales());
-      if (serverStr !== currentStr) {
+      const currentSales = cachedSales !== null ? cachedSales : getSales();
+      if (!areSalesEqual(serverSales, currentSales)) {
         cachedSales = serverSales;
-        localStorage.setItem(STORAGE_KEY, serverStr);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(serverSales));
         notifyListeners(serverSales);
       }
     }
@@ -272,6 +297,7 @@ const dynamicImport = (url) => new Function('u', 'return import(u)')(url);
 
 let firebaseDb = null;
 let isWritingToCloud = false;
+let lastCloudWriteTimestamp = 0;
 let isFirebaseInitialized = false;
 
 export async function initFirebase(config = FIREBASE_CONFIG) {
@@ -292,15 +318,16 @@ export async function initFirebase(config = FIREBASE_CONFIG) {
 
     // Escucha en tiempo real instantánea (WebSocket / HTTP push de Google)
     onSnapshot(todayDocRef, (docSnap) => {
-      // Ignorar rebotes mientras nosotros mismos estamos escribiendo
-      if (isWritingToCloud) return;
+      // Ignorar rebotes mientras nosotros mismos estamos escribiendo o pendientes locales
+      if (isWritingToCloud || (Date.now() - lastCloudWriteTimestamp < 1500)) return;
+      if (docSnap.metadata && docSnap.metadata.hasPendingWrites) return;
 
       if (docSnap.exists()) {
         const cloudData = docSnap.data();
         const cloudSales = Array.isArray(cloudData.sales) ? cloudData.sales : [];
         const currentSales = cachedSales !== null ? cachedSales : getSales();
 
-        if (JSON.stringify(cloudSales) !== JSON.stringify(currentSales)) {
+        if (!areSalesEqual(cloudSales, currentSales)) {
           console.log('⚡ Sincronización recibida de Firebase Cloud:', cloudSales.length, 'ventas');
           cachedSales = cloudSales;
           localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudSales));
@@ -334,6 +361,7 @@ async function syncWithCloud(sales) {
   if (!firebaseDb) return;
   try {
     isWritingToCloud = true;
+    lastCloudWriteTimestamp = Date.now();
     const { doc, setDoc } = await dynamicImport('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
     const today = getTodayKey();
     await setDoc(doc(firebaseDb, 'ventas_diarias', today), {
@@ -346,7 +374,7 @@ async function syncWithCloud(sales) {
   } finally {
     setTimeout(() => {
       isWritingToCloud = false;
-    }, 400);
+    }, 1500);
   }
 }
 

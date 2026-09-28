@@ -787,7 +787,6 @@ function resetCustomerInfo() {
   const elVendedor = document.getElementById('customer-vendedor');
   const elPago = document.getElementById('customer-pago');
   const clearBtn = document.getElementById('customer-clear-btn');
-  const badge = document.getElementById('customer-known-badge');
   const suggestionsBox = document.getElementById('customer-suggestions');
 
   if (elName) elName.value = '';
@@ -796,10 +795,6 @@ function resetCustomerInfo() {
   if (elVendedor) elVendedor.value = 'FREDY';
   if (elPago) elPago.value = 'EFECTIVO';
   if (clearBtn) clearBtn.classList.add('hidden');
-  if (badge) {
-    badge.classList.add('hidden');
-    badge.classList.remove('inline-flex');
-  }
   if (suggestionsBox) {
     suggestionsBox.classList.add('hidden');
     suggestionsBox.innerHTML = '';
@@ -827,10 +822,7 @@ function formatPhoneNumber(value) {
 function setupCustomerAutocomplete() {
   const nameInput = document.getElementById('customer-name');
   const phoneInput = document.getElementById('customer-phone');
-  const vendorSelect = document.getElementById('customer-vendedor');
   const suggestionsBox = document.getElementById('customer-suggestions');
-  const badge = document.getElementById('customer-known-badge');
-  const badgeText = document.getElementById('customer-known-text');
   const clearBtn = document.getElementById('customer-clear-btn');
 
   if (!nameInput || !suggestionsBox) return;
@@ -871,19 +863,6 @@ function setupCustomerAutocomplete() {
       customerInfo.phone = formatted;
     }
 
-    if (client.vendedor && vendorSelect) {
-      vendorSelect.value = normalizeVendor(client.vendedor);
-      customerInfo.vendedor = vendorSelect.value;
-    }
-
-    if (badge && badgeText) {
-      badgeText.textContent = client.ordersCount > 1 
-        ? `Habitual (${client.ordersCount} pedidos)` 
-        : 'Cliente registrado';
-      badge.classList.remove('hidden');
-      badge.classList.add('inline-flex');
-    }
-
     if (clearBtn) clearBtn.classList.remove('hidden');
 
     hideSuggestions();
@@ -921,16 +900,8 @@ function setupCustomerAutocomplete() {
           }
 
           const phoneDisplay = c.phone && c.phone !== '-'
-            ? `<span class="text-emerald-400 font-semibold flex items-center gap-0.5">📞 ${c.phone}</span>`
+            ? `<span class="text-emerald-400 font-semibold flex items-center gap-1">📞 ${c.phone}</span>`
             : `<span class="text-slate-500 italic text-[11px]">Sin teléfono</span>`;
-
-          const vendorDisplay = c.vendedor
-            ? `<span class="text-blue-300 font-medium">🛵 ${c.vendedor}</span>`
-            : '';
-
-          const ordersDisplay = c.ordersCount > 1
-            ? `<span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold px-1.5 py-0.2 rounded">${c.ordersCount} pedidos</span>`
-            : '';
 
           return `
             <div 
@@ -941,10 +912,8 @@ function setupCustomerAutocomplete() {
                 <div class="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 truncate">
                   👤 ${displayName}
                 </div>
-                <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5 flex-wrap">
+                <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
                   ${phoneDisplay}
-                  ${vendorDisplay ? `<span class="text-slate-600">•</span>` + vendorDisplay : ''}
-                  ${ordersDisplay ? `<span class="text-slate-600">•</span>` + ordersDisplay : ''}
                 </div>
               </div>
               <button 
@@ -981,11 +950,6 @@ function setupCustomerAutocomplete() {
       else clearBtn.classList.add('hidden');
     }
 
-    if (badge) {
-      badge.classList.add('hidden');
-      badge.classList.remove('inline-flex');
-    }
-
     if (!val || val.trim().length < 1) {
       hideSuggestions();
       return;
@@ -995,17 +959,12 @@ function setupCustomerAutocomplete() {
     renderSuggestions(matches, val.trim());
   });
 
-  // Mostrar clientes recientes o frecuentes al hacer focus si el campo está vacío o con texto
+  // Mostrar sugerencias al hacer focus si ya hay texto
   nameInput.addEventListener('focus', () => {
     const val = nameInput.value.trim();
     if (val.length >= 1) {
       const matches = searchCustomers(val);
       renderSuggestions(matches, val);
-    } else {
-      const frequent = getCustomers().slice(0, 5);
-      if (frequent.length > 0) {
-        renderSuggestions(frequent, '');
-      }
     }
   });
 
@@ -1069,10 +1028,6 @@ function setupCustomerAutocomplete() {
       customerInfo.name = '';
       customerInfo.phone = '';
       clearBtn.classList.add('hidden');
-      if (badge) {
-        badge.classList.add('hidden');
-        badge.classList.remove('inline-flex');
-      }
       hideSuggestions();
       nameInput.focus();
     });

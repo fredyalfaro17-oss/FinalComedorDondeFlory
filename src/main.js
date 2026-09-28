@@ -18,8 +18,8 @@ let customerInfo = {
   name: '',
   phone: '',
   deliveryTime: '',
-  vendedor: '-',
-  pago: '-'
+  vendedor: 'FREDY',
+  pago: 'EFECTIVO'
 };
 
 // --- DOM Elements ---
@@ -778,8 +778,8 @@ function resetCustomerInfo() {
     name: '',
     phone: '',
     deliveryTime: '',
-    vendedor: '-',
-    pago: '-'
+    vendedor: 'FREDY',
+    pago: 'EFECTIVO'
   };
   const elName = document.getElementById('customer-name');
   const elPhone = document.getElementById('customer-phone');
@@ -789,8 +789,8 @@ function resetCustomerInfo() {
   if (elName) elName.value = '';
   if (elPhone) elPhone.value = '';
   if (elTime) elTime.value = '';
-  if (elVendedor) elVendedor.value = '-';
-  if (elPago) elPago.value = '-';
+  if (elVendedor) elVendedor.value = 'FREDY';
+  if (elPago) elPago.value = 'EFECTIVO';
 }
 
 // --- Utilities ---
@@ -900,8 +900,8 @@ function saveSale(total) {
     time: saleTime,
     customerName: customerInfo.name || 'Cliente Mostrador',
     phone: customerInfo.phone || '-',
-    vendedor: customerInfo.vendedor || '-',
-    pago: customerInfo.pago || '-',
+    vendedor: (customerInfo.vendedor && customerInfo.vendedor !== '-') ? customerInfo.vendedor : 'FREDY',
+    pago: (customerInfo.pago && customerInfo.pago !== '-') ? customerInfo.pago : 'EFECTIVO',
     total: total,
     items: cart.map(i => `${i.quantity}x ${i.name}`).join(', ')
   });
@@ -918,7 +918,7 @@ function getPaymentSelectStyle(pago) {
     case 'NO PAGO':
       return 'bg-red-950/90 text-red-300 border-red-500/80 shadow-red-950/50';
     default:
-      return 'bg-amber-950/40 text-amber-300 border-amber-500/60 shadow-amber-950/30';
+      return 'bg-emerald-950/90 text-emerald-300 border-emerald-500/80 shadow-emerald-950/50';
   }
 }
 
@@ -1001,7 +1001,6 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
             onchange="window.updateSaleProperty(${sale.id}, 'pago', this.value, this)" 
             class="w-full min-w-[165px] text-xs sm:text-sm font-bold py-2 px-3 rounded-xl border cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm ${getPaymentSelectStyle(sale.pago)}"
           >
-            <option value="-" ${sale.pago === '-' || !sale.pago ? 'selected' : ''}>⏳ PENDIENTE</option>
             <option value="EFECTIVO" ${sale.pago === 'EFECTIVO' ? 'selected' : ''}>💵 EFECTIVO</option>
             <option value="TRANSFERENCIA" ${sale.pago === 'TRANSFERENCIA' ? 'selected' : ''}>📲 TRANSFERENCIA</option>
             <option value="TARJETA" ${sale.pago === 'TARJETA' ? 'selected' : ''}>💳 TARJETA</option>
@@ -1014,7 +1013,6 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
             onchange="window.updateSaleProperty(${sale.id}, 'vendedor', this.value, this)" 
             class="w-full min-w-[140px] text-xs sm:text-sm font-bold py-2 px-3 rounded-xl bg-slate-900 border border-slate-700 text-blue-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm"
           >
-            <option value="-" ${sale.vendedor === '-' || !sale.vendedor ? 'selected' : ''}>🛵 - Sin Asignar -</option>
             ${VENDEDORES.map(v => `<option value="${v}" ${sale.vendedor === v ? 'selected' : ''}>🛵 ${v}</option>`).join('')}
           </select>
         </td>
@@ -1073,7 +1071,6 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
               onchange="window.updateSaleProperty(${sale.id}, 'pago', this.value, this)"
               class="w-full text-xs sm:text-sm font-bold py-2.5 px-3 rounded-xl border cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm ${getPaymentSelectStyle(sale.pago)}"
             >
-              <option value="-" ${sale.pago === '-' || !sale.pago ? 'selected' : ''}>⏳ PENDIENTE DE COBRO</option>
               <option value="EFECTIVO" ${sale.pago === 'EFECTIVO' ? 'selected' : ''}>💵 EFECTIVO</option>
               <option value="TRANSFERENCIA" ${sale.pago === 'TRANSFERENCIA' ? 'selected' : ''}>📲 TRANSFERENCIA</option>
               <option value="TARJETA" ${sale.pago === 'TARJETA' ? 'selected' : ''}>💳 TARJETA</option>
@@ -1088,7 +1085,6 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
               onchange="window.updateSaleProperty(${sale.id}, 'vendedor', this.value, this)"
               class="flex-1 text-xs font-bold py-2 px-2.5 rounded-xl bg-slate-950 border border-slate-700 text-blue-300 cursor-pointer"
             >
-              <option value="-" ${sale.vendedor === '-' || !sale.vendedor ? 'selected' : ''}>🛵 - Sin Asignar -</option>
               ${VENDEDORES.map(v => `<option value="${v}" ${sale.vendedor === v ? 'selected' : ''}>🛵 ${v}</option>`).join('')}
             </select>
           </div>

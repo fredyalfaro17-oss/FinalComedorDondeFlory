@@ -64,14 +64,14 @@ export function normalizePayment(pago) {
   return 'EFECTIVO';
 }
 
-// Normalizar vendedores válidos
+// Normalizar vendedores válidos (o vacío si no tiene ninguno asignado)
 export function normalizeVendor(vendor) {
   if (!vendor || vendor === '-' || vendor === 'SIN ASIGNAR' || vendor === 'Sin Asignar') {
-    return 'FREDY';
+    return '';
   }
   const clean = String(vendor).trim().toUpperCase();
   const found = VENDEDORES.find(v => v.toUpperCase() === clean);
-  return found || 'FREDY';
+  return found || '';
 }
 
 // Sanitizar y reparar registros de ventas heredados

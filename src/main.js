@@ -19,7 +19,7 @@ let customerInfo = {
   phone: '',
   deliveryTime: '',
   vendedor: '',
-  pago: ''
+  pago: 'EFECTIVO'
 };
 
 // --- DOM Elements ---
@@ -779,7 +779,7 @@ function resetCustomerInfo() {
     phone: '',
     deliveryTime: '',
     vendedor: '',
-    pago: ''
+    pago: 'EFECTIVO'
   };
   const elName = document.getElementById('customer-name');
   const elPhone = document.getElementById('customer-phone');
@@ -793,7 +793,7 @@ function resetCustomerInfo() {
   if (elPhone) elPhone.value = '';
   if (elTime) elTime.value = '';
   if (elVendedor) elVendedor.value = '';
-  if (elPago) elPago.value = '';
+  if (elPago) elPago.value = 'EFECTIVO';
   if (clearBtn) clearBtn.classList.add('hidden');
   if (suggestionsBox) {
     suggestionsBox.classList.add('hidden');
@@ -1158,7 +1158,7 @@ function saveSale(total) {
     time: saleTime,
     customerName: customerInfo.name || 'Cliente Mostrador',
     phone: customerInfo.phone || '-',
-    vendedor: (customerInfo.vendedor && customerInfo.vendedor !== '-') ? customerInfo.vendedor : 'FREDY',
+    vendedor: (customerInfo.vendedor && customerInfo.vendedor !== '-') ? customerInfo.vendedor : '',
     pago: (customerInfo.pago && customerInfo.pago !== '-') ? customerInfo.pago : 'EFECTIVO',
     total: total,
     items: cart.map(i => `${i.quantity}x ${i.name}`).join(', ')
@@ -1277,6 +1277,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
             onchange="window.updateSaleProperty(${sale.id}, 'vendedor', this.value, this)" 
             class="w-full min-w-[140px] text-xs sm:text-sm font-bold py-2 px-3 rounded-xl bg-slate-900 border border-slate-700 text-blue-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm"
           >
+            <option value="" ${!vendNorm ? 'selected' : ''}>-- Sin Vendedor --</option>
             ${VENDEDORES.map(v => `<option value="${v}" ${vendNorm === v ? 'selected' : ''}>🛵 ${v}</option>`).join('')}
           </select>
         </td>
@@ -1352,6 +1353,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
               onchange="window.updateSaleProperty(${sale.id}, 'vendedor', this.value, this)"
               class="flex-1 text-xs font-bold py-2 px-2.5 rounded-xl bg-slate-950 border border-slate-700 text-blue-300 cursor-pointer"
             >
+              <option value="" ${!vendNorm ? 'selected' : ''}>-- Sin Vendedor --</option>
               ${VENDEDORES.map(v => `<option value="${v}" ${vendNorm === v ? 'selected' : ''}>🛵 ${v}</option>`).join('')}
             </select>
           </div>

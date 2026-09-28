@@ -165,6 +165,15 @@ export function addSale(saleData) {
   }
   notifyListeners(sales);
 
+  // Auto-registrar cliente en el directorio
+  if (newSale.customerName && newSale.customerName.toLowerCase() !== 'cliente mostrador') {
+    saveCustomer({
+      name: newSale.customerName,
+      phone: newSale.phone,
+      vendedor: newSale.vendedor
+    });
+  }
+
   // Sincronizar en la nube en tiempo real
   syncWithCloud(sales);
   postApiAction({ action: 'ADD_SALE', sale: newSale });
@@ -221,6 +230,188 @@ export function subscribeSales(callback) {
   return () => {
     listeners.delete(callback);
   };
+}
+
+// ============================================================================
+// --- Directorio Inteligente de Clientes (Autocompletado & Teléfonos) ---
+// ============================================================================
+
+export const CUSTOMERS_KEY = 'flory_customers';
+let cachedCustomers = null;
+const customerListeners = new Set();
+
+// Normalizar texto para búsquedas sin tildes ni mayúsculas
+export function normalizeSearchText(text) {
+  return String(text || '')
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+// Obtener lista completa de clientes (auto-poblando con ventas históricas si está vacío)
+export function getCustomers() {
+  if (cachedCustomers !== null) {
+    return cachedCustomers;
+  }
+  try {
+    const raw = localStorage.getItem(CUSTOMERS_KEY);
+    let list = raw ? JSON.parse(raw) : [];
+
+    const map = new Map();
+
+    // Cargar los existentes primero
+    list.forEach(c => {
+      if (c && c.name && c.name.toLowerCase() !== 'cliente mostrador') {
+        const key = normalizeSearchText(c.name);
+        map.set(key, {
+          name: c.name.trim(),
+          phone: (c.phone && c.phone !== '-') ? c.phone.trim() : '',
+          vendedor: normalizeVendor(c.vendedor),
+          ordersCount: Number(c.ordersCount) || 1,
+          lastOrderDate: c.lastOrderDate || ''
+        });
+      }
+    });
+
+    // Reconstruir/complementar a partir del historial de ventas del día
+    const sales = getSales();
+    sales.forEach(s => {
+      const cName = (s.customerName || '').trim();
+      if (cName && cName.toLowerCase() !== 'cliente mostrador') {
+        const key = normalizeSearchText(cName);
+        const existing = map.get(key);
+        const phone = (s.phone && s.phone !== '-') ? s.phone.trim() : '';
+        const vend = normalizeVendor(s.vendedor);
+        if (existing) {
+          existing.ordersCount = (existing.ordersCount || 1) + 1;
+          if (!existing.phone && phone) existing.phone = phone;
+          if (vend) existing.vendedor = vend;
+          if (s.date && (!existing.lastOrderDate || s.date > existing.lastOrderDate)) {
+            existing.lastOrderDate = s.date;
+          }
+        } else {
+          map.set(key, {
+            name: cName,
+            phone: phone,
+            vendedor: vend,
+            ordersCount: 1,
+            lastOrderDate: s.date || getTodayKey()
+          });
+        }
+      }
+    });
+
+    list = Array.from(map.values()).sort((a, b) => (b.ordersCount || 0) - (a.ordersCount || 0));
+    cachedCustomers = list;
+    localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(list));
+    return cachedCustomers;
+  } catch (err) {
+    console.error('Error cargando directorio de clientes:', err);
+    return [];
+  }
+}
+
+// Guardar o actualizar un cliente
+export function saveCustomer({ name, phone, vendedor }) {
+  if (!name) return null;
+  const cleanName = String(name).trim();
+  if (cleanName.toLowerCase() === 'cliente mostrador' || cleanName.length < 2) return null;
+
+  const cleanPhone = (phone && phone !== '-') ? String(phone).trim() : '';
+  const cleanVendor = normalizeVendor(vendedor);
+  const customers = getCustomers();
+  const searchKey = normalizeSearchText(cleanName);
+
+  const index = customers.findIndex(c => normalizeSearchText(c.name) === searchKey);
+  const nowKey = getTodayKey();
+
+  if (index !== -1) {
+    customers[index].name = cleanName;
+    if (cleanPhone) customers[index].phone = cleanPhone;
+    if (cleanVendor) customers[index].vendedor = cleanVendor;
+    customers[index].ordersCount = (Number(customers[index].ordersCount) || 1) + 1;
+    customers[index].lastOrderDate = nowKey;
+  } else {
+    customers.push({
+      name: cleanName,
+      phone: cleanPhone,
+      vendedor: cleanVendor,
+      ordersCount: 1,
+      lastOrderDate: nowKey
+    });
+  }
+
+  // Ordenar por clientes más recurrentes
+  customers.sort((a, b) => (b.ordersCount || 0) - (a.ordersCount || 0));
+  cachedCustomers = customers;
+  localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(customers));
+
+  if (syncChannel) {
+    syncChannel.postMessage({ type: 'CUSTOMERS_UPDATED', customers });
+  }
+  notifyCustomerListeners(customers);
+  syncCustomersWithCloud(customers);
+
+  return customers[index !== -1 ? index : customers.length - 1];
+}
+
+// Buscar clientes por coincidencia de nombre o teléfono
+export function searchCustomers(query) {
+  if (!query) return [];
+  const qNorm = normalizeSearchText(query);
+  const qDigits = String(query).replace(/\D/g, '');
+  if (!qNorm && !qDigits) return [];
+
+  const customers = getCustomers();
+  const matches = customers.filter(c => {
+    const nameNorm = normalizeSearchText(c.name);
+    const phoneDigits = (c.phone || '').replace(/\D/g, '');
+
+    const nameMatch = nameNorm.includes(qNorm);
+    const phoneMatch = qDigits.length >= 3 && phoneDigits.includes(qDigits);
+    return nameMatch || phoneMatch;
+  });
+
+  // Priorizar coincidencias al inicio del nombre y mayor cantidad de pedidos
+  matches.sort((a, b) => {
+    const aNorm = normalizeSearchText(a.name);
+    const bNorm = normalizeSearchText(b.name);
+    const aStarts = aNorm.startsWith(qNorm) ? 1 : 0;
+    const bStarts = bNorm.startsWith(qNorm) ? 1 : 0;
+    if (aStarts !== bStarts) return bStarts - aStarts;
+    return (b.ordersCount || 0) - (a.ordersCount || 0);
+  });
+
+  return matches.slice(0, 10);
+}
+
+// Notificar a observadores de clientes
+function notifyCustomerListeners(customers) {
+  customerListeners.forEach(cb => {
+    try { cb(customers); } catch (e) { console.error('Error en listener de clientes:', e); }
+  });
+}
+
+export function subscribeCustomers(callback) {
+  customerListeners.add(callback);
+  callback(getCustomers());
+  return () => customerListeners.delete(callback);
+}
+
+// Enviar directorio de clientes a Firebase Firestore
+async function syncCustomersWithCloud(customers) {
+  if (!firebaseDb) return;
+  try {
+    const { doc, setDoc } = await dynamicImport('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await setDoc(doc(firebaseDb, 'directorio_clientes', 'clientes_activos'), {
+      customers: customers || [],
+      lastUpdated: new Date().toISOString()
+    }, { merge: true });
+    console.log('☁️ Directorio de clientes sincronizado con Firebase:', (customers || []).length);
+  } catch (err) {
+    console.error('Error sincronizando clientes con Firebase:', err);
+  }
 }
 
 // Comunicación con la API central local (si está en dev server)
@@ -328,6 +519,9 @@ if (syncChannel) {
     if (event.data && event.data.type === 'SALES_UPDATED') {
       cachedSales = event.data.sales || getSales();
       notifyListeners(cachedSales);
+    } else if (event.data && event.data.type === 'CUSTOMERS_UPDATED') {
+      cachedCustomers = event.data.customers || getCustomers();
+      notifyCustomerListeners(cachedCustomers);
     }
   };
 }
@@ -337,6 +531,9 @@ if (typeof window !== 'undefined') {
     if (event.key === STORAGE_KEY) {
       cachedSales = null;
       notifyListeners(getSales());
+    } else if (event.key === CUSTOMERS_KEY) {
+      cachedCustomers = null;
+      notifyCustomerListeners(getCustomers());
     }
   });
 }
@@ -399,6 +596,37 @@ export async function initFirebase(config = FIREBASE_CONFIG) {
       }
     }, (error) => {
       console.warn('Advertencia en conexión con Firestore:', error);
+    });
+
+    // Escucha en tiempo real del directorio de clientes en la nube
+    const customersDocRef = doc(firebaseDb, 'directorio_clientes', 'clientes_activos');
+    onSnapshot(customersDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (Array.isArray(data.customers)) {
+          const localMap = new Map();
+          const currentCustomers = getCustomers();
+          currentCustomers.forEach(c => localMap.set(normalizeSearchText(c.name), c));
+          data.customers.forEach(c => {
+            if (c && c.name) {
+              const k = normalizeSearchText(c.name);
+              const exist = localMap.get(k);
+              if (!exist) {
+                localMap.set(k, c);
+              } else {
+                if (c.phone && !exist.phone) exist.phone = c.phone;
+                if ((c.ordersCount || 0) > (exist.ordersCount || 0)) exist.ordersCount = c.ordersCount;
+              }
+            }
+          });
+          const merged = Array.from(localMap.values()).sort((a,b) => (b.ordersCount || 0) - (a.ordersCount || 0));
+          cachedCustomers = merged;
+          localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(merged));
+          notifyCustomerListeners(merged);
+        }
+      }
+    }, (err) => {
+      console.warn('Advertencia en conexión de clientes con Firestore:', err);
     });
 
     console.log('✅ Firebase Firestore conectado y sincronizando en tiempo real con la nube.');

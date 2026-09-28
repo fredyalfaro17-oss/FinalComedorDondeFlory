@@ -1,5 +1,5 @@
 import { menuData } from './data.js'
-import { getSales, addSale, updateSaleProperty as dbUpdateSaleProperty, clearAllSales, subscribeSales, VENDEDORES, FORMAS_PAGO, getTodayKey, normalizePayment, normalizeVendor } from './db.js'
+import { getSales, addSale, updateSaleProperty as dbUpdateSaleProperty, clearAllSales, subscribeSales, VENDEDORES, FORMAS_PAGO, getTodayKey, normalizePayment, normalizeVendor, searchCustomers, saveCustomer, getCustomers, subscribeCustomers } from './db.js'
 
 const ExcelJS = window.ExcelJS || {};
 const saveAs = window.saveAs || function() {};
@@ -786,11 +786,24 @@ function resetCustomerInfo() {
   const elTime = document.getElementById('customer-time');
   const elVendedor = document.getElementById('customer-vendedor');
   const elPago = document.getElementById('customer-pago');
+  const clearBtn = document.getElementById('customer-clear-btn');
+  const badge = document.getElementById('customer-known-badge');
+  const suggestionsBox = document.getElementById('customer-suggestions');
+
   if (elName) elName.value = '';
   if (elPhone) elPhone.value = '';
   if (elTime) elTime.value = '';
   if (elVendedor) elVendedor.value = 'FREDY';
   if (elPago) elPago.value = 'EFECTIVO';
+  if (clearBtn) clearBtn.classList.add('hidden');
+  if (badge) {
+    badge.classList.add('hidden');
+    badge.classList.remove('inline-flex');
+  }
+  if (suggestionsBox) {
+    suggestionsBox.classList.add('hidden');
+    suggestionsBox.innerHTML = '';
+  }
 }
 
 // --- Utilities ---
@@ -809,12 +822,275 @@ function formatPhoneNumber(value) {
   }
 }
 
+// --- Sistema de Autocompletado Inteligente de Clientes ---
+
+function setupCustomerAutocomplete() {
+  const nameInput = document.getElementById('customer-name');
+  const phoneInput = document.getElementById('customer-phone');
+  const vendorSelect = document.getElementById('customer-vendedor');
+  const suggestionsBox = document.getElementById('customer-suggestions');
+  const badge = document.getElementById('customer-known-badge');
+  const badgeText = document.getElementById('customer-known-text');
+  const clearBtn = document.getElementById('customer-clear-btn');
+
+  if (!nameInput || !suggestionsBox) return;
+
+  let highlightedIndex = -1;
+  let currentMatches = [];
+
+  const updateSuggestionsPosition = () => {
+    if (!suggestionsBox || suggestionsBox.classList.contains('hidden')) return;
+    const rect = nameInput.getBoundingClientRect();
+    suggestionsBox.style.top = `${rect.bottom + 6}px`;
+    suggestionsBox.style.left = `${Math.max(8, rect.left)}px`;
+    suggestionsBox.style.width = `${Math.min(window.innerWidth - 16, Math.max(rect.width, 320))}px`;
+  };
+
+  window.addEventListener('resize', updateSuggestionsPosition);
+  window.addEventListener('scroll', updateSuggestionsPosition, true);
+
+  const hideSuggestions = () => {
+    suggestionsBox.classList.add('hidden');
+    suggestionsBox.innerHTML = '';
+    highlightedIndex = -1;
+    currentMatches = [];
+  };
+
+  const selectCustomer = (client) => {
+    if (!client) return;
+    nameInput.value = client.name;
+    customerInfo.name = client.name;
+
+    if (client.phone && client.phone !== '-') {
+      const formatted = formatPhoneNumber(client.phone);
+      if (phoneInput) {
+        phoneInput.value = formatted;
+        phoneInput.classList.add('ring-2', 'ring-emerald-500/80');
+        setTimeout(() => phoneInput.classList.remove('ring-2', 'ring-emerald-500/80'), 1500);
+      }
+      customerInfo.phone = formatted;
+    }
+
+    if (client.vendedor && vendorSelect) {
+      vendorSelect.value = normalizeVendor(client.vendedor);
+      customerInfo.vendedor = vendorSelect.value;
+    }
+
+    if (badge && badgeText) {
+      badgeText.textContent = client.ordersCount > 1 
+        ? `Habitual (${client.ordersCount} pedidos)` 
+        : 'Cliente registrado';
+      badge.classList.remove('hidden');
+      badge.classList.add('inline-flex');
+    }
+
+    if (clearBtn) clearBtn.classList.remove('hidden');
+
+    hideSuggestions();
+  };
+
+  const renderSuggestions = (matches, query) => {
+    currentMatches = matches;
+    highlightedIndex = -1;
+
+    if (matches.length === 0) {
+      hideSuggestions();
+      return;
+    }
+
+    updateSuggestionsPosition();
+
+    const qLower = query.toLowerCase().trim();
+
+    suggestionsBox.innerHTML = `
+      <div class="p-2.5 border-b border-slate-800 bg-slate-950/90 flex items-center justify-between text-[11px] text-slate-400">
+        <span class="font-bold flex items-center gap-1 text-amber-400">
+          <span>👥</span> ${matches.length} ${matches.length === 1 ? 'cliente encontrado' : 'clientes coincidentes'}:
+        </span>
+        <span class="text-[10px] text-slate-500">Toca para autocompletar</span>
+      </div>
+      <div class="divide-y divide-slate-800/80">
+        ${matches.map((c, idx) => {
+          let displayName = c.name;
+          const matchPos = c.name.toLowerCase().indexOf(qLower);
+          if (matchPos !== -1 && qLower.length > 0) {
+            const before = c.name.slice(0, matchPos);
+            const match = c.name.slice(matchPos, matchPos + qLower.length);
+            const after = c.name.slice(matchPos + qLower.length);
+            displayName = `${before}<span class="text-amber-400 underline font-black decoration-amber-400/80">${match}</span>${after}`;
+          }
+
+          const phoneDisplay = c.phone && c.phone !== '-'
+            ? `<span class="text-emerald-400 font-semibold flex items-center gap-0.5">📞 ${c.phone}</span>`
+            : `<span class="text-slate-500 italic text-[11px]">Sin teléfono</span>`;
+
+          const vendorDisplay = c.vendedor
+            ? `<span class="text-blue-300 font-medium">🛵 ${c.vendedor}</span>`
+            : '';
+
+          const ordersDisplay = c.ordersCount > 1
+            ? `<span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold px-1.5 py-0.2 rounded">${c.ordersCount} pedidos</span>`
+            : '';
+
+          return `
+            <div 
+              class="customer-suggestion-item px-3.5 py-2.5 hover:bg-slate-800/90 active:bg-slate-800 cursor-pointer transition-colors flex items-center justify-between gap-3 group"
+              data-index="${idx}"
+            >
+              <div class="min-w-0 flex-1">
+                <div class="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 truncate">
+                  👤 ${displayName}
+                </div>
+                <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5 flex-wrap">
+                  ${phoneDisplay}
+                  ${vendorDisplay ? `<span class="text-slate-600">•</span>` + vendorDisplay : ''}
+                  ${ordersDisplay ? `<span class="text-slate-600">•</span>` + ordersDisplay : ''}
+                </div>
+              </div>
+              <button 
+                type="button" 
+                class="shrink-0 text-[11px] font-bold text-emerald-400 bg-emerald-950/40 hover:bg-emerald-600 hover:text-white border border-emerald-700/60 px-2.5 py-1 rounded-lg transition-all"
+              >
+                Elegir
+              </button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    suggestionsBox.classList.remove('hidden');
+
+    suggestionsBox.querySelectorAll('.customer-suggestion-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const idx = parseInt(item.dataset.index, 10);
+        selectCustomer(currentMatches[idx]);
+      });
+    });
+  };
+
+  // Evento Input en Cliente
+  nameInput.addEventListener('input', (e) => {
+    const val = e.target.value;
+    customerInfo.name = val;
+
+    if (clearBtn) {
+      if (val.trim()) clearBtn.classList.remove('hidden');
+      else clearBtn.classList.add('hidden');
+    }
+
+    if (badge) {
+      badge.classList.add('hidden');
+      badge.classList.remove('inline-flex');
+    }
+
+    if (!val || val.trim().length < 1) {
+      hideSuggestions();
+      return;
+    }
+
+    const matches = searchCustomers(val.trim());
+    renderSuggestions(matches, val.trim());
+  });
+
+  // Mostrar clientes recientes o frecuentes al hacer focus si el campo está vacío o con texto
+  nameInput.addEventListener('focus', () => {
+    const val = nameInput.value.trim();
+    if (val.length >= 1) {
+      const matches = searchCustomers(val);
+      renderSuggestions(matches, val);
+    } else {
+      const frequent = getCustomers().slice(0, 5);
+      if (frequent.length > 0) {
+        renderSuggestions(frequent, '');
+      }
+    }
+  });
+
+  // Teclado (Flechas y Enter para navegar sugerencias)
+  nameInput.addEventListener('keydown', (e) => {
+    if (suggestionsBox.classList.contains('hidden') || currentMatches.length === 0) return;
+
+    const items = suggestionsBox.querySelectorAll('.customer-suggestion-item');
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      highlightedIndex = (highlightedIndex + 1) % items.length;
+      updateHighlight(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      highlightedIndex = (highlightedIndex - 1 + items.length) % items.length;
+      updateHighlight(items);
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      if (highlightedIndex >= 0 && highlightedIndex < currentMatches.length) {
+        e.preventDefault();
+        selectCustomer(currentMatches[highlightedIndex]);
+      } else if (currentMatches.length === 1) {
+        e.preventDefault();
+        selectCustomer(currentMatches[0]);
+      }
+    } else if (e.key === 'Escape') {
+      hideSuggestions();
+    }
+  });
+
+  function updateHighlight(items) {
+    items.forEach((it, idx) => {
+      if (idx === highlightedIndex) {
+        it.classList.add('bg-slate-800', 'border-l-4', 'border-amber-400');
+        it.scrollIntoView({ block: 'nearest' });
+      } else {
+        it.classList.remove('bg-slate-800', 'border-l-4', 'border-amber-400');
+      }
+    });
+  }
+
+  // Búsqueda inversa: si el usuario escribe un teléfono ya conocido
+  if (phoneInput) {
+    phoneInput.addEventListener('input', (e) => {
+      const raw = e.target.value.replace(/\D/g, '');
+      if (raw.length === 8 && (!nameInput.value || nameInput.value.trim() === '')) {
+        const matches = searchCustomers(raw);
+        if (matches.length > 0) {
+          selectCustomer(matches[0]);
+        }
+      }
+    });
+  }
+
+  // Botón Limpiar Cliente
+  if (clearBtn) {
+    clearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      nameInput.value = '';
+      if (phoneInput) phoneInput.value = '';
+      customerInfo.name = '';
+      customerInfo.phone = '';
+      clearBtn.classList.add('hidden');
+      if (badge) {
+        badge.classList.add('hidden');
+        badge.classList.remove('inline-flex');
+      }
+      hideSuggestions();
+      nameInput.focus();
+    });
+  }
+
+  // Cerrar sugerencias al hacer click fuera
+  document.addEventListener('click', (e) => {
+    if (!nameInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+      hideSuggestions();
+    }
+  });
+}
+
 // --- Event Listeners ---
 
 function setupEventListeners() {
-  // Sync Customer Info
-  const elName = document.getElementById('customer-name');
-  if (elName) elName.oninput = (e) => customerInfo.name = e.target.value;
+  // Inicializar autocompletado inteligente de clientes
+  setupCustomerAutocomplete();
 
   // Phone with auto-formatting
   const phoneInput = document.getElementById('customer-phone');

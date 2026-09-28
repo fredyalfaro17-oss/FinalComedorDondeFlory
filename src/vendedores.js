@@ -1,9 +1,9 @@
 // src/vendedores.js - Lógica interactiva del portal móvil para vendedores
-import { getSales, addSale, updateSaleProperty, clearAllSales, subscribeSales, VENDEDORES, FORMAS_PAGO } from './db.js';
+import { getSales, addSale, updateSaleProperty, clearAllSales, subscribeSales, VENDEDORES, FORMAS_PAGO, normalizePayment, normalizeVendor } from './db.js';
 
 let allSales = [];
 let selectedVendor = 'FREDY';
-let currentFilter = 'TODOS'; // 'TODOS', 'PENDIENTES', 'EFECTIVO', 'TRANSFERENCIA', 'TARJETA', 'NO PAGO'
+let currentFilter = 'TODOS'; // 'TODOS', 'NO PAGO', 'EFECTIVO', 'TRANSFERENCIA', 'TARJETA'
 let searchQuery = '';
 
 // Leer parámetro inicial de la URL si existe (ej. ?vendedor=FREDY)
@@ -116,7 +116,7 @@ function renderDashboard() {
   // 1. Filtrar ventas por vendedor seleccionado
   let vendorSales = allSales;
   if (selectedVendor !== 'TODOS') {
-    vendorSales = allSales.filter(s => s.vendedor === selectedVendor);
+    vendorSales = allSales.filter(s => normalizeVendor(s.vendedor) === selectedVendor);
   }
 
   // 2. Calcular estadísticas financieras
@@ -127,26 +127,29 @@ function renderDashboard() {
   let countTransferencia = 0;
   let totalTarjeta = 0;
   let countTarjeta = 0;
-  let totalPendientes = 0;
-  let countPendientes = 0;
+  let totalNoPago = 0;
+  let countNoPago = 0;
 
   vendorSales.forEach(sale => {
     const total = Number(sale.total) || 0;
+    const pagoNorm = normalizePayment(sale.pago);
     totalRecaudado += total;
 
-    if (sale.pago === 'EFECTIVO') {
+    if (pagoNorm === 'EFECTIVO') {
       totalEfectivo += total;
       countEfectivo++;
-    } else if (sale.pago === 'TRANSFERENCIA') {
+    } else if (pagoNorm === 'TRANSFERENCIA') {
       totalTransferencia += total;
       countTransferencia++;
-    } else if (sale.pago === 'TARJETA') {
+    } else if (pagoNorm === 'TARJETA') {
       totalTarjeta += total;
       countTarjeta++;
+    } else if (pagoNorm === 'NO PAGO') {
+      totalNoPago += total;
+      countNoPago++;
     } else {
-      // '-' o 'NO PAGO' o sin asignar
-      totalPendientes += total;
-      countPendientes++;
+      totalEfectivo += total;
+      countEfectivo++;
     }
   });
 
@@ -158,8 +161,8 @@ function renderDashboard() {
   const elTransferenciaCount = document.getElementById('stat-transferencia-count');
   const elTarjeta = document.getElementById('stat-tarjeta');
   const elTarjetaCount = document.getElementById('stat-tarjeta-count');
-  const elPendientes = document.getElementById('stat-pendientes');
-  const elPendientesCount = document.getElementById('stat-pendientes-count');
+  const elNoPago = document.getElementById('stat-nopago') || document.getElementById('stat-pendientes');
+  const elNoPagoCount = document.getElementById('stat-nopago-count') || document.getElementById('stat-pendientes-count');
   const badgePendientes = document.getElementById('badge-pendientes-pill');
   const vendorNameHeader = document.getElementById('active-vendor-title');
 
@@ -170,13 +173,13 @@ function renderDashboard() {
   if (elTransferenciaCount) elTransferenciaCount.textContent = `${countTransferencia} pedidos`;
   if (elTarjeta) elTarjeta.textContent = `Q ${totalTarjeta.toFixed(2)}`;
   if (elTarjetaCount) elTarjetaCount.textContent = `${countTarjeta} pedidos`;
-  if (elPendientes) elPendientes.textContent = `Q ${totalPendientes.toFixed(2)}`;
-  if (elPendientesCount) elPendientesCount.textContent = `${countPendientes} por cobrar`;
+  if (elNoPago) elNoPago.textContent = `Q ${totalNoPago.toFixed(2)}`;
+  if (elNoPagoCount) elNoPagoCount.textContent = `${countNoPago} pedidos`;
 
   if (badgePendientes) {
-    if (countPendientes > 0) {
+    if (countNoPago > 0) {
       badgePendientes.classList.remove('hidden');
-      badgePendientes.textContent = countPendientes;
+      badgePendientes.textContent = countNoPago;
     } else {
       badgePendientes.classList.add('hidden');
     }
@@ -189,14 +192,14 @@ function renderDashboard() {
   // 3. Filtrar ventas para la lista según búsqueda y botón activo
   let displaySales = vendorSales;
 
-  if (currentFilter === 'PENDIENTES') {
-    displaySales = displaySales.filter(s => !s.pago || s.pago === '-' || s.pago === 'NO PAGO');
+  if (currentFilter === 'NO PAGO' || currentFilter === 'PENDIENTES') {
+    displaySales = displaySales.filter(s => normalizePayment(s.pago) === 'NO PAGO');
   } else if (currentFilter === 'EFECTIVO') {
-    displaySales = displaySales.filter(s => s.pago === 'EFECTIVO');
+    displaySales = displaySales.filter(s => normalizePayment(s.pago) === 'EFECTIVO');
   } else if (currentFilter === 'TRANSFERENCIA') {
-    displaySales = displaySales.filter(s => s.pago === 'TRANSFERENCIA');
+    displaySales = displaySales.filter(s => normalizePayment(s.pago) === 'TRANSFERENCIA');
   } else if (currentFilter === 'TARJETA') {
-    displaySales = displaySales.filter(s => s.pago === 'TARJETA');
+    displaySales = displaySales.filter(s => normalizePayment(s.pago) === 'TARJETA');
   }
 
   if (searchQuery) {
@@ -239,11 +242,13 @@ function renderSalesCards(sales) {
   }
 
   container.innerHTML = sales.map(sale => {
-    const isPaid = sale.pago && sale.pago !== '-' && sale.pago !== 'NO PAGO';
-    const isEfectivo = sale.pago === 'EFECTIVO';
-    const isTransf = sale.pago === 'TRANSFERENCIA';
-    const isTarjeta = sale.pago === 'TARJETA';
-    const isNoPago = sale.pago === 'NO PAGO';
+    const pagoNorm = normalizePayment(sale.pago);
+    const vendNorm = normalizeVendor(sale.vendedor);
+    const isEfectivo = pagoNorm === 'EFECTIVO';
+    const isTransf = pagoNorm === 'TRANSFERENCIA';
+    const isTarjeta = pagoNorm === 'TARJETA';
+    const isNoPago = pagoNorm === 'NO PAGO';
+    const isPaid = !isNoPago;
 
     let statusBadge = `
       <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">
@@ -307,7 +312,7 @@ function renderSalesCards(sales) {
                 <span class="text-xs text-slate-400 font-medium">🕒 ${sale.time || '--:--'}</span>
                 ${selectedVendor === 'TODOS' ? `
                   <span class="text-xs font-bold px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800">
-                    🛵 ${sale.vendedor || '-'}
+                    🛵 ${vendNorm}
                   </span>
                 ` : ''}
               </div>
@@ -351,7 +356,7 @@ function renderSalesCards(sales) {
                   onchange="window.handleVendorChange(${sale.id}, this.value)"
                   class="bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-[11px] text-blue-300 font-semibold focus:outline-none focus:border-amber-500 cursor-pointer"
                 >
-                  ${VENDEDORES.map(v => `<option value="${v}" ${sale.vendedor === v ? 'selected' : ''}>${v}</option>`).join('')}
+                  ${VENDEDORES.map(v => `<option value="${v}" ${vendNorm === v ? 'selected' : ''}>${v}</option>`).join('')}
                 </select>
               </div>
             ` : ''}
@@ -457,14 +462,13 @@ function showToast(message) {
   }, 2200);
 }
 
-// Cargar pedidos de demostración para probar de inmediato
 window.seedDemoSales = function() {
   const sampleOrders = [
     {
       customerName: 'Carlos Méndez (Zona 1)',
       phone: '5544-1234',
       vendedor: 'FREDY',
-      pago: '-',
+      pago: 'EFECTIVO',
       total: 60,
       items: '2x Caldo de Res con Verduras'
     },
@@ -472,7 +476,7 @@ window.seedDemoSales = function() {
       customerName: 'Oficina Central Don Flory',
       phone: '4122-8899',
       vendedor: 'FREDY',
-      pago: '-',
+      pago: 'TRANSFERENCIA',
       total: 95,
       items: '2x Pollo Frito, 1x Flautas de Pollo'
     },
@@ -480,7 +484,7 @@ window.seedDemoSales = function() {
       customerName: 'Dra. María Alvarado',
       phone: '4567-9911',
       vendedor: 'JAIME',
-      pago: '-',
+      pago: 'TARJETA',
       total: 35,
       items: '1x Alambre de Res con queso Mozzarella'
     },
@@ -488,7 +492,7 @@ window.seedDemoSales = function() {
       customerName: 'Taller San José',
       phone: '5877-2233',
       vendedor: 'VIEJO',
-      pago: '-',
+      pago: 'NO PAGO',
       total: 70,
       items: '2x Costilla en Barbacoa'
     }

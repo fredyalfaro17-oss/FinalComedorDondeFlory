@@ -186,19 +186,21 @@
           </div>
         </div>
 
-        <!-- Pendientes / No Cobrado -->
-        <div class="bg-amber-950/20 border border-amber-900/40 rounded-2xl p-3 flex flex-col justify-between">
+        <!-- No Pagó -->
+        <div class="bg-red-950/20 border border-red-900/40 rounded-2xl p-3 flex flex-col justify-between">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-amber-400 flex items-center gap-1">
-              <span>⏳</span> PENDIENTES
+            <span class="text-xs font-bold text-red-400 flex items-center gap-1">
+              <span>❌</span> NO PAGÓ
             </span>
-            <span id="badge-pendientes-pill" class="hidden px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-500 text-slate-950 animate-bounce">
+            <span id="badge-pendientes-pill" class="hidden px-1.5 py-0.2 rounded-full text-[10px] font-black bg-red-500 text-white animate-bounce">
               0
             </span>
           </div>
           <div class="mt-2">
-            <div id="stat-pendientes" class="text-lg sm:text-xl font-bold text-amber-300">Q 0.00</div>
-            <div id="stat-pendientes-count" class="text-[11px] text-amber-500/80 font-medium">0 por cobrar</div>
+            <div id="stat-nopago" class="text-lg sm:text-xl font-bold text-red-300">Q 0.00</div>
+            <div id="stat-nopago-count" class="text-[11px] text-red-500/80 font-medium">0 pedidos</div>
+            <div id="stat-pendientes" class="hidden"></div>
+            <div id="stat-pendientes-count" class="hidden"></div>
           </div>
         </div>
 
@@ -226,10 +228,10 @@
           📋 Todos
         </button>
         <button 
-          data-filter="PENDIENTES"
-          class="shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all bg-slate-900 text-slate-300 border border-slate-800 hover:border-amber-500/40"
+          data-filter="NO PAGO"
+          class="shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all bg-slate-900 text-slate-300 border border-slate-800 hover:border-red-500/40"
         >
-          ⏳ Pendientes de Cobro
+          ❌ No Pagó
         </button>
         <button 
           data-filter="EFECTIVO"

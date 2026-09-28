@@ -51,6 +51,41 @@ function notifyListeners(sales) {
   });
 }
 
+// Normalizar métodos de pago válidos (EFECTIVO, TRANSFERENCIA, TARJETA, NO PAGO)
+export function normalizePayment(pago) {
+  if (!pago) return 'EFECTIVO';
+  const clean = String(pago).trim().toUpperCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // quita acentos (NO PAGÓ -> NO PAGO)
+  if (clean === 'TRANSFERENCIA' || clean.startsWith('TRANS')) return 'TRANSFERENCIA';
+  if (clean === 'TARJETA' || clean.startsWith('TARJ')) return 'TARJETA';
+  if (clean === 'NO PAGO' || clean === 'NOPAGO' || clean.startsWith('NO PAG') || clean.startsWith('NO_PAG')) return 'NO PAGO';
+  if (clean === 'EFECTIVO' || clean.startsWith('EFEC')) return 'EFECTIVO';
+  // Histórico '-' o 'PENDIENTE' migran automáticamente a EFECTIVO
+  return 'EFECTIVO';
+}
+
+// Normalizar vendedores válidos
+export function normalizeVendor(vendor) {
+  if (!vendor || vendor === '-' || vendor === 'SIN ASIGNAR' || vendor === 'Sin Asignar') {
+    return 'FREDY';
+  }
+  const clean = String(vendor).trim().toUpperCase();
+  const found = VENDEDORES.find(v => v.toUpperCase() === clean);
+  return found || 'FREDY';
+}
+
+// Sanitizar y reparar registros de ventas heredados
+export function sanitizeSale(sale, index = 0) {
+  if (!sale || typeof sale !== 'object') return null;
+  return {
+    ...sale,
+    id: Number(sale.id) || (index + 1),
+    total: Number(sale.total) || 0,
+    pago: normalizePayment(sale.pago),
+    vendedor: normalizeVendor(sale.vendedor)
+  };
+}
+
 // Obtener todas las ventas del día (inmediato desde caché o localStorage)
 export function getSales() {
   if (cachedSales !== null) {
@@ -58,7 +93,20 @@ export function getSales() {
   }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    cachedSales = raw ? JSON.parse(raw) : [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    let needsResave = false;
+    const sanitized = parsed.map((s, idx) => {
+      const clean = sanitizeSale(s, idx);
+      if (s.pago !== clean.pago || s.vendedor !== clean.vendedor || Number(s.total) !== clean.total) {
+        needsResave = true;
+      }
+      return clean;
+    });
+    cachedSales = sanitized;
+    if (needsResave && typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+      syncWithCloud(sanitized);
+    }
     return cachedSales;
   } catch (err) {
     console.error('Error parsing daily_sales:', err);
@@ -69,19 +117,20 @@ export function getSales() {
 // Guardar array de ventas y emitir evento
 export function persistSales(sales, emit = true, syncApi = true, syncCloud = true) {
   try {
-    cachedSales = sales;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sales));
+    const sanitized = (sales || []).map((s, idx) => sanitizeSale(s, idx));
+    cachedSales = sanitized;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
     if (emit) {
       if (syncChannel) {
-        syncChannel.postMessage({ type: 'SALES_UPDATED', sales });
+        syncChannel.postMessage({ type: 'SALES_UPDATED', sales: sanitized });
       }
-      notifyListeners(sales);
+      notifyListeners(sanitized);
     }
     if (syncApi) {
-      postApiAction({ action: 'SAVE_ALL', sales });
+      postApiAction({ action: 'SAVE_ALL', sales: sanitized });
     }
     if (syncCloud) {
-      syncWithCloud(sales);
+      syncWithCloud(sanitized);
     }
   } catch (err) {
     console.error('Error persisting sales:', err);
@@ -100,8 +149,8 @@ export function addSale(saleData) {
     time: saleData.time || timeStr,
     customerName: saleData.customerName || 'Cliente Mostrador',
     phone: saleData.phone || '-',
-    vendedor: saleData.vendedor || '-',
-    pago: saleData.pago || '-',
+    vendedor: normalizeVendor(saleData.vendedor),
+    pago: normalizePayment(saleData.pago),
     total: Number(saleData.total) || 0,
     items: saleData.items || '',
     updatedAt: new Date().toISOString()
@@ -128,7 +177,11 @@ export function updateSaleProperty(saleId, property, value) {
   const sales = getSales();
   const index = sales.findIndex(s => Number(s.id) === Number(saleId));
   if (index !== -1) {
-    sales[index][property] = value;
+    let finalValue = value;
+    if (property === 'pago') finalValue = normalizePayment(value);
+    if (property === 'vendedor') finalValue = normalizeVendor(value);
+
+    sales[index][property] = finalValue;
     sales[index].updatedAt = new Date().toISOString();
     cachedSales = sales;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sales));
@@ -140,7 +193,7 @@ export function updateSaleProperty(saleId, property, value) {
 
     // Enviar cambio a Firebase y servidor central de inmediato
     syncWithCloud(sales);
-    postApiAction({ action: 'UPDATE_PROP', id: Number(saleId), property, value });
+    postApiAction({ action: 'UPDATE_PROP', id: Number(saleId), property, value: finalValue });
 
     return sales[index];
   }
@@ -223,8 +276,8 @@ export function areSalesEqual(a, b) {
     if (!sA || !sB) return false;
     if (
       Number(sA.id) !== Number(sB.id) ||
-      String(sA.pago || '-') !== String(sB.pago || '-') ||
-      String(sA.vendedor || '-') !== String(sB.vendedor || '-') ||
+      normalizePayment(sA.pago) !== normalizePayment(sB.pago) ||
+      normalizeVendor(sA.vendedor) !== normalizeVendor(sB.vendedor) ||
       Number(sA.total) !== Number(sB.total) ||
       String(sA.customerName || '') !== String(sB.customerName || '') ||
       String(sA.items || '') !== String(sB.items || '')
@@ -324,7 +377,8 @@ export async function initFirebase(config = FIREBASE_CONFIG) {
 
       if (docSnap.exists()) {
         const cloudData = docSnap.data();
-        const cloudSales = Array.isArray(cloudData.sales) ? cloudData.sales : [];
+        const rawCloudSales = Array.isArray(cloudData.sales) ? cloudData.sales : [];
+        const cloudSales = rawCloudSales.map((s, idx) => sanitizeSale(s, idx));
         const currentSales = cachedSales !== null ? cachedSales : getSales();
 
         if (!areSalesEqual(cloudSales, currentSales)) {

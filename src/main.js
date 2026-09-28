@@ -1,5 +1,5 @@
 import { menuData } from './data.js'
-import { getSales, addSale, updateSaleProperty as dbUpdateSaleProperty, clearAllSales, subscribeSales, VENDEDORES, FORMAS_PAGO, getTodayKey } from './db.js'
+import { getSales, addSale, updateSaleProperty as dbUpdateSaleProperty, clearAllSales, subscribeSales, VENDEDORES, FORMAS_PAGO, getTodayKey, normalizePayment, normalizeVendor } from './db.js'
 
 const ExcelJS = window.ExcelJS || {};
 const saveAs = window.saveAs || function() {};
@@ -908,7 +908,8 @@ function saveSale(total) {
 }
 
 function getPaymentSelectStyle(pago) {
-  switch (pago) {
+  const norm = normalizePayment(pago);
+  switch (norm) {
     case 'EFECTIVO':
       return 'bg-emerald-950/90 text-emerald-300 border-emerald-500/80 shadow-emerald-950/50';
     case 'TRANSFERENCIA':
@@ -946,7 +947,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
   let filteredSales = sales;
   
   if (vendorFilter) {
-    filteredSales = filteredSales.filter(s => s.vendedor === vendorFilter);
+    filteredSales = filteredSales.filter(s => normalizeVendor(s.vendedor) === vendorFilter);
   }
   
   if (textFilter) {
@@ -965,11 +966,16 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
   let cantidadFiltrada = 0;
 
   const tableRows = filteredSales.map(sale => {
-    totalDia += Number(sale.total) || 0;
-    if (sale.pago === 'EFECTIVO') totalEfectivo += Number(sale.total) || 0;
-    if (sale.pago === 'TRANSFERENCIA') totalTransferencia += Number(sale.total) || 0;
-    if (sale.pago === 'TARJETA') totalTarjeta += Number(sale.total) || 0;
-    if (sale.pago === 'NO PAGO') totalNoPago += Number(sale.total) || 0;
+    const saleTotal = Number(sale.total) || 0;
+    const pagoNorm = normalizePayment(sale.pago);
+    const vendNorm = normalizeVendor(sale.vendedor);
+
+    totalDia += saleTotal;
+    if (pagoNorm === 'EFECTIVO') totalEfectivo += saleTotal;
+    else if (pagoNorm === 'TRANSFERENCIA') totalTransferencia += saleTotal;
+    else if (pagoNorm === 'TARJETA') totalTarjeta += saleTotal;
+    else if (pagoNorm === 'NO PAGO') totalNoPago += saleTotal;
+    else totalEfectivo += saleTotal;
 
     if (textFilter) {
       const itemsArray = (sale.items || '').split(', ');
@@ -999,12 +1005,12 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
           <select 
             id="report-pago-${sale.id}"
             onchange="window.updateSaleProperty(${sale.id}, 'pago', this.value, this)" 
-            class="w-full min-w-[165px] text-xs sm:text-sm font-bold py-2 px-3 rounded-xl border cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm ${getPaymentSelectStyle(sale.pago)}"
+            class="w-full min-w-[165px] text-xs sm:text-sm font-bold py-2 px-3 rounded-xl border cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm ${getPaymentSelectStyle(pagoNorm)}"
           >
-            <option value="EFECTIVO" ${sale.pago === 'EFECTIVO' ? 'selected' : ''}>💵 EFECTIVO</option>
-            <option value="TRANSFERENCIA" ${sale.pago === 'TRANSFERENCIA' ? 'selected' : ''}>📲 TRANSFERENCIA</option>
-            <option value="TARJETA" ${sale.pago === 'TARJETA' ? 'selected' : ''}>💳 TARJETA</option>
-            <option value="NO PAGO" ${sale.pago === 'NO PAGO' ? 'selected' : ''}>❌ NO PAGÓ</option>
+            <option value="EFECTIVO" ${pagoNorm === 'EFECTIVO' ? 'selected' : ''}>💵 EFECTIVO</option>
+            <option value="TRANSFERENCIA" ${pagoNorm === 'TRANSFERENCIA' ? 'selected' : ''}>📲 TRANSFERENCIA</option>
+            <option value="TARJETA" ${pagoNorm === 'TARJETA' ? 'selected' : ''}>💳 TARJETA</option>
+            <option value="NO PAGO" ${pagoNorm === 'NO PAGO' ? 'selected' : ''}>❌ NO PAGÓ</option>
           </select>
         </td>
         <td class="px-3 py-3.5 text-center min-w-[150px] whitespace-nowrap">
@@ -1013,15 +1019,18 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
             onchange="window.updateSaleProperty(${sale.id}, 'vendedor', this.value, this)" 
             class="w-full min-w-[140px] text-xs sm:text-sm font-bold py-2 px-3 rounded-xl bg-slate-900 border border-slate-700 text-blue-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm"
           >
-            ${VENDEDORES.map(v => `<option value="${v}" ${sale.vendedor === v ? 'selected' : ''}>🛵 ${v}</option>`).join('')}
+            ${VENDEDORES.map(v => `<option value="${v}" ${vendNorm === v ? 'selected' : ''}>🛵 ${v}</option>`).join('')}
           </select>
         </td>
-        <td class="px-3 py-3.5 text-right font-black text-amber-400 whitespace-nowrap min-w-[95px] text-sm">Q${(Number(sale.total) || 0).toFixed(2)}</td>
+        <td class="px-3 py-3.5 text-right font-black text-amber-400 whitespace-nowrap min-w-[95px] text-sm">Q${saleTotal.toFixed(2)}</td>
       </tr>
     `;
   }).join('');
 
   const cardRows = filteredSales.map(sale => {
+    const saleTotal = Number(sale.total) || 0;
+    const pagoNorm = normalizePayment(sale.pago);
+    const vendNorm = normalizeVendor(sale.vendedor);
     const cleanPhone = sale.phone ? String(sale.phone).replace(/[^0-9]/g, '') : '';
     const phoneActions = cleanPhone && cleanPhone.length >= 8 ? `
       <div class="flex items-center gap-2 mt-1.5">
@@ -1051,7 +1060,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
           </div>
           <div class="text-right shrink-0">
             <div class="text-xl font-black text-amber-400 font-sans">
-              Q${(Number(sale.total) || 0).toFixed(2)}
+              Q${saleTotal.toFixed(2)}
             </div>
           </div>
         </div>
@@ -1069,12 +1078,12 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
             <select 
               id="report-card-pago-${sale.id}"
               onchange="window.updateSaleProperty(${sale.id}, 'pago', this.value, this)"
-              class="w-full text-xs sm:text-sm font-bold py-2.5 px-3 rounded-xl border cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm ${getPaymentSelectStyle(sale.pago)}"
+              class="w-full text-xs sm:text-sm font-bold py-2.5 px-3 rounded-xl border cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm ${getPaymentSelectStyle(pagoNorm)}"
             >
-              <option value="EFECTIVO" ${sale.pago === 'EFECTIVO' ? 'selected' : ''}>💵 EFECTIVO</option>
-              <option value="TRANSFERENCIA" ${sale.pago === 'TRANSFERENCIA' ? 'selected' : ''}>📲 TRANSFERENCIA</option>
-              <option value="TARJETA" ${sale.pago === 'TARJETA' ? 'selected' : ''}>💳 TARJETA</option>
-              <option value="NO PAGO" ${sale.pago === 'NO PAGO' ? 'selected' : ''}>❌ NO PAGÓ</option>
+              <option value="EFECTIVO" ${pagoNorm === 'EFECTIVO' ? 'selected' : ''}>💵 EFECTIVO</option>
+              <option value="TRANSFERENCIA" ${pagoNorm === 'TRANSFERENCIA' ? 'selected' : ''}>📲 TRANSFERENCIA</option>
+              <option value="TARJETA" ${pagoNorm === 'TARJETA' ? 'selected' : ''}>💳 TARJETA</option>
+              <option value="NO PAGO" ${pagoNorm === 'NO PAGO' ? 'selected' : ''}>❌ NO PAGÓ</option>
             </select>
           </div>
 
@@ -1085,7 +1094,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
               onchange="window.updateSaleProperty(${sale.id}, 'vendedor', this.value, this)"
               class="flex-1 text-xs font-bold py-2 px-2.5 rounded-xl bg-slate-950 border border-slate-700 text-blue-300 cursor-pointer"
             >
-              ${VENDEDORES.map(v => `<option value="${v}" ${sale.vendedor === v ? 'selected' : ''}>🛵 ${v}</option>`).join('')}
+              ${VENDEDORES.map(v => `<option value="${v}" ${vendNorm === v ? 'selected' : ''}>🛵 ${v}</option>`).join('')}
             </select>
           </div>
         </div>
@@ -1343,19 +1352,31 @@ window.renderReportModal = function() {
     const isFiltered = textFilter || vendFilter || custFilter;
     
     const paymentTotalsHtml = `
-      <div class="flex flex-wrap justify-center sm:justify-start gap-2.5 sm:gap-4 text-xs sm:text-sm bg-slate-900/70 px-3 sm:px-4 py-2 rounded-xl border border-slate-700/60">
-        <span class="text-emerald-400 font-medium">💵 EFEC: <span class="text-white font-bold text-sm sm:text-base">Q${totalEfectivo.toFixed(2)}</span></span>
-        <span class="text-sky-400 font-medium">📲 TRANS: <span class="text-white font-bold text-sm sm:text-base">Q${totalTransferencia.toFixed(2)}</span></span>
-        <span class="text-purple-400 font-medium">💳 TARJ: <span class="text-white font-bold text-sm sm:text-base">Q${totalTarjeta.toFixed(2)}</span></span>
-        <span class="text-red-400 font-bold">❌ NO PAGO: <span class="text-red-400 font-bold text-sm sm:text-base">Q${totalNoPago.toFixed(2)}</span></span>
+      <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-2.5 text-xs bg-slate-900/90 px-3 sm:px-4 py-2 rounded-2xl border border-slate-700/80 shadow-inner">
+        <div class="flex items-center gap-1.5 bg-emerald-950/50 px-2.5 py-1 rounded-xl border border-emerald-800/50">
+          <span class="text-emerald-400 font-bold text-xs">💵 EFECTIVO:</span>
+          <span class="text-white font-extrabold text-xs sm:text-sm">Q${totalEfectivo.toFixed(2)}</span>
+        </div>
+        <div class="flex items-center gap-1.5 bg-sky-950/50 px-2.5 py-1 rounded-xl border border-sky-800/50">
+          <span class="text-sky-400 font-bold text-xs">📲 TRANSFERENCIA:</span>
+          <span class="text-white font-extrabold text-xs sm:text-sm">Q${totalTransferencia.toFixed(2)}</span>
+        </div>
+        <div class="flex items-center gap-1.5 bg-purple-950/50 px-2.5 py-1 rounded-xl border border-purple-800/50">
+          <span class="text-purple-400 font-bold text-xs">💳 TARJETA:</span>
+          <span class="text-white font-extrabold text-xs sm:text-sm">Q${totalTarjeta.toFixed(2)}</span>
+        </div>
+        <div class="flex items-center gap-1.5 bg-red-950/50 px-2.5 py-1 rounded-xl border border-red-800/50">
+          <span class="text-red-400 font-bold text-xs">❌ NO PAGÓ:</span>
+          <span class="text-red-300 font-extrabold text-xs sm:text-sm">Q${totalNoPago.toFixed(2)}</span>
+        </div>
       </div>
     `;
 
     summaryBar.innerHTML = `
       <div class="flex flex-wrap items-center justify-center sm:justify-start gap-3 w-full sm:w-auto">
         ${textFilter ? `
-          <div class="text-xs sm:text-sm font-bold text-emerald-400 whitespace-nowrap">
-            CANTIDAD VENDIDA: <span class="text-white text-sm sm:text-base bg-emerald-600/20 px-2 py-1 rounded ml-1">${cantidadFiltrada}</span>
+          <div class="text-xs sm:text-sm font-bold text-emerald-400 whitespace-nowrap bg-emerald-950/40 px-3 py-1.5 rounded-xl border border-emerald-800/40">
+            CANTIDAD VENDIDA: <span class="text-white text-sm sm:text-base font-black ml-1">${cantidadFiltrada}</span>
           </div>
         ` : ''}
         ${paymentTotalsHtml}
@@ -1365,7 +1386,7 @@ window.renderReportModal = function() {
         <div class="text-slate-400 uppercase tracking-wider font-bold text-xs sm:text-sm whitespace-nowrap">
           Total ${isFiltered ? 'Filtrado' : 'General'}:
         </div>
-        <div class="text-amber-500 text-xl sm:text-3xl font-black whitespace-nowrap">
+        <div class="text-amber-400 text-2xl sm:text-3xl font-black whitespace-nowrap tracking-tight">
           Q${totalDia.toFixed(2)}
         </div>
       </div>
@@ -1411,17 +1432,29 @@ window.renderReportModal = function() {
     let totalDia = 0, totalEfectivo = 0, totalTransferencia = 0, totalTarjeta = 0, totalNoPago = 0, cantidadFiltrada = 0;
     
     let filteredSales = currentSales;
-    if (vendFilter) filteredSales = filteredSales.filter(s => s.vendedor === vendFilter);
+    if (vendFilter) filteredSales = filteredSales.filter(s => normalizeVendor(s.vendedor) === vendFilter);
     if (textFilter) filteredSales = filteredSales.filter(s => (s.items || '').toLowerCase().includes(textFilter.toLowerCase()));
     if (custFilter) filteredSales = filteredSales.filter(s => (s.customerName || '').toLowerCase().includes(custFilter.toLowerCase()));
 
     filteredSales.forEach(s => {
       const tot = Number(s.total) || 0;
+      const p = normalizePayment(s.pago);
       totalDia += tot;
-      if (s.pago === 'EFECTIVO') totalEfectivo += tot;
-      if (s.pago === 'TRANSFERENCIA') totalTransferencia += tot;
-      if (s.pago === 'TARJETA') totalTarjeta += tot;
-      if (s.pago === 'NO PAGO') totalNoPago += tot;
+      if (p === 'EFECTIVO') totalEfectivo += tot;
+      else if (p === 'TRANSFERENCIA') totalTransferencia += tot;
+      else if (p === 'TARJETA') totalTarjeta += tot;
+      else if (p === 'NO PAGO') totalNoPago += tot;
+      else totalEfectivo += tot;
+
+      if (textFilter) {
+        const itemsArray = (s.items || '').split(', ');
+        itemsArray.forEach(item => {
+          if (item.toLowerCase().includes(textFilter.toLowerCase())) {
+            const match = item.match(/^(\d+)x/);
+            if (match) cantidadFiltrada += parseInt(match[1], 10);
+          }
+        });
+      }
     });
 
     renderSummaryBar(totalDia, totalEfectivo, totalTransferencia, totalTarjeta, totalNoPago, cantidadFiltrada, textFilter, vendFilter, custFilter);
@@ -1755,14 +1788,14 @@ async function exportToExcel(sales) {
       row.getCell('F').value = sale.total;
       
       const pagoCell = row.getCell('G');
-      pagoCell.value = sale.pago;
+      pagoCell.value = normalizePayment(sale.pago);
       pagoCell.dataValidation = {
         type: 'list', allowBlank: true, showErrorMessage: false,
         formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA,NO PAGO"']
       };
 
       const vendedorCell = row.getCell('H');
-      vendedorCell.value = sale.vendedor;
+      vendedorCell.value = normalizeVendor(sale.vendedor);
       vendedorCell.dataValidation = {
         type: 'list', allowBlank: true, showErrorMessage: false,
         formulae: ['"FREDY,JAIME,VIEJO,ANDRES Jr.,LOCAL,FERNANDO,HÉCTOR"']

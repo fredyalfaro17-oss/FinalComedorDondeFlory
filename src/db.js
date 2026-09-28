@@ -386,6 +386,28 @@ export function searchCustomers(query) {
   return matches.slice(0, 10);
 }
 
+// Eliminar un cliente del directorio
+export function deleteCustomer(name) {
+  if (!name) return false;
+  const cleanName = String(name).trim();
+  const searchKey = normalizeSearchText(cleanName);
+  const customers = getCustomers();
+  const index = customers.findIndex(c => normalizeSearchText(c.name) === searchKey);
+  if (index === -1) return false;
+
+  customers.splice(index, 1);
+  cachedCustomers = customers;
+  localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(customers));
+
+  if (syncChannel) {
+    syncChannel.postMessage({ type: 'CUSTOMERS_UPDATED', customers });
+  }
+  notifyCustomerListeners(customers);
+  syncCustomersWithCloud(customers);
+
+  return true;
+}
+
 // Notificar a observadores de clientes
 function notifyCustomerListeners(customers) {
   customerListeners.forEach(cb => {

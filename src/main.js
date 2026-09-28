@@ -1,5 +1,5 @@
 import { menuData } from './data.js'
-import { getSales, addSale, updateSaleProperty as dbUpdateSaleProperty, clearAllSales, subscribeSales, VENDEDORES, FORMAS_PAGO, getTodayKey, normalizePayment, normalizeVendor, searchCustomers, saveCustomer, getCustomers, subscribeCustomers } from './db.js'
+import { getSales, addSale, updateSaleProperty as dbUpdateSaleProperty, clearAllSales, subscribeSales, VENDEDORES, FORMAS_PAGO, getTodayKey, normalizePayment, normalizeVendor, searchCustomers, saveCustomer, deleteCustomer, getCustomers, subscribeCustomers } from './db.js'
 
 const ExcelJS = window.ExcelJS || {};
 const saveAs = window.saveAs || function() {};
@@ -18,8 +18,8 @@ let customerInfo = {
   name: '',
   phone: '',
   deliveryTime: '',
-  vendedor: 'FREDY',
-  pago: 'EFECTIVO'
+  vendedor: '',
+  pago: ''
 };
 
 // --- DOM Elements ---
@@ -778,8 +778,8 @@ function resetCustomerInfo() {
     name: '',
     phone: '',
     deliveryTime: '',
-    vendedor: 'FREDY',
-    pago: 'EFECTIVO'
+    vendedor: '',
+    pago: ''
   };
   const elName = document.getElementById('customer-name');
   const elPhone = document.getElementById('customer-phone');
@@ -792,8 +792,8 @@ function resetCustomerInfo() {
   if (elName) elName.value = '';
   if (elPhone) elPhone.value = '';
   if (elTime) elTime.value = '';
-  if (elVendedor) elVendedor.value = 'FREDY';
-  if (elPago) elPago.value = 'EFECTIVO';
+  if (elVendedor) elVendedor.value = '';
+  if (elPago) elPago.value = '';
   if (clearBtn) clearBtn.classList.add('hidden');
   if (suggestionsBox) {
     suggestionsBox.classList.add('hidden');
@@ -916,12 +916,23 @@ function setupCustomerAutocomplete() {
                   ${phoneDisplay}
                 </div>
               </div>
-              <button 
-                type="button" 
-                class="shrink-0 text-[11px] font-bold text-emerald-400 bg-emerald-950/40 hover:bg-emerald-600 hover:text-white border border-emerald-700/60 px-2.5 py-1 rounded-lg transition-all"
-              >
-                Elegir
-              </button>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button 
+                  type="button" 
+                  class="select-btn text-[11px] font-bold text-emerald-400 bg-emerald-950/60 hover:bg-emerald-600 hover:text-white border border-emerald-700/70 px-2.5 py-1 rounded-lg transition-all active:scale-95"
+                  data-index="${idx}"
+                >
+                  Elegir
+                </button>
+                <button 
+                  type="button" 
+                  class="delete-btn text-[11px] font-bold text-rose-400 bg-rose-950/50 hover:bg-rose-600 hover:text-white border border-rose-800/70 px-2 py-1 rounded-lg transition-all active:scale-95"
+                  data-name="${encodeURIComponent(c.name)}"
+                  title="Eliminar este cliente del directorio"
+                >
+                  ✕ Eliminar
+                </button>
+              </div>
             </div>
           `;
         }).join('')}
@@ -932,10 +943,26 @@ function setupCustomerAutocomplete() {
 
     suggestionsBox.querySelectorAll('.customer-suggestion-item').forEach(item => {
       item.addEventListener('click', (e) => {
+        if (e.target.closest('.delete-btn')) return;
         e.preventDefault();
         e.stopPropagation();
         const idx = parseInt(item.dataset.index, 10);
         selectCustomer(currentMatches[idx]);
+      });
+    });
+
+    suggestionsBox.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const targetName = decodeURIComponent(btn.dataset.name);
+        if (confirm(`¿Deseas eliminar a "${targetName}" del directorio de clientes?`)) {
+          deleteCustomer(targetName);
+          showReportActionToast(`Cliente "${targetName}" eliminado`);
+          const val = nameInput.value.trim();
+          const updatedMatches = searchCustomers(val);
+          renderSuggestions(updatedMatches, val);
+        }
       });
     });
   };

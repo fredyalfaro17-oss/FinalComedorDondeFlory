@@ -995,8 +995,52 @@ function setupCustomerAutocomplete() {
     }
   });
 
-  // Teclado (Flechas y Enter para navegar sugerencias)
+  // Teclado (Flechas, Enter y Tab para navegar y autocompletar)
   nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      if (!e.shiftKey) {
+        e.preventDefault(); // Evita siempre que el cursor salte a la 'X' o a otro elemento
+
+        const hasSuggestions = !suggestionsBox.classList.contains('hidden') && currentMatches.length > 0;
+        if (hasSuggestions) {
+          if (highlightedIndex >= 0 && highlightedIndex < currentMatches.length) {
+            selectCustomer(currentMatches[highlightedIndex]);
+          } else if (currentMatches.length === 1) {
+            selectCustomer(currentMatches[0]);
+          }
+        }
+        
+        hideSuggestions();
+        customerInfo.name = nameInput.value.trim();
+
+        // Salta directamente al espacio del número de teléfono (incluso si el cliente es nuevo / no existe)
+        if (phoneInput) {
+          phoneInput.focus();
+        }
+      } else {
+        hideSuggestions();
+      }
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const hasSuggestions = !suggestionsBox.classList.contains('hidden') && currentMatches.length > 0;
+      if (hasSuggestions) {
+        if (highlightedIndex >= 0 && highlightedIndex < currentMatches.length) {
+          selectCustomer(currentMatches[highlightedIndex]);
+        } else if (currentMatches.length === 1) {
+          selectCustomer(currentMatches[0]);
+        }
+      }
+      hideSuggestions();
+      customerInfo.name = nameInput.value.trim();
+      if (phoneInput) {
+        phoneInput.focus();
+      }
+      return;
+    }
+
     if (suggestionsBox.classList.contains('hidden') || currentMatches.length === 0) return;
 
     const items = suggestionsBox.querySelectorAll('.customer-suggestion-item');
@@ -1009,14 +1053,6 @@ function setupCustomerAutocomplete() {
       e.preventDefault();
       highlightedIndex = (highlightedIndex - 1 + items.length) % items.length;
       updateHighlight(items);
-    } else if (e.key === 'Enter' || e.key === 'Tab') {
-      if (highlightedIndex >= 0 && highlightedIndex < currentMatches.length) {
-        e.preventDefault();
-        selectCustomer(currentMatches[highlightedIndex]);
-      } else if (currentMatches.length === 1) {
-        e.preventDefault();
-        selectCustomer(currentMatches[0]);
-      }
     } else if (e.key === 'Escape') {
       hideSuggestions();
     }

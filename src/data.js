@@ -45,7 +45,7 @@ export const menuData = {
         { name: "Chapsui Mixto (Res y Cerdo)", price: 30 },
         { name: "Bistec a la Plancha", price: 30 },
         { name: "Salpicón de Res", price: 30 },
-        { name: "Tortilla de Harina Res", price: 30 },
+        { name: "Tortilla de Harina Res", price: 35 },
         { name: "Pollo Crunchy", price: 30 },
         { name: "Alambre", price: 35 },
         { name: "Flautas", price: 35 }

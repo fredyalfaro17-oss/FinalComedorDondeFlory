@@ -421,14 +421,8 @@ function openTicketModal() {
 
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
-  const currentPago = normalizePayment(customerInfo.pago);
-  const isEf = currentPago === 'EFECTIVO';
-  const isTr = currentPago === 'TRANSFERENCIA';
-  const isTa = currentPago === 'TARJETA';
-  const isNo = currentPago === 'NO PAGO';
-
   modalOverlay.innerHTML = `
-    <div class="flex flex-col items-center gap-4 animate-scale-in w-full max-w-sm mx-auto my-8">
+    <div class="flex flex-col items-center gap-6 animate-scale-in w-full max-w-sm mx-auto my-12">
       <div id="ticket-preview" class="ticket-container bg-white shadow-2xl rounded-lg text-black">
         <div class="ticket-header space-y-0.5">
           <h2 class="text-xl font-bold uppercase tracking-tighter">Comedor Donde Flory</h2>
@@ -475,54 +469,30 @@ function openTicketModal() {
         <div class="payment-checkboxes">
           <div class="payment-col">
             <div class="checkbox-row">
-              <span id="ticket-check-efectivo" class="checkbox-box font-bold flex items-center justify-center text-xs leading-none">${isEf ? '✓' : ''}</span>
+              <span class="checkbox-box"></span>
               <span class="payment-line"></span>
             </div>
-            <span class="payment-label ${isEf ? 'font-black underline' : ''}">Efect.</span>
+            <span class="payment-label">Efect.</span>
           </div>
           <div class="payment-col">
             <div class="checkbox-row">
-              <span id="ticket-check-transferencia" class="checkbox-box font-bold flex items-center justify-center text-xs leading-none">${isTr ? '✓' : ''}</span>
+              <span class="checkbox-box"></span>
               <span class="payment-line"></span>
             </div>
-            <span class="payment-label ${isTr ? 'font-black underline' : ''}">Transf.</span>
+            <span class="payment-label">Transf.</span>
           </div>
           <div class="payment-col">
             <div class="checkbox-row">
-              <span id="ticket-check-tarjeta" class="checkbox-box font-bold flex items-center justify-center text-xs leading-none">${isTa ? '✓' : ''}</span>
+              <span class="checkbox-box"></span>
               <span class="payment-line"></span>
             </div>
-            <span class="payment-label ${isTa ? 'font-black underline' : ''}">Tarj.</span>
+            <span class="payment-label">Tarj.</span>
           </div>
         </div>
 
         <div class="ticket-footer space-y-2 mt-4">
           <p class="font-bold">¡Buen provecho!</p>
           <p>Gracias por su preferencia</p>
-        </div>
-      </div>
-
-      <!-- Selector Rápido de Forma de Pago dentro del Modal -->
-      <div class="w-full bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-xl">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-bold text-slate-300">FORMA DE PAGO:</span>
-          <span id="modal-ticket-pago-label" class="text-xs font-extrabold text-amber-400 bg-slate-950 px-2.5 py-0.5 rounded-full border border-slate-800">
-            ${currentPago}
-          </span>
-        </div>
-        <div class="grid grid-cols-4 gap-1.5" id="ticket-pago-buttons">
-          <button type="button" data-pago="EFECTIVO" class="ticket-pago-btn py-2 px-1 text-center rounded-xl text-xs font-bold transition-all border ${isEf ? 'bg-emerald-600 text-white border-emerald-400 shadow' : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'}">
-            💵 Efectivo
-          </button>
-          <button type="button" data-pago="TRANSFERENCIA" class="ticket-pago-btn py-2 px-1 text-center rounded-xl text-xs font-bold transition-all border ${isTr ? 'bg-sky-600 text-white border-sky-400 shadow' : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'}">
-            📲 Transf.
-          </button>
-          <button type="button" data-pago="TARJETA" class="ticket-pago-btn py-2 px-1 text-center rounded-xl text-xs font-bold transition-all border ${isTa ? 'bg-purple-600 text-white border-purple-400 shadow' : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'}">
-            💳 Tarjeta
-          </button>
-          <button type="button" data-pago="NO PAGO" class="ticket-pago-btn py-2 px-1 text-center rounded-xl text-xs font-bold transition-all border ${isNo ? 'bg-red-600 text-white border-red-400 shadow' : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'}">
-            ❌ No Pagó
-          </button>
         </div>
       </div>
 
@@ -548,47 +518,6 @@ function openTicketModal() {
   `;
 
   modalOverlay.classList.remove('hidden');
-
-  // Control interactivo de método de pago en el modal del ticket
-  const updateModalPaymentSelection = (chosenPago) => {
-    customerInfo.pago = chosenPago;
-    const elPago = document.getElementById('customer-pago');
-    if (elPago) elPago.value = chosenPago;
-
-    const label = document.getElementById('modal-ticket-pago-label');
-    if (label) label.textContent = chosenPago;
-
-    const chkEf = document.getElementById('ticket-check-efectivo');
-    const chkTr = document.getElementById('ticket-check-transferencia');
-    const chkTa = document.getElementById('ticket-check-tarjeta');
-
-    if (chkEf) chkEf.textContent = chosenPago === 'EFECTIVO' ? '✓' : '';
-    if (chkTr) chkTr.textContent = chosenPago === 'TRANSFERENCIA' ? '✓' : '';
-    if (chkTa) chkTa.textContent = chosenPago === 'TARJETA' ? '✓' : '';
-
-    const buttons = document.querySelectorAll('.ticket-pago-btn');
-    buttons.forEach(btn => {
-      const p = btn.getAttribute('data-pago');
-      const isSelected = p === chosenPago;
-      btn.className = `ticket-pago-btn py-2 px-1 text-center rounded-xl text-xs font-bold transition-all border ${
-        isSelected 
-          ? (p === 'EFECTIVO' ? 'bg-emerald-600 text-white border-emerald-400 shadow' :
-             p === 'TRANSFERENCIA' ? 'bg-sky-600 text-white border-sky-400 shadow' :
-             p === 'TARJETA' ? 'bg-purple-600 text-white border-purple-400 shadow' :
-             'bg-red-600 text-white border-red-400 shadow')
-          : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
-      }`;
-    });
-  };
-
-  const pagoButtons = document.querySelectorAll('.ticket-pago-btn');
-  pagoButtons.forEach(btn => {
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      const p = btn.getAttribute('data-pago');
-      updateModalPaymentSelection(p);
-    };
-  });
 
   document.getElementById('close-ticket-btn').onclick = () => modalOverlay.classList.add('hidden');
 
@@ -828,17 +757,9 @@ function copyTicketText(returnOnly = false) {
   text += `${totalLabel} ${totalAmount}\n`;
   text += `${separator}\n`;
 
-  // Payment checklists in plain text with mark if already specified
-  const normPago = normalizePayment(customerInfo.pago);
-  const markEf = normPago === 'EFECTIVO' ? 'X' : ' ';
-  const markTr = normPago === 'TRANSFERENCIA' ? 'X' : ' ';
-  const markTa = normPago === 'TARJETA' ? 'X' : ' ';
-
-  text += `[${markEf}] ____   [${markTr}] ____   [${markTa}] ____\n`;
+  // Payment checklists in plain text
+  text += `[ ] ____   [ ] ____   [ ] ____\n`;
   text += ` Efect.    Transf.     Tarj.\n`;
-  if (normPago === 'NO PAGO') {
-    text += `   ** PENDIENTE DE COBRO **\n`;
-  }
   text += `${separator}\n\n`; // Keep some space at very bottom for tearing
 
   // Footer

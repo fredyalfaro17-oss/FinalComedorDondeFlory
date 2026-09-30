@@ -739,13 +739,13 @@ export function initAutoPrintToggle() {
 
     const active = localStorage.getItem('flory_autoprint_enabled') === 'true';
     if (active) {
-      btn.className = 'text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 sm:px-3 py-1.5 rounded-md hover:bg-emerald-500/30 transition-all flex items-center gap-1.5 shadow-sm active:scale-95';
+      btn.className = 'hidden md:flex text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 sm:px-3 py-1.5 rounded-md hover:bg-emerald-500/30 transition-all items-center gap-1.5 shadow-sm active:scale-95';
       if (ind) ind.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
       if (txt) txt.textContent = '🖨️ AUTO-PRINT: ON';
       if (txtSm) txtSm.textContent = '🖨️ ON';
       btn.title = 'Auto-impresión en caja ACTIVADA. Los pedidos de tablets/celulares saldrán automáticamente en la Xprinter.';
     } else {
-      btn.className = 'text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700 px-2.5 sm:px-3 py-1.5 rounded-md hover:bg-slate-700 hover:text-white transition-all flex items-center gap-1.5 shadow-sm active:scale-95';
+      btn.className = 'hidden md:flex text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700 px-2 sm:px-3 py-1.5 rounded-md hover:bg-slate-700 hover:text-white transition-all items-center gap-1.5 shadow-sm active:scale-95';
       if (ind) ind.className = 'w-2 h-2 rounded-full bg-slate-500';
       if (txt) txt.textContent = '🖨️ AUTO-PRINT: OFF';
       if (txtSm) txtSm.textContent = '🖨️ OFF';

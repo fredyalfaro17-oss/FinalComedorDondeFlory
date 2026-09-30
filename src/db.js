@@ -202,7 +202,13 @@ export function updateSaleProperty(saleId, property, value) {
 
     // Enviar cambio a Firebase y servidor central de inmediato
     syncWithCloud(sales);
-    postApiAction({ action: 'UPDATE_PROP', id: Number(saleId), property, value: finalValue });
+    postApiAction({ 
+      action: 'UPDATE_PROP', 
+      id: Number(saleId), 
+      property, 
+      value: finalValue,
+      sale: sales[index]
+    });
 
     return sales[index];
   }
@@ -460,9 +466,20 @@ function setupRealtimeSSE() {
       try {
         const data = JSON.parse(event.data);
         if (data && Array.isArray(data.sales)) {
-          cachedSales = data.sales;
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.sales));
-          notifyListeners(data.sales);
+          const currentSales = cachedSales !== null ? cachedSales : getSales();
+          // Si el servidor envía un array vacío pero nosotros tenemos ventas locales,
+          // preservamos nuestras ventas y las subimos al servidor para recuperarlo.
+          if (data.sales.length === 0 && currentSales.length > 0) {
+            console.log('⚠️ Servidor vacío recibido; restaurando ventas locales hacia el servidor...');
+            postApiAction({ action: 'SAVE_ALL', sales: currentSales });
+            return;
+          }
+
+          if (!areSalesEqual(data.sales, currentSales)) {
+            cachedSales = data.sales;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data.sales));
+            notifyListeners(data.sales);
+          }
         }
       } catch (err) {
         console.error('Error parseando SSE data:', err);
@@ -514,6 +531,10 @@ async function syncFromServer() {
     const serverSales = await res.json();
     if (Array.isArray(serverSales)) {
       const currentSales = cachedSales !== null ? cachedSales : getSales();
+      if (serverSales.length === 0 && currentSales.length > 0) {
+        postApiAction({ action: 'SAVE_ALL', sales: currentSales });
+        return;
+      }
       if (!areSalesEqual(serverSales, currentSales)) {
         cachedSales = serverSales;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(serverSales));

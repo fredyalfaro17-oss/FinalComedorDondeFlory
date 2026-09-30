@@ -28,6 +28,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Suscripción en tiempo real a las ventas
   subscribeSales((sales) => {
     allSales = sales;
+    if (window.__isLocalVendorUpdate) {
+      updateFinancialMetrics();
+      return;
+    }
     renderDashboard();
   });
 });
@@ -112,14 +116,12 @@ function initEventListeners() {
   });
 }
 
-function renderDashboard() {
-  // 1. Filtrar ventas por vendedor seleccionado
+function updateFinancialMetrics() {
   let vendorSales = allSales;
   if (selectedVendor !== 'TODOS') {
     vendorSales = allSales.filter(s => normalizeVendor(s.vendedor) === selectedVendor);
   }
 
-  // 2. Calcular estadísticas financieras
   let totalRecaudado = 0;
   let totalEfectivo = 0;
   let countEfectivo = 0;
@@ -153,7 +155,6 @@ function renderDashboard() {
     }
   });
 
-  // Actualizar métricas en la interfaz
   const elTotal = document.getElementById('stat-total');
   const elEfectivo = document.getElementById('stat-efectivo');
   const elEfectivoCount = document.getElementById('stat-efectivo-count');
@@ -188,6 +189,12 @@ function renderDashboard() {
   if (vendorNameHeader) {
     vendorNameHeader.textContent = selectedVendor === 'TODOS' ? 'TODOS LOS VENDEDORES' : selectedVendor;
   }
+
+  return { vendorSales, countNoPago, countEfectivo, countTransferencia, countTarjeta };
+}
+
+function renderDashboard() {
+  const { vendorSales } = updateFinancialMetrics();
 
   // 3. Filtrar ventas para la lista según búsqueda y botón activo
   let displaySales = vendorSales;
@@ -326,7 +333,7 @@ function renderSalesCards(sales) {
               <div class="text-xl md:text-2xl font-black text-amber-400 font-sans">
                 Q ${(Number(sale.total) || 0).toFixed(2)}
               </div>
-              <div class="mt-1">
+              <div class="sale-status-badge mt-1">
                 ${statusBadge}
               </div>
             </div>
@@ -365,6 +372,7 @@ function renderSalesCards(sales) {
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button 
               type="button"
+              data-pay-btn="EFECTIVO"
               onclick="window.handlePaymentChange(${sale.id}, 'EFECTIVO')"
               class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-bold text-xs transition-all active:scale-95 border ${
                 isEfectivo 
@@ -377,6 +385,7 @@ function renderSalesCards(sales) {
 
             <button 
               type="button"
+              data-pay-btn="TRANSFERENCIA"
               onclick="window.handlePaymentChange(${sale.id}, 'TRANSFERENCIA')"
               class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-bold text-xs transition-all active:scale-95 border ${
                 isTransf 
@@ -389,6 +398,7 @@ function renderSalesCards(sales) {
 
             <button 
               type="button"
+              data-pay-btn="TARJETA"
               onclick="window.handlePaymentChange(${sale.id}, 'TARJETA')"
               class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-bold text-xs transition-all active:scale-95 border ${
                 isTarjeta 
@@ -401,6 +411,7 @@ function renderSalesCards(sales) {
 
             <button 
               type="button"
+              data-pay-btn="NO PAGO"
               onclick="window.handlePaymentChange(${sale.id}, 'NO PAGO')"
               class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-bold text-xs transition-all active:scale-95 border ${
                 isNoPago 
@@ -417,22 +428,116 @@ function renderSalesCards(sales) {
   }).join('');
 }
 
+function getStatusBadgeHtml(pagoNorm) {
+  if (pagoNorm === 'EFECTIVO') {
+    return `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">💵 EFECTIVO</span>`;
+  } else if (pagoNorm === 'TRANSFERENCIA') {
+    return `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-500/10 text-sky-400 border border-sky-500/30">📲 TRANSFERENCIA</span>`;
+  } else if (pagoNorm === 'TARJETA') {
+    return `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">💳 TARJETA</span>`;
+  } else if (pagoNorm === 'NO PAGO') {
+    return `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/30">❌ NO PAGÓ</span>`;
+  }
+  return `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30"><span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> PENDIENTE</span>`;
+}
+
+function getPaymentBtnClass(btnPay, currentPago) {
+  const isSelected = btnPay === currentPago;
+  const base = 'flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl font-bold text-xs transition-all active:scale-95 border ';
+  if (btnPay === 'EFECTIVO') {
+    return base + (isSelected 
+      ? 'bg-emerald-600 text-white border-emerald-400 shadow-md shadow-emerald-600/30' 
+      : 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60 hover:bg-emerald-900/60');
+  } else if (btnPay === 'TRANSFERENCIA') {
+    return base + (isSelected 
+      ? 'bg-sky-600 text-white border-sky-400 shadow-md shadow-sky-600/30' 
+      : 'bg-sky-950/40 text-sky-300 border-sky-800/60 hover:bg-sky-900/60');
+  } else if (btnPay === 'TARJETA') {
+    return base + (isSelected 
+      ? 'bg-purple-600 text-white border-purple-400 shadow-md shadow-purple-600/30' 
+      : 'bg-purple-950/40 text-purple-300 border-purple-800/60 hover:bg-purple-900/60');
+  } else if (btnPay === 'NO PAGO') {
+    return base + (isSelected 
+      ? 'bg-red-600 text-white border-red-400 shadow-md shadow-red-600/30' 
+      : 'bg-red-950/30 text-red-400 border-red-900/50 hover:bg-red-900/40');
+  }
+  return base;
+}
+
 // Acción al presionar método de pago
 window.handlePaymentChange = function(saleId, nuevoPago) {
-  // Animación / Toast táctil
-  showToast(`✅ Pedido #${saleId} marcado como: ${nuevoPago}`);
+  const normPago = normalizePayment(nuevoPago);
   
-  // Guardar en base de datos local / nube
-  updateSaleProperty(saleId, 'pago', nuevoPago);
+  // 1. Mostrar toast táctil inmediato
+  showToast(`✅ Pedido #${saleId} guardado como: ${normPago}`);
+  
+  // 2. Proteger contra re-renderizados que destruyan el elemento
+  window.__isLocalVendorUpdate = true;
 
-  // Destacar tarjeta momentáneamente
+  // 3. Guardar en base de datos local / nube
+  updateSaleProperty(saleId, 'pago', normPago);
+
+  // 4. Actualizar inmediatamente la tarjeta en el DOM sin recargar todo el listado
   const card = document.getElementById(`sale-card-${saleId}`);
   if (card) {
+    // Actualizar badge de estado
+    const statusBadgeContainer = card.querySelector('.sale-status-badge');
+    if (statusBadgeContainer) {
+      statusBadgeContainer.innerHTML = getStatusBadgeHtml(normPago);
+    }
+
+    // Actualizar estilos de los botones en esta tarjeta
+    const buttons = card.querySelectorAll('[data-pay-btn]');
+    buttons.forEach(btn => {
+      const btnPay = btn.getAttribute('data-pay-btn');
+      btn.className = getPaymentBtnClass(btnPay, normPago);
+    });
+
+    // Destacar tarjeta con halo ámbar
     card.classList.add('ring-2', 'ring-amber-400');
     setTimeout(() => {
       card.classList.remove('ring-2', 'ring-amber-400');
-    }, 400);
+    }, 600);
+
+    // Si hay un filtro específico activo y el pedido ya no coincide con él (ej: filtro NO PAGO y se cobró en EFECTIVO)
+    const shouldFilterOut = (currentFilter === 'NO PAGO' && normPago !== 'NO PAGO') ||
+                           (currentFilter === 'EFECTIVO' && normPago !== 'EFECTIVO') ||
+                           (currentFilter === 'TRANSFERENCIA' && normPago !== 'TRANSFERENCIA') ||
+                           (currentFilter === 'TARJETA' && normPago !== 'TARJETA');
+
+    if (shouldFilterOut) {
+      // Mostrar confirmación visual dentro de la propia tarjeta antes de archivarse
+      let notice = card.querySelector('.status-archiving-notice');
+      if (!notice) {
+        notice = document.createElement('div');
+        notice.className = 'status-archiving-notice mt-2.5 py-2 px-3 rounded-xl bg-emerald-950/90 border border-emerald-500/60 text-emerald-300 text-xs font-bold flex items-center justify-between shadow-lg';
+        notice.innerHTML = `<span>✓ Cobro registrado como ${normPago}</span><span class="text-[10px] text-emerald-400/80 bg-emerald-900/60 px-2 py-0.5 rounded">Archivando...</span>`;
+        card.appendChild(notice);
+      }
+
+      // Animación suave de salida para que el usuario vea claramente que se procesó
+      setTimeout(() => {
+        card.style.transition = 'all 0.4s ease-out';
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(-10px) scale(0.96)';
+        setTimeout(() => {
+          window.__isLocalVendorUpdate = false;
+          renderDashboard();
+        }, 400);
+      }, 700);
+
+      // Actualizar totales superiores de inmediato
+      updateFinancialMetrics();
+      return;
+    }
   }
+
+  // Actualizar estadísticas financieras en cabecera
+  updateFinancialMetrics();
+
+  setTimeout(() => {
+    window.__isLocalVendorUpdate = false;
+  }, 400);
 };
 
 // Reasignar vendedor si fuera necesario

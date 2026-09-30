@@ -70,17 +70,27 @@ function salesSyncPlugin() {
               let currentSales = getSalesFromFile()
               
               if (data.action === 'SAVE_ALL') {
-                currentSales = data.sales || []
+                currentSales = Array.isArray(data.sales) ? data.sales : []
               } else if (data.action === 'UPDATE_PROP') {
-                const idx = currentSales.findIndex(s => s.id === Number(data.id))
+                const targetId = Number(data.id)
+                const idx = currentSales.findIndex(s => Number(s.id) === targetId)
                 if (idx !== -1) {
                   currentSales[idx][data.property] = data.value
                   currentSales[idx].updatedAt = new Date().toISOString()
+                } else if (data.sale && typeof data.sale === 'object') {
+                  // Si no estaba en el servidor, añadirlo con la propiedad actualizada
+                  currentSales.push({ ...data.sale, [data.property]: data.value, updatedAt: new Date().toISOString() })
                 }
               } else if (data.action === 'ADD_SALE') {
-                const newId = currentSales.length > 0 ? Math.max(...currentSales.map(s => s.id || 0)) + 1 : 1
-                const newSale = { ...data.sale, id: newId, updatedAt: new Date().toISOString() }
-                currentSales.push(newSale)
+                const incomingId = data.sale && data.sale.id ? Number(data.sale.id) : null
+                const existingIdx = incomingId ? currentSales.findIndex(s => Number(s.id) === incomingId) : -1
+                if (existingIdx !== -1) {
+                  currentSales[existingIdx] = { ...currentSales[existingIdx], ...data.sale, updatedAt: new Date().toISOString() }
+                } else {
+                  const newId = incomingId || (currentSales.length > 0 ? Math.max(...currentSales.map(s => Number(s.id) || 0)) + 1 : 1)
+                  const newSale = { ...data.sale, id: Number(newId), updatedAt: new Date().toISOString() }
+                  currentSales.push(newSale)
+                }
               } else if (data.action === 'CLEAR') {
                 currentSales = []
               }

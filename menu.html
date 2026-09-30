@@ -46,6 +46,11 @@
       <div class="text-right flex flex-col items-end gap-1.5 shrink-0 min-w-fit relative z-10">
         <p class="text-xs text-slate-300 hidden md:block">4ta. Calle 4-69 Zona 1 &bull; 📞 4259-7488</p>
         <div class="flex items-center gap-2">
+          <button id="toggle-autoprint-btn" class="text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 sm:px-3 py-1.5 rounded-md hover:bg-emerald-500/30 transition-all flex items-center gap-1.5 shadow-sm active:scale-95" title="Activar/Desactivar auto-impresión de pedidos de meseros/tablets">
+            <span id="autoprint-indicator" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="autoprint-text" class="hidden sm:inline">🖨️ AUTO-PRINT: ON</span>
+            <span id="autoprint-text-sm" class="sm:hidden">🖨️ ON</span>
+          </button>
           <button id="vendors-link-btn" class="text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 px-3 py-1.5 rounded-md hover:bg-blue-500/30 transition-all flex items-center gap-1.5 shadow-sm active:scale-95">
             <span>📱</span> LINK VENDEDORES
           </button>
@@ -225,6 +230,9 @@
     class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] hidden items-center justify-center p-2 sm:p-4">
     <!-- Logic will inject specific modal here -->
   </div>
+
+  <!-- Contenedor silencioso para impresión térmica automática en segundo plano -->
+  <div id="silent-print-container" class="hidden"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>

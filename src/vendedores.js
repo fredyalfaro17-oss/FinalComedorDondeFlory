@@ -422,6 +422,18 @@ function renderSalesCards(sales) {
               <span>❌</span> NO PAGÓ
             </button>
           </div>
+
+          <!-- Botón de Envío de Impresión a la Computadora de Caja -->
+          <div class="mt-2.5 pt-2 border-t border-slate-800/40 flex justify-end">
+            <button 
+              type="button"
+              onclick="window.requestPrintInCaja(${sale.id}, event)"
+              class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl font-bold text-xs bg-slate-800/80 hover:bg-amber-500/20 text-slate-300 hover:text-amber-400 border border-slate-700 transition-all active:scale-95"
+              title="Mandar a imprimir comanda/ticket en la computadora de caja"
+            >
+              <span>🖨️</span> Mandar a Imprimir en Caja
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -613,3 +625,19 @@ window.handleClearAllSales = function() {
     showToast('🗑️ Historial borrado');
   }
 };
+
+window.requestPrintInCaja = function(saleId, event) {
+  updateSaleProperty(saleId, 'printRequested', Date.now());
+  const btn = event?.currentTarget;
+  if (btn) {
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span>✅</span> ¡Enviado a Caja!';
+    btn.classList.add('bg-emerald-900/80', 'text-emerald-300', 'border-emerald-500');
+    setTimeout(() => {
+      btn.innerHTML = orig;
+      btn.classList.remove('bg-emerald-900/80', 'text-emerald-300', 'border-emerald-500');
+    }, 3000);
+  }
+  showToast(`🖨️ Solicitud enviada a la impresora de caja (#${saleId})`);
+};
+

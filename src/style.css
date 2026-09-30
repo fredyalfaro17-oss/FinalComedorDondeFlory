@@ -391,13 +391,15 @@ body {
 /* Thermal Printer (58mm) Print Styles */
 @media print {
 
-  /* Hide everything except ticket */
-  body>*:not(#modal-overlay),
-  #modal-overlay>*:not(.animate-scale-in),
-  .animate-scale-in>*:not(#ticket-preview),
+  /* Hide everything except ticket (either from modal or from silent-print-container) */
+  body > *:not(#modal-overlay):not(#silent-print-container),
+  #modal-overlay > *:not(.animate-scale-in),
+  .animate-scale-in > *:not(#ticket-preview),
+  #silent-print-container > *:not(#ticket-preview),
   #close-ticket-btn,
   #print-ticket-btn,
   #copy-ticket-btn,
+  #send-caja-btn,
   .print-hidden {
     display: none !important;
   }
@@ -420,14 +422,16 @@ body {
     font-smoothing: none !important;
   }
 
-  #modal-overlay {
+  #modal-overlay,
+  #silent-print-container {
     position: static !important;
     overflow: visible !important;
     height: auto !important;
     display: block !important;
   }
 
-  #modal-overlay > div {
+  #modal-overlay > div,
+  #silent-print-container > div {
     display: block !important;
     width: 58mm !important;
     margin: 0 !important;

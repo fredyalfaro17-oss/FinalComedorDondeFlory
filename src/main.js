@@ -1,5 +1,5 @@
 import { menuData } from './data.js'
-import { getSales, addSale, updateSaleProperty as dbUpdateSaleProperty, clearAllSales, subscribeSales, VENDEDORES, FORMAS_PAGO, getTodayKey, normalizePayment, normalizeVendor, searchCustomers, saveCustomer, deleteCustomer, getCustomers, subscribeCustomers } from './db.js'
+import { getSales, addSale, updateSaleProperty as dbUpdateSaleProperty, clearAllSales, subscribeSales, VENDEDORES, FORMAS_PAGO, getTodayKey, normalizePayment, normalizeVendor, searchCustomers, saveCustomer, deleteCustomer, getCustomers, subscribeCustomers, getDeviceId } from './db.js'
 
 const ExcelJS = window.ExcelJS || {};
 const saveAs = window.saveAs || function() {};
@@ -411,92 +411,391 @@ function getHtmlTicketDocument(ticketHtml) {
   `;
 }
 
+// ============================================================================
+// --- Motor de Auto-Impresión Térmica Xprinter en Caja ---
+// ============================================================================
+
+function getPrintedSalesKey() {
+  return `flory_printed_sales_${getTodayKey()}`;
+}
+
+function getPrintedSaleIds() {
+  try {
+    const raw = localStorage.getItem(getPrintedSalesKey());
+    const arr = raw ? JSON.parse(raw) : [];
+    return new Set(arr.map(Number));
+  } catch (e) {
+    return new Set();
+  }
+}
+
+export function markSaleAsPrinted(saleId) {
+  try {
+    if (!saleId) return;
+    const ids = getPrintedSaleIds();
+    ids.add(Number(saleId));
+    localStorage.setItem(getPrintedSalesKey(), JSON.stringify(Array.from(ids)));
+  } catch (e) {}
+}
+
+let hasInitializedPrintedCache = false;
+function initPrintedSalesCache() {
+  if (hasInitializedPrintedCache) return;
+  const existing = getSales();
+  const ids = getPrintedSaleIds();
+  existing.forEach(s => ids.add(Number(s.id)));
+  localStorage.setItem(getPrintedSalesKey(), JSON.stringify(Array.from(ids)));
+  hasInitializedPrintedCache = true;
+}
+
+// Alerta sonora (chime de 2 tonos) usando Web Audio API nativo
+function playNotificationChime() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(659.25, now); // E5
+    osc.frequency.setValueAtTime(880.00, now + 0.12); // A5
+    osc.frequency.setValueAtTime(1174.66, now + 0.24); // D6
+
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+
+    osc.start(now);
+    osc.stop(now + 0.7);
+  } catch (e) {}
+}
+
+// Toast flotante en pantalla para notificar de la orden e impresión en caja
+function showAutoPrintToast(sale) {
+  let toast = document.getElementById('flory-autoprint-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'flory-autoprint-toast';
+    toast.className = 'fixed top-4 right-4 z-[400] max-w-sm bg-slate-900/95 border-2 border-amber-500 text-white p-4 rounded-2xl shadow-2xl backdrop-blur-md transition-all duration-300 transform translate-y-0 opacity-100 flex flex-col gap-2';
+    document.body.appendChild(toast);
+  }
+
+  const cust = sale.customerName || 'Cliente Mostrador';
+  const tot = Number(sale.total || 0).toFixed(2);
+  const vend = sale.vendedor ? `🛵 ${sale.vendedor}` : '🍽️ Venta Directa';
+
+  toast.innerHTML = `
+    <div class="flex items-start justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl animate-bounce">🖨️</span>
+        <div>
+          <h4 class="font-black text-amber-400 text-sm">¡NUEVO PEDIDO RECIBIDO!</h4>
+          <p class="text-xs text-slate-300 font-bold">${cust} &bull; <span class="text-amber-300 font-mono">Q${tot}</span></p>
+          <p class="text-[11px] text-slate-400">${vend} | No. #${sale.id}</p>
+        </div>
+      </div>
+      <button onclick="this.closest('#flory-autoprint-toast').remove()" class="text-slate-400 hover:text-white text-sm font-bold p-1">✕</button>
+    </div>
+    <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-800 text-[11px]">
+      <span class="text-emerald-400 font-semibold flex items-center gap-1">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        Enviando a Xprinter...
+      </span>
+      <button onclick="window.reprintTicket(${sale.id})" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg transition-all active:scale-95 shadow">
+        Re-imprimir
+      </button>
+    </div>
+  `;
+
+  clearTimeout(window.__autoprintToastTimer);
+  window.__autoprintToastTimer = setTimeout(() => {
+    if (toast && toast.parentNode) {
+      toast.classList.add('opacity-0', 'translate-y-[-10px]');
+      setTimeout(() => toast.remove(), 400);
+    }
+  }, 7000);
+}
+
+// Generador reusable del HTML del ticket térmico
+export function generateTicketPreviewHtml(data) {
+  const dateStr = data.dateStr || (data.date ? data.date.split('-').reverse().join('/') : new Date().toLocaleDateString('es-ES'));
+  const timeStr = data.timeStr || data.time || new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const correlativeNum = data.correlativeNum || data.id || 1;
+  const custName = data.customerName || (data.customerInfo && data.customerInfo.name) || '';
+  const custPhone = data.phone || (data.customerInfo && data.customerInfo.phone) || '';
+  const deliveryTime = (data.customerInfo && data.customerInfo.deliveryTime) || '';
+  const vendorName = data.vendedor || (data.customerInfo && data.customerInfo.vendedor) || '';
+  const total = Number(data.total) || 0;
+
+  let itemsHtml = '';
+  if (Array.isArray(data.cartItems) && data.cartItems.length > 0) {
+    itemsHtml = data.cartItems.map(item => `
+      <div class="ticket-row text-sm mb-1">
+        <span class="flex-1 font-black text-black break-words pr-2">${item.quantity}x ${item.name}</span>
+        <span class="font-black text-black shrink-0">Q${(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(2)}</span>
+      </div>
+      ${item.description ? `<div class="item-description mb-2 pl-4 leading-tight">${item.description}</div>` : ''}
+    `).join('');
+  } else if (Array.isArray(data.cart) && data.cart.length > 0) {
+    itemsHtml = data.cart.map(item => `
+      <div class="ticket-row text-sm mb-1">
+        <span class="flex-1 font-black text-black break-words pr-2">${item.quantity}x ${item.name}</span>
+        <span class="font-black text-black shrink-0">Q${(item.price * item.quantity).toFixed(2)}</span>
+      </div>
+      ${item.description ? `<div class="item-description mb-2 pl-4 leading-tight">${item.description}</div>` : ''}
+    `).join('');
+  } else if (data.items) {
+    const list = String(data.items).split(', ');
+    itemsHtml = list.map(itemStr => `
+      <div class="ticket-row text-sm mb-1">
+        <span class="flex-1 font-black text-black break-words pr-2">${itemStr}</span>
+      </div>
+    `).join('');
+  }
+
+  return `
+    <div id="ticket-preview" class="ticket-container bg-white shadow-2xl rounded-lg text-black">
+      <div class="ticket-header space-y-0.5">
+        <h2 class="text-xl font-bold uppercase tracking-tighter">Comedor Donde Flory</h2>
+        <p class="ticket-info">Sabor Casero y Profesional</p>
+        <p class="ticket-info">4ta. Calle 4-69 Zona 1</p>
+        <p class="ticket-info">Tel: 4259-7488</p>
+        <div class="py-1 border-y border-slate-200 mt-2 flex justify-center text-center ticket-meta">
+          <span>FECHA: ${dateStr} ${timeStr}</span>
+        </div>
+      </div>
+      
+      <div class="ticket-number-container">
+        <div class="ticket-number-box">
+          No. ${correlativeNum}
+        </div>
+      </div>
+      
+      ${(custName || custPhone || deliveryTime || vendorName) ? `
+        <div class="mb-4 text-sm space-y-2 bg-slate-50 p-3 rounded border border-slate-200 customer-section">
+          ${custName ? `<p class="customer-data"><span class="label">CLIENTE:</span> <span class="value font-black">${custName.toUpperCase()}</span></p>` : ''}
+          ${custPhone ? `<p class="customer-data"><span class="label">TELÉFONO:</span> <span class="value font-black text-2xl">${custPhone}</span></p>` : ''}
+          ${deliveryTime ? `<p class="customer-data"><span class="label">ENTREGA:</span> <span class="value font-black text-2xl">${deliveryTime}</span></p>` : ''}
+          ${vendorName ? `<p class="customer-data"><span class="label">VENDEDOR:</span> <span class="value font-black">${vendorName.toUpperCase()}</span></p>` : ''}
+        </div>
+        <div class="border-b-2 border-dashed border-slate-200 mb-4 print-hidden"></div>
+      ` : ''}
+
+      <div class="space-y-2 mb-4 items-list">
+        ${itemsHtml}
+      </div>
+
+      <div class="border-t-2 border-black pt-3 mt-4 space-y-2">
+        <div class="flex items-end gap-2 total-section">
+          <span class="text-sm font-bold uppercase label">TOTAL A PAGAR:</span>
+          <span class="text-2xl font-black value">Q${total.toFixed(2)}</span>
+        </div>
+      </div>
+
+      <div class="payment-checkboxes">
+        <div class="payment-col">
+          <div class="checkbox-row">
+            <span class="checkbox-box"></span>
+            <span class="payment-line"></span>
+          </div>
+          <span class="payment-label">Efect.</span>
+        </div>
+        <div class="payment-col">
+          <div class="checkbox-row">
+            <span class="checkbox-box"></span>
+            <span class="payment-line"></span>
+          </div>
+          <span class="payment-label">Transf.</span>
+        </div>
+        <div class="payment-col">
+          <div class="checkbox-row">
+            <span class="checkbox-box"></span>
+            <span class="payment-line"></span>
+          </div>
+          <span class="payment-label">Tarj.</span>
+        </div>
+      </div>
+
+      <div class="ticket-footer space-y-2 mt-4">
+        <p class="font-bold">¡Buen provecho!</p>
+        <p>Gracias por su preferencia</p>
+      </div>
+    </div>
+  `;
+}
+
+// Imprimir un ticket específico en la impresora Xprinter
+export function printTicketForSale(sale, isAuto = false) {
+  const container = document.getElementById('silent-print-container');
+  if (!container) return;
+
+  container.innerHTML = generateTicketPreviewHtml(sale);
+  container.classList.remove('hidden');
+
+  if (isAuto) {
+    playNotificationChime();
+    showAutoPrintToast(sale);
+  }
+
+  markSaleAsPrinted(sale.id);
+
+  try {
+    window.print();
+  } catch (err) {
+    console.error('Error al imprimir ticket:', err);
+  }
+
+  setTimeout(() => {
+    container.classList.add('hidden');
+    container.innerHTML = '';
+  }, 3500);
+}
+
+window.reprintTicket = function(saleId) {
+  const sales = getSales();
+  const sale = sales.find(s => Number(s.id) === Number(saleId));
+  if (sale) {
+    printTicketForSale(sale, false);
+  } else {
+    alert(`No se encontró la venta #${saleId}`);
+  }
+};
+
+const printQueue = [];
+let isPrintingQueue = false;
+
+function enqueueSalePrint(sale, isAuto = true) {
+  markSaleAsPrinted(sale.id);
+  printQueue.push({ sale, isAuto });
+  processPrintQueue();
+}
+
+function processPrintQueue() {
+  if (isPrintingQueue || printQueue.length === 0) return;
+  isPrintingQueue = true;
+  const item = printQueue.shift();
+  printTicketForSale(item.sale, item.isAuto);
+  setTimeout(() => {
+    isPrintingQueue = false;
+    processPrintQueue();
+  }, 1500);
+}
+
+let lastHandledPrintRequestTime = Date.now() - 5000;
+
+function checkAutoPrintQueue(sales) {
+  if (!Array.isArray(sales)) return;
+  if (!hasInitializedPrintedCache) {
+    initPrintedSalesCache();
+    return;
+  }
+
+  const isEnabled = localStorage.getItem('flory_autoprint_enabled') === 'true';
+  const printedIds = getPrintedSaleIds();
+  const myDeviceId = getDeviceId();
+
+  for (const sale of sales) {
+    const saleId = Number(sale.id);
+
+    // Caso 1: Solicitud manual de impresión remota desde un vendedor / tablet
+    if (sale.printRequested && Number(sale.printRequested) > lastHandledPrintRequestTime) {
+      lastHandledPrintRequestTime = Number(sale.printRequested);
+      if (isEnabled) {
+        enqueueSalePrint(sale, true);
+        return;
+      }
+    }
+
+    // Caso 2: Nueva orden entrante creada en otro dispositivo (tablet, mesero, celular)
+    if (!printedIds.has(saleId)) {
+      if (isEnabled && sale.sourceDevice !== myDeviceId) {
+        enqueueSalePrint(sale, true);
+        return;
+      } else {
+        markSaleAsPrinted(saleId);
+      }
+    }
+  }
+}
+
+export function initAutoPrintToggle() {
+  let isAutoPrintEnabled = localStorage.getItem('flory_autoprint_enabled');
+  if (isAutoPrintEnabled === null) {
+    const isDesktop = typeof window !== 'undefined' && (window.innerWidth >= 1024 || !('ontouchstart' in window));
+    isAutoPrintEnabled = isDesktop ? 'true' : 'false';
+    localStorage.setItem('flory_autoprint_enabled', isAutoPrintEnabled);
+  }
+
+  const updateUI = () => {
+    const btn = document.getElementById('toggle-autoprint-btn');
+    const ind = document.getElementById('autoprint-indicator');
+    const txt = document.getElementById('autoprint-text');
+    const txtSm = document.getElementById('autoprint-text-sm');
+    if (!btn) return;
+
+    const active = localStorage.getItem('flory_autoprint_enabled') === 'true';
+    if (active) {
+      btn.className = 'text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 sm:px-3 py-1.5 rounded-md hover:bg-emerald-500/30 transition-all flex items-center gap-1.5 shadow-sm active:scale-95';
+      if (ind) ind.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+      if (txt) txt.textContent = '🖨️ AUTO-PRINT: ON';
+      if (txtSm) txtSm.textContent = '🖨️ ON';
+      btn.title = 'Auto-impresión en caja ACTIVADA. Los pedidos de tablets/celulares saldrán automáticamente en la Xprinter.';
+    } else {
+      btn.className = 'text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700 px-2.5 sm:px-3 py-1.5 rounded-md hover:bg-slate-700 hover:text-white transition-all flex items-center gap-1.5 shadow-sm active:scale-95';
+      if (ind) ind.className = 'w-2 h-2 rounded-full bg-slate-500';
+      if (txt) txt.textContent = '🖨️ AUTO-PRINT: OFF';
+      if (txtSm) txtSm.textContent = '🖨️ OFF';
+      btn.title = 'Auto-impresión en caja DESACTIVADA. Toca para activarla.';
+    }
+  };
+
+  updateUI();
+
+  const btn = document.getElementById('toggle-autoprint-btn');
+  if (btn) {
+    btn.onclick = () => {
+      const current = localStorage.getItem('flory_autoprint_enabled') === 'true';
+      const next = !current;
+      localStorage.setItem('flory_autoprint_enabled', next ? 'true' : 'false');
+      updateUI();
+      // Desbloquear audio con el primer click
+      playNotificationChime();
+      showReportToast(next ? '🖨️ Auto-impresión en Xprinter ACTIVADA' : '⏸️ Auto-impresión en Xprinter PAUSADA');
+    };
+  }
+}
+
 function openTicketModal() {
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-ES');
   const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   const sales = getSales();
   const correlativeNum = sales.length > 0 ? Math.max(...sales.map(s => s.id || 0)) + 1 : 1;
-  const ticketId = Math.random().toString(36).substr(2, 9).toUpperCase();
 
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
+  const ticketContentHtml = generateTicketPreviewHtml({
+    dateStr,
+    timeStr,
+    correlativeNum,
+    customerInfo,
+    cart,
+    total
+  });
+
   modalOverlay.innerHTML = `
     <div class="flex flex-col items-center gap-6 animate-scale-in w-full max-w-sm mx-auto my-12">
-      <div id="ticket-preview" class="ticket-container bg-white shadow-2xl rounded-lg text-black">
-        <div class="ticket-header space-y-0.5">
-          <h2 class="text-xl font-bold uppercase tracking-tighter">Comedor Donde Flory</h2>
-          <p class="ticket-info">Sabor Casero y Profesional</p>
-          <p class="ticket-info">4ta. Calle 4-69 Zona 1</p>
-          <p class="ticket-info">Tel: 4259-7488</p>
-          <div class="py-1 border-y border-slate-200 mt-2 flex justify-center text-center ticket-meta">
-            <span>FECHA: ${dateStr} ${timeStr}</span>
-          </div>
-        </div>
-        
-        <div class="ticket-number-container">
-          <div class="ticket-number-box">
-            No. ${correlativeNum}
-          </div>
-        </div>
-        
-        ${(customerInfo.name || customerInfo.phone || customerInfo.deliveryTime) ? `
-          <div class="mb-4 text-sm space-y-2 bg-slate-50 p-3 rounded border border-slate-200 customer-section">
-            ${customerInfo.name ? `<p class="customer-data"><span class="label">CLIENTE:</span> <span class="value font-black">${customerInfo.name.toUpperCase()}</span></p>` : ''}
-            ${customerInfo.phone ? `<p class="customer-data"><span class="label">TELÉFONO:</span> <span class="value font-black text-2xl">${customerInfo.phone}</span></p>` : ''}
-            ${customerInfo.deliveryTime ? `<p class="customer-data"><span class="label">ENTREGA:</span> <span class="value font-black text-2xl">${customerInfo.deliveryTime}</span></p>` : ''}
-          </div>
-          <div class="border-b-2 border-dashed border-slate-200 mb-4 print-hidden"></div>
-        ` : ''}
-
-        <div class="space-y-2 mb-4 items-list">
-          ${cart.map(item => `
-            <div class="ticket-row text-sm mb-1">
-              <span class="flex-1 font-black text-black break-words pr-2">${item.quantity}x ${item.name}</span>
-              <span class="font-black text-black shrink-0">Q${(item.price * item.quantity).toFixed(2)}</span>
-            </div>
-            ${item.description ? `<div class="item-description mb-2 pl-4 leading-tight">${item.description}</div>` : ''}
-          `).join('')}
-        </div>
-
-        <div class="border-t-2 border-black pt-3 mt-4 space-y-2">
-          <div class="flex items-end gap-2 total-section">
-            <span class="text-sm font-bold uppercase label">TOTAL A PAGAR:</span>
-            <span class="text-2xl font-black value">Q${total.toFixed(2)}</span>
-          </div>
-        </div>
-
-        <div class="payment-checkboxes">
-          <div class="payment-col">
-            <div class="checkbox-row">
-              <span class="checkbox-box"></span>
-              <span class="payment-line"></span>
-            </div>
-            <span class="payment-label">Efect.</span>
-          </div>
-          <div class="payment-col">
-            <div class="checkbox-row">
-              <span class="checkbox-box"></span>
-              <span class="payment-line"></span>
-            </div>
-            <span class="payment-label">Transf.</span>
-          </div>
-          <div class="payment-col">
-            <div class="checkbox-row">
-              <span class="checkbox-box"></span>
-              <span class="payment-line"></span>
-            </div>
-            <span class="payment-label">Tarj.</span>
-          </div>
-        </div>
-
-        <div class="ticket-footer space-y-2 mt-4">
-          <p class="font-bold">¡Buen provecho!</p>
-          <p>Gracias por su preferencia</p>
-        </div>
-      </div>
+      ${ticketContentHtml}
 
       <div class="flex flex-col gap-2 w-full">
+        <!-- Botón para enviar la orden a caja y que la computadora imprima automáticamente -->
+        <button id="send-caja-btn" class="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-950 active:scale-95 text-base border border-emerald-400/30">
+          <span class="text-xl">🚀</span> Enviar Orden a Caja (Auto-Imprimir)
+        </button>
         <button id="print-rawbt-btn" class="w-full bg-amber-600 hover:bg-amber-500 text-white py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2">
           ⚡ Imprimir (Directo Xprinter/RawBT)
         </button>
@@ -512,12 +811,24 @@ function openTicketModal() {
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
           Copiar Ticket
         </button>
-        <span class="text-center text-[10px] text-slate-500 mt-1">Soporte Xprinter v2.6</span>
+        <span class="text-center text-[10px] text-slate-500 mt-1">Soporte Xprinter v2.6 &bull; Auto-Print Activo</span>
       </div>
     </div>
   `;
 
   modalOverlay.classList.remove('hidden');
+
+  const btnSendCaja = document.getElementById('send-caja-btn');
+  if (btnSendCaja) {
+    btnSendCaja.onclick = () => {
+      const saved = saveSale(total);
+      cart = [];
+      updateCartUI();
+      resetCustomerInfo();
+      modalOverlay.classList.add('hidden');
+      showReportToast(`🚀 ¡Orden #${saved.id} enviada! Imprimiéndose en la computadora de caja...`);
+    };
+  }
 
   document.getElementById('close-ticket-btn').onclick = () => modalOverlay.classList.add('hidden');
 
@@ -1166,6 +1477,8 @@ function setupEventListeners() {
   const vendorsLinkBtn = document.getElementById('vendors-link-btn');
   if (vendorsLinkBtn) vendorsLinkBtn.onclick = openShareVendorsModal;
 
+  initAutoPrintToggle();
+
   if (mobileCartBtn && cartSidebar) {
     mobileCartBtn.onclick = () => cartSidebar.classList.remove('hidden');
   }
@@ -1192,7 +1505,7 @@ function saveSale(total) {
   const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   const saleTime = customerInfo.deliveryTime || timeStr;
 
-  return addSale({
+  const sale = addSale({
     date: getTodayKey(),
     time: saleTime,
     customerName: customerInfo.name || 'Cliente Mostrador',
@@ -1200,8 +1513,22 @@ function saveSale(total) {
     vendedor: (customerInfo.vendedor && customerInfo.vendedor !== '-') ? customerInfo.vendedor : '',
     pago: (customerInfo.pago && customerInfo.pago !== '-') ? customerInfo.pago : 'EFECTIVO',
     total: total,
-    items: cart.map(i => `${i.quantity}x ${i.name}`).join(', ')
+    items: cart.map(i => `${i.quantity}x ${i.name}`).join(', '),
+    cartItems: cart.map(i => ({
+      name: i.name,
+      quantity: i.quantity,
+      price: i.price,
+      description: i.description || ''
+    })),
+    sourceDevice: getDeviceId()
   });
+
+  // Marcar como ya procesado localmente en esta pestaña/equipo
+  if (sale && sale.id) {
+    markSaleAsPrinted(sale.id);
+  }
+
+  return sale;
 }
 
 function getPaymentSelectStyle(pago) {
@@ -1320,7 +1647,12 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
             ${VENDEDORES.map(v => `<option value="${v}" ${vendNorm === v ? 'selected' : ''}>🛵 ${v}</option>`).join('')}
           </select>
         </td>
-        <td class="px-3 py-3.5 text-right font-black text-amber-400 whitespace-nowrap min-w-[95px] text-sm">Q${saleTotal.toFixed(2)}</td>
+        <td class="px-3 py-3.5 text-right font-black text-amber-400 whitespace-nowrap min-w-[95px] text-sm">
+          <div class="flex items-center justify-end gap-1.5">
+            <span>Q${saleTotal.toFixed(2)}</span>
+            <button type="button" onclick="window.reprintTicket(${sale.id})" title="Imprimir ticket en la impresora Xprinter" class="p-1.5 rounded-lg bg-slate-800 hover:bg-amber-500/20 text-slate-400 hover:text-amber-400 border border-slate-700 transition-all text-xs active:scale-90">🖨️</button>
+          </div>
+        </td>
       </tr>
     `;
   }).join('');
@@ -1360,6 +1692,9 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
             <div class="text-xl font-black text-amber-400 font-sans">
               Q${saleTotal.toFixed(2)}
             </div>
+            <button type="button" onclick="window.reprintTicket(${sale.id})" title="Imprimir ticket" class="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-slate-300 hover:text-amber-400 bg-slate-800/80 hover:bg-slate-800 px-2.5 py-0.5 rounded-lg border border-slate-700 transition-all active:scale-95">
+              <span>🖨️</span> Ticket
+            </button>
           </div>
         </div>
 
@@ -1462,8 +1797,12 @@ window.updateSaleProperty = function(saleId, property, value, targetElement) {
   }
 };
 
-// Sincronización en vivo: si el informe está abierto y un vendedor cobra desde el teléfono, refrescar tabla
-subscribeSales(() => {
+// Sincronización en vivo: auto-impresión de nuevos pedidos y refresco del informe
+subscribeSales((sales) => {
+  // 1. Monitoreo y auto-impresión en caja de nuevos pedidos o solicitudes remotas
+  checkAutoPrintQueue(sales);
+
+  // 2. Refresco en vivo del modal de reporte si está abierto
   if (typeof window.__refreshReportModal === 'function') {
     if (window.__isLocalReportUpdate) {
       return;

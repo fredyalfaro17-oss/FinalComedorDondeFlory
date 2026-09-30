@@ -64,6 +64,19 @@ export function normalizePayment(pago) {
   return 'EFECTIVO';
 }
 
+// Generador de ID único por dispositivo/navegador
+const DEVICE_ID = typeof window !== 'undefined'
+  ? (sessionStorage.getItem('flory_device_id') || (() => {
+      const id = 'dev_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
+      sessionStorage.setItem('flory_device_id', id);
+      return id;
+    })())
+  : 'server';
+
+export function getDeviceId() {
+  return DEVICE_ID;
+}
+
 // Normalizar vendedores válidos (o vacío si no tiene ninguno asignado)
 export function normalizeVendor(vendor) {
   if (!vendor || vendor === '-' || vendor === 'SIN ASIGNAR' || vendor === 'Sin Asignar') {
@@ -82,7 +95,10 @@ export function sanitizeSale(sale, index = 0) {
     id: Number(sale.id) || (index + 1),
     total: Number(sale.total) || 0,
     pago: normalizePayment(sale.pago),
-    vendedor: normalizeVendor(sale.vendedor)
+    vendedor: normalizeVendor(sale.vendedor),
+    cartItems: Array.isArray(sale.cartItems) ? sale.cartItems : [],
+    printRequested: Number(sale.printRequested) || 0,
+    sourceDevice: sale.sourceDevice || ''
   };
 }
 
@@ -153,6 +169,9 @@ export function addSale(saleData) {
     pago: normalizePayment(saleData.pago),
     total: Number(saleData.total) || 0,
     items: saleData.items || '',
+    cartItems: Array.isArray(saleData.cartItems) ? saleData.cartItems : [],
+    printRequested: Number(saleData.printRequested) || 0,
+    sourceDevice: saleData.sourceDevice || getDeviceId(),
     updatedAt: new Date().toISOString()
   };
 
@@ -510,7 +529,8 @@ export function areSalesEqual(a, b) {
       normalizeVendor(sA.vendedor) !== normalizeVendor(sB.vendedor) ||
       Number(sA.total) !== Number(sB.total) ||
       String(sA.customerName || '') !== String(sB.customerName || '') ||
-      String(sA.items || '') !== String(sB.items || '')
+      String(sA.items || '') !== String(sB.items || '') ||
+      Number(sA.printRequested || 0) !== Number(sB.printRequested || 0)
     ) {
       return false;
     }

@@ -42,7 +42,7 @@ export const menuData = {
         { name: "Pepián de Res", price: 30 },
         { name: "Pepián de Pollo", price: 30 },
         { name: "Pepián de Pechuga", price: 30 },
-        { name: "Chapsui Mixto (Res y Cerdo)", price: 30 },
+        { name: "Chapsui Mixto (Res y Cerdo)", price: 35 },
         { name: "Bistec a la Plancha", price: 30 },
         { name: "Salpicón de Res", price: 30 },
         { name: "Tortilla de Harina Res", price: 35 },

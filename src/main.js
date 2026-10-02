@@ -633,6 +633,11 @@ export function printTicketForSale(sale, isAuto = false) {
   const container = document.getElementById('silent-print-container');
   if (!container) return;
 
+  // Asegurar que cualquier modal esté cerrado para no interferir en la impresión
+  if (modalOverlay) {
+    modalOverlay.classList.add('hidden');
+  }
+
   container.innerHTML = generateTicketPreviewHtml(sale);
   container.classList.remove('hidden');
 
@@ -649,10 +654,12 @@ export function printTicketForSale(sale, isAuto = false) {
     console.error('Error al imprimir ticket:', err);
   }
 
-  setTimeout(() => {
+  const cleanup = () => {
     container.classList.add('hidden');
     container.innerHTML = '';
-  }, 3500);
+  };
+  window.addEventListener('afterprint', cleanup, { once: true });
+  setTimeout(cleanup, 2500);
 }
 
 window.reprintTicket = function(saleId) {
@@ -682,7 +689,7 @@ function processPrintQueue() {
   setTimeout(() => {
     isPrintingQueue = false;
     processPrintQueue();
-  }, 1500);
+  }, 2600);
 }
 
 let lastHandledPrintRequestTime = Date.now() - 5000;
@@ -850,49 +857,12 @@ function openTicketModal() {
   };
 
   document.getElementById('print-ticket-btn').onclick = () => {
-    saveSale(total);
-    
-    // Clear the cart immediately so the sale is registered and cart is reset
+    const saved = saveSale(total);
     cart = [];
     updateCartUI();
     resetCustomerInfo();
-    
-    // Trigger the system print dialog
-    window.print();
-
-    // To prevent the mobile print preview from rendering blank, we wait until
-    // the print dialog is closed (either printed or canceled).
-    // This is detected when either the 'afterprint' event fires or the window regains focus.
-    let cleaned = false;
-    let lostFocus = false;
-    
-    const onBlur = () => {
-      lostFocus = true;
-    };
-    window.addEventListener('blur', onBlur, { once: true });
-    
-    const cleanup = () => {
-      if (cleaned) return;
-      cleaned = true;
-      modalOverlay.classList.add('hidden');
-      window.removeEventListener('focus', onFocus);
-      window.removeEventListener('blur', onBlur);
-      window.removeEventListener('afterprint', cleanup);
-    };
-
-    const onFocus = () => {
-      // Only close if we actually lost focus first (meaning the print dialog opened and closed)
-      if (lostFocus) {
-        cleanup();
-      }
-    };
-
-    window.addEventListener('afterprint', cleanup, { once: true });
-    window.addEventListener('focus', onFocus);
-
-    // Fallback for browsers where neither event fires (e.g. if the tab remains in background),
-    // we use a long timeout (20 seconds) so it doesn't interfere with the print preview rendering.
-    setTimeout(cleanup, 20000);
+    modalOverlay.classList.add('hidden');
+    printTicketForSale(saved, false);
   };
 
   document.getElementById('copy-ticket-btn').onclick = (e) => {

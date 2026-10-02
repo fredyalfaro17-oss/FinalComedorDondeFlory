@@ -391,28 +391,16 @@ body {
 /* Thermal Printer (58mm) Print Styles */
 @media print {
 
-  /* Hide everything except ticket (either from modal or from silent-print-container) */
-  body > *:not(#modal-overlay):not(#silent-print-container),
-  #modal-overlay > *:not(.animate-scale-in),
-  .animate-scale-in > *:not(#ticket-preview),
-  #silent-print-container > *:not(#ticket-preview),
-  #close-ticket-btn,
-  #print-ticket-btn,
-  #copy-ticket-btn,
-  #send-caja-btn,
-  .print-hidden {
-    display: none !important;
-  }
-
   @page {
-    size: 58mm auto;
-    margin: 0;
+    size: auto;
+    margin: 0mm !important;
   }
 
   body,
   html {
     background: #fff !important;
     width: 58mm !important;
+    max-width: 58mm !important;
     margin: 0 !important;
     padding: 0 !important;
     height: auto !important;
@@ -422,25 +410,38 @@ body {
     font-smoothing: none !important;
   }
 
-  #modal-overlay,
-  #silent-print-container {
-    position: static !important;
-    overflow: visible !important;
-    height: auto !important;
-    display: block !important;
+  /* Hide absolutely everything in body except the thermal print container */
+  body > * {
+    display: none !important;
   }
 
-  #modal-overlay > div,
-  #silent-print-container > div {
+  #modal-overlay {
+    display: none !important;
+  }
+
+  /* Show ONLY the silent print container when printing */
+  body > #silent-print-container {
     display: block !important;
+    position: static !important;
     width: 58mm !important;
+    max-width: 58mm !important;
     margin: 0 !important;
     padding: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
   }
 
-  /* Force system fonts to avoid bitmap blurring of webfonts */
-  #ticket-preview,
-  #ticket-preview * {
+  #silent-print-container > * {
+    display: block !important;
+  }
+
+  .print-hidden {
+    display: none !important;
+  }
+
+  /* Force system fonts and clean receipt styling */
+  #silent-print-container #ticket-preview,
+  #silent-print-container #ticket-preview * {
     visibility: visible !important;
     color: #000 !important;
     background: #fff !important;
@@ -453,15 +454,19 @@ body {
     font-smoothing: none !important;
   }
 
-  #ticket-preview {
+  #silent-print-container #ticket-preview {
     position: relative !important;
     left: 0 !important;
     top: 0 !important;
     width: 48mm !important;
     max-width: 48mm !important;
-    padding: 1.5mm !important;
-    margin: 0 !important;
+    padding: 1mm 1.5mm !important;
+    margin: 0 auto !important;
     border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   .ticket-header h2 {

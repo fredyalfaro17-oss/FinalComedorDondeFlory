@@ -530,56 +530,57 @@ function showAutoPrintToast(sale) {
   }, 7000);
 }
 
-// Formatear hora de entrega a formato legible 12h (ej: 12:30 PM, 1:15 PM)
+// Formatear hora de entrega a formato estándar 24h 00:00 (ej: 12:30, 20:00, 08:30)
 export function formatDeliveryTime(timeStr) {
   if (!timeStr) return '';
   const trimmed = String(timeStr).trim();
   if (!trimmed || trimmed === '-') return '';
   
-  // Si ya tiene AM/PM
-  if (/am|pm/i.test(trimmed)) {
-    return trimmed.toUpperCase();
-  }
-
-  // Si tiene formato de hora con dos puntos (ej: "20:00", "12:30", "1:15", "08:30")
-  const parts = trimmed.split(':');
-  if (parts.length >= 2) {
-    let hours = parseInt(parts[0], 10);
-    let minutes = parts[1].replace(/\D/g, '').substring(0, 2);
-    if (minutes.length === 1) minutes = minutes + '0';
-    if (!minutes) minutes = '00';
-    
-    if (!isNaN(hours)) {
-      const ampm = (hours >= 12 || (hours >= 1 && hours <= 6)) ? 'PM' : 'AM';
-      let h12 = hours > 12 ? hours - 12 : hours;
-      h12 = h12 ? h12 : 12;
-      return `${h12}:${minutes} ${ampm}`;
+  // Si tiene AM/PM
+  const ampmMatch = trimmed.match(/\s*(AM|PM)\s*$/i);
+  if (ampmMatch) {
+    const isPM = ampmMatch[1].toUpperCase() === 'PM';
+    const cleanTime = trimmed.replace(ampmMatch[0], '').trim();
+    const parts = cleanTime.split(':');
+    let h = parseInt(parts[0], 10);
+    let m = parts[1] ? parts[1].replace(/\D/g, '').substring(0, 2) : '00';
+    if (m.length === 1) m = m + '0';
+    if (!isNaN(h)) {
+      if (isPM && h < 12) h += 12;
+      if (!isPM && h === 12) h = 0;
+      const hStr = h < 10 ? `0${h}` : `${h}`;
+      return `${hStr}:${m}`;
     }
   }
 
-  // Si solo escribieron un número como "12", "1", "20", "8"
+  // Si tiene formato de hora con dos puntos (ej: "20:00", "12:30", "8:30")
+  if (trimmed.includes(':')) {
+    const parts = trimmed.split(':');
+    let h = parseInt(parts[0], 10);
+    let m = parts[1] ? parts[1].replace(/\D/g, '').substring(0, 2) : '00';
+    if (m.length === 1) m = m + '0';
+    if (!m) m = '00';
+    
+    if (!isNaN(h)) {
+      const hStr = h < 10 ? `0${h}` : `${h}`;
+      return `${hStr}:${m}`;
+    }
+  }
+
+  // Si solo son dígitos (ej: "8" -> "08:00", "12" -> "12:00", "20" -> "20:00")
   if (/^\d{1,2}$/.test(trimmed)) {
     let h = parseInt(trimmed, 10);
-    const ampm = (h >= 12 || (h >= 1 && h <= 6)) ? 'PM' : 'AM';
-    let h12 = h > 12 ? h - 12 : h;
-    return `${h12}:00 ${ampm}`;
+    const hStr = h < 10 ? `0${h}` : `${h}`;
+    return `${hStr}:00`;
   }
 
   return trimmed;
 }
 
-// Máscara y auto-formateo para insertar automáticamente los dos puntos ":"
+// Máscara y auto-formateo para insertar automáticamente los dos puntos y formato 00:00
 export function formatTimeInput(value, isBlur = false) {
   if (!value) return '';
   let str = String(value).trim();
-
-  // Preservar sufijo AM/PM si el usuario lo escribió o seleccionó
-  let ampm = '';
-  const ampmMatch = str.match(/\s*(AM|PM|A\.M\.|P\.M\.|am|pm)\s*$/i);
-  if (ampmMatch) {
-    ampm = ' ' + ampmMatch[1].toUpperCase().replace(/\./g, '');
-    str = str.replace(ampmMatch[0], '').trim();
-  }
 
   // Si ya tiene los dos puntos ":"
   if (str.includes(':')) {
@@ -588,11 +589,12 @@ export function formatTimeInput(value, isBlur = false) {
     let m = parts[1].replace(/\D/g, '').slice(0, 2);
 
     if (isBlur) {
+      if (h.length === 1) h = '0' + h;
       if (h && m.length === 1) m = m + '0';
       if (h && !m) m = '00';
     }
 
-    return `${h}:${m}${ampm}`;
+    return `${h}:${m}`;
   }
 
   // Solo números sin dos puntos
@@ -604,40 +606,43 @@ export function formatTimeInput(value, isBlur = false) {
     const num = parseInt(digits, 10);
     // Si escribió un número mayor a 23 (ej: 83, 45, 90), el primer dígito es la hora
     if (num > 23 && digits.length === 2) {
-      return `${digits[0]}:${digits[1]}${ampm}`;
+      const h = isBlur ? '0' + digits[0] : digits[0];
+      return `${h}:${digits[1]}`;
     }
     if (isBlur && digits.length >= 1) {
-      return `${digits}:00${ampm}`;
+      const h = digits.length === 1 ? '0' + digits : digits;
+      return `${h}:00`;
     }
-    return digits + ampm;
+    return digits;
   }
 
-  // 3 dígitos (ej: "830" -> "8:30", "123" -> "12:3")
+  // 3 dígitos (ej: "830" -> "08:30", "123" -> "12:3")
   if (digits.length === 3) {
     const firstDigit = parseInt(digits[0], 10);
     // Si empieza con 3 a 9 (ej: 830, 715), es hora de 1 dígito
     if (firstDigit > 2) {
-      return `${digits[0]}:${digits.slice(1, 3)}${ampm}`;
+      const h = isBlur ? '0' + digits[0] : digits[0];
+      return `${h}:${digits.slice(1, 3)}`;
     }
     // Si empieza con 0, 1 o 2 (ej: "123" mientras escribe 12:30)
     if (isBlur) {
       const firstTwo = parseInt(digits.slice(0, 2), 10);
       if (firstTwo > 12) {
-        return `${digits.slice(0, 2)}:${digits[2]}0${ampm}`;
+        return `${digits.slice(0, 2)}:${digits[2]}0`;
       }
-      return `${digits[0]}:${digits.slice(1, 3)}${ampm}`;
+      return `0${digits[0]}:${digits.slice(1, 3)}`;
     }
-    return `${digits.slice(0, 2)}:${digits[2]}${ampm}`;
+    return `${digits.slice(0, 2)}:${digits[2]}`;
   }
 
-  // 4 dígitos o más (ej: "1230" -> "12:30", "2000" -> "20:00")
+  // 4 dígitos o más (ej: "1230" -> "12:30", "2000" -> "20:00", "0830" -> "08:30")
   if (digits.length >= 4) {
     const h = digits.slice(0, 2);
     const m = digits.slice(2, 4);
-    return `${h}:${m}${ampm}`;
+    return `${h}:${m}`;
   }
 
-  return digits + ampm;
+  return digits;
 }
 
 export function setupTimeMask(inputEl, onChangeCallback) {
@@ -1793,7 +1798,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
             type="text" 
             id="report-delivery-${sale.id}"
             value="${sale.deliveryTime || (sale.customerName && sale.customerName.toLowerCase() !== 'cliente mostrador' ? sale.time : '') || ''}" 
-            placeholder="--:--" 
+            placeholder="00:00" 
             title="Hora de entrega (puedes editarla aquí directamente)"
             oninput="window.handleReportTimeInput(this, event)"
             onblur="window.handleReportTimeBlur(this, ${sale.id})"
@@ -1863,7 +1868,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
                   type="text" 
                   id="report-card-delivery-${sale.id}"
                   value="${sale.deliveryTime || (sale.customerName && sale.customerName.toLowerCase() !== 'cliente mostrador' ? sale.time : '') || ''}" 
-                  placeholder="--:--" 
+                  placeholder="00:00" 
                   title="Hora de entrega (puedes editarla aquí)"
                   oninput="window.handleReportTimeInput(this, event)"
                   onblur="window.handleReportTimeBlur(this, ${sale.id})"

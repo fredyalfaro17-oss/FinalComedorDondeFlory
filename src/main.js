@@ -550,8 +550,8 @@ export function formatDeliveryTime(timeStr) {
     if (!minutes) minutes = '00';
     
     if (!isNaN(hours)) {
-      const ampm = hours >= 12 ? 'PM' : 'AM';
-      let h12 = hours % 12;
+      const ampm = (hours >= 12 || (hours >= 1 && hours <= 6)) ? 'PM' : 'AM';
+      let h12 = hours > 12 ? hours - 12 : hours;
       h12 = h12 ? h12 : 12;
       return `${h12}:${minutes} ${ampm}`;
     }
@@ -560,12 +560,119 @@ export function formatDeliveryTime(timeStr) {
   // Si solo escribieron un número como "12", "1", "20", "8"
   if (/^\d{1,2}$/.test(trimmed)) {
     let h = parseInt(trimmed, 10);
-    const ampm = (h >= 11 && h <= 17) ? 'PM' : (h >= 18 ? 'PM' : (h >= 6 ? 'AM' : 'PM'));
+    const ampm = (h >= 12 || (h >= 1 && h <= 6)) ? 'PM' : 'AM';
     let h12 = h > 12 ? h - 12 : h;
     return `${h12}:00 ${ampm}`;
   }
 
   return trimmed;
+}
+
+// Máscara y auto-formateo para insertar automáticamente los dos puntos ":"
+export function formatTimeInput(value, isBlur = false) {
+  if (!value) return '';
+  let str = String(value).trim();
+
+  // Preservar sufijo AM/PM si el usuario lo escribió o seleccionó
+  let ampm = '';
+  const ampmMatch = str.match(/\s*(AM|PM|A\.M\.|P\.M\.|am|pm)\s*$/i);
+  if (ampmMatch) {
+    ampm = ' ' + ampmMatch[1].toUpperCase().replace(/\./g, '');
+    str = str.replace(ampmMatch[0], '').trim();
+  }
+
+  // Si ya tiene los dos puntos ":"
+  if (str.includes(':')) {
+    const parts = str.split(':');
+    let h = parts[0].replace(/\D/g, '').slice(0, 2);
+    let m = parts[1].replace(/\D/g, '').slice(0, 2);
+
+    if (isBlur) {
+      if (h && m.length === 1) m = m + '0';
+      if (h && !m) m = '00';
+    }
+
+    return `${h}:${m}${ampm}`;
+  }
+
+  // Solo números sin dos puntos
+  const digits = str.replace(/\D/g, '');
+  if (!digits) return '';
+
+  // 1 o 2 dígitos
+  if (digits.length <= 2) {
+    const num = parseInt(digits, 10);
+    // Si escribió un número mayor a 23 (ej: 83, 45, 90), el primer dígito es la hora
+    if (num > 23 && digits.length === 2) {
+      return `${digits[0]}:${digits[1]}${ampm}`;
+    }
+    if (isBlur && digits.length >= 1) {
+      return `${digits}:00${ampm}`;
+    }
+    return digits + ampm;
+  }
+
+  // 3 dígitos (ej: "830" -> "8:30", "123" -> "12:3")
+  if (digits.length === 3) {
+    const firstDigit = parseInt(digits[0], 10);
+    // Si empieza con 3 a 9 (ej: 830, 715), es hora de 1 dígito
+    if (firstDigit > 2) {
+      return `${digits[0]}:${digits.slice(1, 3)}${ampm}`;
+    }
+    // Si empieza con 0, 1 o 2 (ej: "123" mientras escribe 12:30)
+    if (isBlur) {
+      const firstTwo = parseInt(digits.slice(0, 2), 10);
+      if (firstTwo > 12) {
+        return `${digits.slice(0, 2)}:${digits[2]}0${ampm}`;
+      }
+      return `${digits[0]}:${digits.slice(1, 3)}${ampm}`;
+    }
+    return `${digits.slice(0, 2)}:${digits[2]}${ampm}`;
+  }
+
+  // 4 dígitos o más (ej: "1230" -> "12:30", "2000" -> "20:00")
+  if (digits.length >= 4) {
+    const h = digits.slice(0, 2);
+    const m = digits.slice(2, 4);
+    return `${h}:${m}${ampm}`;
+  }
+
+  return digits + ampm;
+}
+
+export function setupTimeMask(inputEl, onChangeCallback) {
+  if (!inputEl) return;
+
+  inputEl.addEventListener('input', (e) => {
+    // Si está borrando con Backspace o Delete, permitimos borrar sin forzar los dos puntos
+    if (e.inputType && e.inputType.startsWith('delete')) {
+      if (typeof onChangeCallback === 'function') {
+        onChangeCallback(inputEl.value);
+      }
+      return;
+    }
+
+    const val = inputEl.value;
+    const formatted = formatTimeInput(val, false);
+    if (formatted !== val) {
+      inputEl.value = formatted;
+    }
+    if (typeof onChangeCallback === 'function') {
+      onChangeCallback(inputEl.value);
+    }
+  });
+
+  inputEl.addEventListener('blur', () => {
+    const val = inputEl.value;
+    if (!val) return;
+    const formatted = formatTimeInput(val, true);
+    if (formatted !== val) {
+      inputEl.value = formatted;
+    }
+    if (typeof onChangeCallback === 'function') {
+      onChangeCallback(inputEl.value);
+    }
+  });
 }
 
 // Generador reusable del HTML del ticket térmico
@@ -1483,11 +1590,9 @@ function setupEventListeners() {
 
   const elTime = document.getElementById('customer-time');
   if (elTime) {
-    const handleTimeChange = (e) => {
-      customerInfo.deliveryTime = e.target.value;
-    };
-    elTime.addEventListener('input', handleTimeChange);
-    elTime.addEventListener('change', handleTimeChange);
+    setupTimeMask(elTime, (val) => {
+      customerInfo.deliveryTime = val;
+    });
   }
 
   const elVendedor = document.getElementById('customer-vendedor');
@@ -1690,7 +1795,8 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
             value="${sale.deliveryTime || (sale.customerName && sale.customerName.toLowerCase() !== 'cliente mostrador' ? sale.time : '') || ''}" 
             placeholder="--:--" 
             title="Hora de entrega (puedes editarla aquí directamente)"
-            onchange="window.updateSaleProperty(${sale.id}, 'deliveryTime', this.value, this)"
+            oninput="window.handleReportTimeInput(this, event)"
+            onblur="window.handleReportTimeBlur(this, ${sale.id})"
             class="w-24 text-center text-xs font-mono font-bold py-1.5 px-2 rounded-lg bg-slate-900 border border-slate-700 text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm cursor-text"
           />
         </td>
@@ -1759,7 +1865,8 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
                   value="${sale.deliveryTime || (sale.customerName && sale.customerName.toLowerCase() !== 'cliente mostrador' ? sale.time : '') || ''}" 
                   placeholder="--:--" 
                   title="Hora de entrega (puedes editarla aquí)"
-                  onchange="window.updateSaleProperty(${sale.id}, 'deliveryTime', this.value, this)"
+                  oninput="window.handleReportTimeInput(this, event)"
+                  onblur="window.handleReportTimeBlur(this, ${sale.id})"
                   class="w-24 text-center text-xs font-mono font-bold py-0.5 px-2 rounded-lg bg-slate-800 border border-slate-700 text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
                 />
               </div>
@@ -1889,6 +1996,22 @@ window.updateSaleProperty = function(saleId, property, value, targetElement) {
       window.__isLocalReportUpdate = false;
     }, 600);
   }
+};
+
+window.handleReportTimeInput = function(el, event) {
+  if (event && event.inputType && event.inputType.startsWith('delete')) return;
+  const formatted = formatTimeInput(el.value, false);
+  if (formatted !== el.value) {
+    el.value = formatted;
+  }
+};
+
+window.handleReportTimeBlur = function(el, saleId) {
+  const formatted = formatTimeInput(el.value, true);
+  if (formatted !== el.value) {
+    el.value = formatted;
+  }
+  window.updateSaleProperty(saleId, 'deliveryTime', el.value, el);
 };
 
 // Sincronización en vivo: auto-impresión de nuevos pedidos y refresco del informe

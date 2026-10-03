@@ -101,10 +101,22 @@
               <input type="text" id="customer-phone" placeholder="xxxx-xxxx" autocomplete="off"
                 class="w-full bg-slate-800 border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 outline-none transition-all placeholder:text-slate-600">
             </div>
-            <div class="shrink-0 w-28 md:w-auto">
-              <label class="text-sm uppercase tracking-wider text-slate-500 font-bold mb-1.5 block">Entrega</label>
-              <input type="time" id="customer-time"
-                class="w-full bg-slate-800 border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-red-500 outline-none transition-all">
+            <div class="shrink-0 w-36 md:w-44">
+              <label class="text-sm uppercase tracking-wider text-amber-400 font-bold mb-1.5 block">Entrega</label>
+              <input type="text" id="customer-time" list="delivery-time-presets" placeholder="Ej: 12:30 PM" autocomplete="off"
+                class="w-full bg-slate-800 border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-white font-medium focus:ring-2 focus:ring-amber-500 outline-none transition-all placeholder:text-slate-500">
+              <datalist id="delivery-time-presets">
+                <option value="11:30 AM">11:30 AM (Almuerzo)</option>
+                <option value="12:00 PM">12:00 PM (Almuerzo)</option>
+                <option value="12:30 PM">12:30 PM (Almuerzo)</option>
+                <option value="1:00 PM">1:00 PM (Almuerzo)</option>
+                <option value="1:30 PM">1:30 PM (Almuerzo)</option>
+                <option value="2:00 PM">2:00 PM (Almuerzo)</option>
+                <option value="7:00 PM">7:00 PM (Cena)</option>
+                <option value="7:30 PM">7:30 PM (Cena)</option>
+                <option value="8:00 PM">8:00 PM (Cena)</option>
+                <option value="8:30 PM">8:30 PM (Cena)</option>
+              </datalist>
             </div>
             <div class="shrink-0 w-36 md:w-auto">
               <label class="text-sm uppercase tracking-wider text-blue-400 font-bold mb-1.5 block">Vendedor</label>

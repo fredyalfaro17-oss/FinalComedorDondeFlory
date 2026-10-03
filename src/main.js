@@ -335,6 +335,16 @@ function getHtmlTicketDocument(ticketHtml) {
             font-weight: 900 !important;
             font-size: 16pt !important;
           }
+          .customer-data.delivery-data {
+            border-top: 1px dashed #000000 !important;
+            border-bottom: 1px dashed #000000 !important;
+            padding: 3px 0 !important;
+            margin: 4px 0 !important;
+          }
+          .customer-data.delivery-data .value {
+            font-size: 16pt !important;
+            font-weight: 900 !important;
+          }
           .items-list {
             margin-top: 8px !important;
           }
@@ -520,14 +530,62 @@ function showAutoPrintToast(sale) {
   }, 7000);
 }
 
+// Formatear hora de entrega a formato legible 12h (ej: 12:30 PM, 1:15 PM)
+export function formatDeliveryTime(timeStr) {
+  if (!timeStr) return '';
+  const trimmed = String(timeStr).trim();
+  if (!trimmed || trimmed === '-') return '';
+  
+  // Si ya tiene AM/PM
+  if (/am|pm/i.test(trimmed)) {
+    return trimmed.toUpperCase();
+  }
+
+  // Si tiene formato de hora con dos puntos (ej: "20:00", "12:30", "1:15", "08:30")
+  const parts = trimmed.split(':');
+  if (parts.length >= 2) {
+    let hours = parseInt(parts[0], 10);
+    let minutes = parts[1].replace(/\D/g, '').substring(0, 2);
+    if (minutes.length === 1) minutes = minutes + '0';
+    if (!minutes) minutes = '00';
+    
+    if (!isNaN(hours)) {
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      let h12 = hours % 12;
+      h12 = h12 ? h12 : 12;
+      return `${h12}:${minutes} ${ampm}`;
+    }
+  }
+
+  // Si solo escribieron un número como "12", "1", "20", "8"
+  if (/^\d{1,2}$/.test(trimmed)) {
+    let h = parseInt(trimmed, 10);
+    const ampm = (h >= 11 && h <= 17) ? 'PM' : (h >= 18 ? 'PM' : (h >= 6 ? 'AM' : 'PM'));
+    let h12 = h > 12 ? h - 12 : h;
+    return `${h12}:00 ${ampm}`;
+  }
+
+  return trimmed;
+}
+
 // Generador reusable del HTML del ticket térmico
 export function generateTicketPreviewHtml(data) {
   const dateStr = data.dateStr || (data.date ? data.date.split('-').reverse().join('/') : new Date().toLocaleDateString('es-ES'));
-  const timeStr = data.timeStr || data.time || new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   const correlativeNum = data.correlativeNum || data.id || 1;
   const custName = data.customerName || (data.customerInfo && data.customerInfo.name) || '';
   const custPhone = data.phone || (data.customerInfo && data.customerInfo.phone) || '';
-  const deliveryTime = (data.customerInfo && data.customerInfo.deliveryTime) || '';
+  
+  // 1. Obtener deliveryTime explícito o desde customerInfo
+  let rawDeliveryTime = data.deliveryTime || (data.customerInfo && data.customerInfo.deliveryTime) || '';
+  
+  // 2. Si no hay deliveryTime explícito (ej: órdenes guardadas antes del fix como orden #175)
+  // pero la orden tiene un tiempo guardado y cliente registrado, usar data.time como hora de entrega
+  if (!rawDeliveryTime && data.time && custName && custName.toLowerCase() !== 'cliente mostrador') {
+    rawDeliveryTime = data.time;
+  }
+
+  const deliveryTime = formatDeliveryTime(rawDeliveryTime);
+  const timeStr = data.timeStr || data.orderTime || (rawDeliveryTime && rawDeliveryTime === data.time ? '' : data.time) || new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   const vendorName = data.vendedor || (data.customerInfo && data.customerInfo.vendedor) || '';
   const total = Number(data.total) || 0;
 
@@ -579,7 +637,7 @@ export function generateTicketPreviewHtml(data) {
         <div class="mb-4 text-sm space-y-2 bg-slate-50 p-3 rounded border border-slate-200 customer-section">
           ${custName ? `<p class="customer-data"><span class="label">CLIENTE:</span> <span class="value font-black">${custName.toUpperCase()}</span></p>` : ''}
           ${custPhone ? `<p class="customer-data"><span class="label">TELÉFONO:</span> <span class="value font-black text-2xl">${custPhone}</span></p>` : ''}
-          ${deliveryTime ? `<p class="customer-data"><span class="label">ENTREGA:</span> <span class="value font-black text-2xl">${deliveryTime}</span></p>` : ''}
+          ${deliveryTime ? `<p class="customer-data delivery-data"><span class="label">HORA DE ENTREGA:</span> <span class="value font-black text-2xl">${deliveryTime}</span></p>` : ''}
           ${vendorName ? `<p class="customer-data"><span class="label">VENDEDOR:</span> <span class="value font-black">${vendorName.toUpperCase()}</span></p>` : ''}
         </div>
         <div class="border-b-2 border-dashed border-slate-200 mb-4 print-hidden"></div>
@@ -776,7 +834,22 @@ export function initAutoPrintToggle() {
   }
 }
 
+function syncCustomerInputs() {
+  const elTime = document.getElementById('customer-time');
+  if (elTime && elTime.value) customerInfo.deliveryTime = elTime.value;
+  const elName = document.getElementById('customer-name');
+  if (elName && elName.value) customerInfo.name = elName.value.trim();
+  const elPhone = document.getElementById('customer-phone');
+  if (elPhone && elPhone.value) customerInfo.phone = elPhone.value.trim();
+  const elVendedor = document.getElementById('customer-vendedor');
+  if (elVendedor && elVendedor.value) customerInfo.vendedor = elVendedor.value;
+  const elPago = document.getElementById('customer-pago');
+  if (elPago && elPago.value) customerInfo.pago = elPago.value;
+}
+
 function openTicketModal() {
+  syncCustomerInputs();
+
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-ES');
   const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
@@ -790,6 +863,7 @@ function openTicketModal() {
     timeStr,
     correlativeNum,
     customerInfo,
+    deliveryTime: customerInfo.deliveryTime,
     cart,
     total
   });
@@ -828,6 +902,7 @@ function openTicketModal() {
   const btnSendCaja = document.getElementById('send-caja-btn');
   if (btnSendCaja) {
     btnSendCaja.onclick = () => {
+      syncCustomerInputs();
       const saved = saveSale(total);
       cart = [];
       updateCartUI();
@@ -840,9 +915,10 @@ function openTicketModal() {
   document.getElementById('close-ticket-btn').onclick = () => modalOverlay.classList.add('hidden');
 
   document.getElementById('print-rawbt-btn').onclick = () => {
+    syncCustomerInputs();
+    const ticketText = copyTicketText(true);
     saveSale(total);
     
-    const ticketText = copyTicketText(true);
     // Base64 encode for RawBT text mode
     const base64Text = btoa(unescape(encodeURIComponent(ticketText)));
     
@@ -857,6 +933,7 @@ function openTicketModal() {
   };
 
   document.getElementById('print-ticket-btn').onclick = () => {
+    syncCustomerInputs();
     const saved = saveSale(total);
     cart = [];
     updateCartUI();
@@ -866,6 +943,7 @@ function openTicketModal() {
   };
 
   document.getElementById('copy-ticket-btn').onclick = (e) => {
+    syncCustomerInputs();
     copyTicketText();
     const btn = e.currentTarget;
     const originalText = btn.innerHTML;
@@ -901,6 +979,7 @@ function addItemToCart(item, quantity, customDescription) {
 }
 
 function copyTicketText(returnOnly = false) {
+  syncCustomerInputs();
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-ES');
@@ -956,7 +1035,8 @@ function copyTicketText(returnOnly = false) {
   text += `${boxPadding}└${'─'.repeat(boxWidth - 2)}┘\n\n`;
 
   // Customer info - if available with a nice box
-  if (customerInfo.name || customerInfo.phone || customerInfo.deliveryTime) {
+  const delTime = customerInfo.deliveryTime ? formatDeliveryTime(customerInfo.deliveryTime) : '';
+  if (customerInfo.name || customerInfo.phone || delTime) {
     text += `┌${'─'.repeat(width - 2)}┐\n`;
     if (customerInfo.name) {
       const wrappedName = wrapText(customerInfo.name.toUpperCase(), width - 13);
@@ -968,8 +1048,8 @@ function copyTicketText(returnOnly = false) {
     if (customerInfo.phone) {
       text += `│ TEL:     ${customerInfo.phone.padEnd(width - 13, ' ')} │\n`;
     }
-    if (customerInfo.deliveryTime) {
-      text += `│ ENTREGA: ${customerInfo.deliveryTime.padEnd(width - 13, ' ')} │\n`;
+    if (delTime) {
+      text += `│ ENTREGA: ${delTime.padEnd(width - 13, ' ')} │\n`;
     }
     text += `└${'─'.repeat(width - 2)}┘\n`;
   } else {
@@ -1402,7 +1482,13 @@ function setupEventListeners() {
   }
 
   const elTime = document.getElementById('customer-time');
-  if (elTime) elTime.oninput = (e) => customerInfo.deliveryTime = e.target.value;
+  if (elTime) {
+    const handleTimeChange = (e) => {
+      customerInfo.deliveryTime = e.target.value;
+    };
+    elTime.addEventListener('input', handleTimeChange);
+    elTime.addEventListener('change', handleTimeChange);
+  }
 
   const elVendedor = document.getElementById('customer-vendedor');
   if (elVendedor) elVendedor.onchange = (e) => customerInfo.vendedor = e.target.value;
@@ -1471,13 +1557,17 @@ function setupEventListeners() {
 // --- Reports ---
 
 function saveSale(total) {
+  syncCustomerInputs();
   const now = new Date();
   const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-  const saleTime = customerInfo.deliveryTime || timeStr;
+  const deliveryTime = (customerInfo && customerInfo.deliveryTime) || '';
+  const saleTime = deliveryTime || timeStr;
 
   const sale = addSale({
     date: getTodayKey(),
     time: saleTime,
+    orderTime: timeStr,
+    deliveryTime: deliveryTime,
     customerName: customerInfo.name || 'Cliente Mostrador',
     phone: customerInfo.phone || '-',
     vendedor: (customerInfo.vendedor && customerInfo.vendedor !== '-') ? customerInfo.vendedor : '',
@@ -1593,7 +1683,17 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
         <td class="px-3 py-3.5 text-center font-mono font-bold text-amber-400 min-w-[50px] whitespace-nowrap">#${sale.id}</td>
         <td class="px-3 py-3.5 min-w-[140px] font-semibold text-white">${sale.customerName || 'Cliente Mostrador'}</td>
         <td class="px-3 py-3.5 text-center min-w-[120px] whitespace-nowrap">${phoneHtml}</td>
-        <td class="px-3 py-3.5 text-center min-w-[75px] whitespace-nowrap text-xs text-slate-400 font-mono font-medium">🕒 ${sale.time || '--:--'}</td>
+        <td class="px-3 py-3.5 text-center min-w-[105px] whitespace-nowrap">
+          <input 
+            type="text" 
+            id="report-delivery-${sale.id}"
+            value="${sale.deliveryTime || (sale.customerName && sale.customerName.toLowerCase() !== 'cliente mostrador' ? sale.time : '') || ''}" 
+            placeholder="--:--" 
+            title="Hora de entrega (puedes editarla aquí directamente)"
+            onchange="window.updateSaleProperty(${sale.id}, 'deliveryTime', this.value, this)"
+            class="w-24 text-center text-xs font-mono font-bold py-1.5 px-2 rounded-lg bg-slate-900 border border-slate-700 text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm cursor-text"
+          />
+        </td>
         <td class="px-3 py-3.5 text-xs italic text-slate-300 min-w-[180px] leading-relaxed">${sale.items || '-'}</td>
         <td class="px-3 py-3.5 text-center min-w-[175px] whitespace-nowrap">
           <select 
@@ -1651,7 +1751,18 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
               <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-amber-400 border border-slate-700">
                 #${sale.id}
               </span>
-              <span class="text-xs text-slate-400 font-medium">🕒 ${sale.time || '--:--'}</span>
+              <div class="flex items-center gap-1.5 mt-1">
+                <span class="text-xs text-slate-400 font-medium">🛵 Entrega:</span>
+                <input 
+                  type="text" 
+                  id="report-card-delivery-${sale.id}"
+                  value="${sale.deliveryTime || (sale.customerName && sale.customerName.toLowerCase() !== 'cliente mostrador' ? sale.time : '') || ''}" 
+                  placeholder="--:--" 
+                  title="Hora de entrega (puedes editarla aquí)"
+                  onchange="window.updateSaleProperty(${sale.id}, 'deliveryTime', this.value, this)"
+                  class="w-24 text-center text-xs font-mono font-bold py-0.5 px-2 rounded-lg bg-slate-800 border border-slate-700 text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                />
+              </div>
             </div>
             <h4 class="text-base font-bold text-white mt-1 leading-snug">
               ${sale.customerName || 'Cliente Mostrador'}
@@ -1750,6 +1861,19 @@ window.updateSaleProperty = function(saleId, property, value, targetElement) {
       const otherVendorEl = document.getElementById(otherVendorId);
       if (otherVendorEl) {
         otherVendorEl.value = value;
+      }
+    }
+
+    // 4. Si es cambio de hora de entrega, sincronizar ambos inputs y actualizar 'time'
+    if (property === 'deliveryTime') {
+      dbUpdateSaleProperty(saleId, 'time', value);
+      const isCard = targetElement && targetElement.id && targetElement.id.startsWith('report-card-delivery-');
+      const otherId = isCard ? `report-delivery-${saleId}` : `report-card-delivery-${saleId}`;
+      const otherEl = document.getElementById(otherId);
+      if (otherEl) otherEl.value = value;
+      if (targetElement) {
+        targetElement.classList.add('border-emerald-500', 'text-emerald-300');
+        setTimeout(() => targetElement.classList.remove('border-emerald-500', 'text-emerald-300'), 1500);
       }
     }
 

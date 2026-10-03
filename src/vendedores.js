@@ -316,7 +316,13 @@ function renderSalesCards(sales) {
                 <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-800 text-amber-400 border border-slate-700 font-mono">
                   #${sale.id}
                 </span>
-                <span class="text-xs text-slate-400 font-medium">🕒 ${sale.time || '--:--'}</span>
+                ${sale.deliveryTime ? `
+                  <span class="text-xs font-semibold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono">
+                    🛵 Entrega: ${sale.deliveryTime}
+                  </span>
+                ` : `
+                  <span class="text-xs text-slate-400 font-medium">🕒 ${sale.time || '--:--'}</span>
+                `}
                 ${selectedVendor === 'TODOS' ? `
                   <span class="text-xs font-bold px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800">
                     🛵 ${vendNorm}

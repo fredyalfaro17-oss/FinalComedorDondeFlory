@@ -98,7 +98,9 @@ export function sanitizeSale(sale, index = 0) {
     vendedor: normalizeVendor(sale.vendedor),
     cartItems: Array.isArray(sale.cartItems) ? sale.cartItems : [],
     printRequested: Number(sale.printRequested) || 0,
-    sourceDevice: sale.sourceDevice || ''
+    sourceDevice: sale.sourceDevice || '',
+    deliveryTime: sale.deliveryTime || '',
+    orderTime: sale.orderTime || ''
   };
 }
 
@@ -163,6 +165,8 @@ export function addSale(saleData) {
     id: sales.length > 0 ? Math.max(...sales.map(s => Number(s.id) || 0)) + 1 : 1,
     date: saleData.date || getTodayKey(),
     time: saleData.time || timeStr,
+    orderTime: saleData.orderTime || timeStr,
+    deliveryTime: saleData.deliveryTime || '',
     customerName: saleData.customerName || 'Cliente Mostrador',
     phone: saleData.phone || '-',
     vendedor: normalizeVendor(saleData.vendedor),

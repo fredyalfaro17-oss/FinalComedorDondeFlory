@@ -514,6 +514,18 @@ body {
     font-size: 13pt !important;
   }
 
+  .customer-data.delivery-data {
+    border-top: 1pt dashed #000 !important;
+    border-bottom: 1pt dashed #000 !important;
+    padding: 3pt 0 !important;
+    margin: 4pt 0 !important;
+  }
+
+  .customer-data.delivery-data .value {
+    font-size: 15pt !important;
+    font-weight: 900 !important;
+  }
+
   .ticket-row {
     font-size: 11pt !important;
     font-weight: 800 !important;

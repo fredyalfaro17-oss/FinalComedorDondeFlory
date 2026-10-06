@@ -514,6 +514,10 @@ body {
     font-size: 13pt !important;
   }
 
+  .customer-data.phone-data {
+    white-space: nowrap !important;
+  }
+
   .customer-data.delivery-data {
     border-top: 1pt dashed #000 !important;
     border-bottom: 1pt dashed #000 !important;

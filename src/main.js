@@ -748,7 +748,7 @@ export function generateTicketPreviewHtml(data) {
       ${(custName || custPhone || deliveryTime || vendorName) ? `
         <div class="mb-4 text-sm space-y-2 bg-slate-50 p-3 rounded border border-slate-200 customer-section">
           ${custName ? `<p class="customer-data"><span class="label">CLIENTE:</span> <span class="value font-black">${custName.toUpperCase()}</span></p>` : ''}
-          ${custPhone ? `<p class="customer-data"><span class="label">TELÉFONO:</span> <span class="value font-black text-2xl">${custPhone}</span></p>` : ''}
+          ${custPhone ? `<p class="customer-data phone-data whitespace-nowrap"><span class="label">Tel.:</span> <span class="value font-black text-2xl">${custPhone}</span></p>` : ''}
           ${deliveryTime ? `<p class="customer-data delivery-data"><span class="label">HORA DE ENTREGA:</span> <span class="value font-black text-2xl">${deliveryTime}</span></p>` : ''}
           ${vendorName ? `<p class="customer-data"><span class="label">VENDEDOR:</span> <span class="value font-black">${vendorName.toUpperCase()}</span></p>` : ''}
         </div>
@@ -842,6 +842,22 @@ window.reprintTicket = function(saleId) {
   }
 };
 
+window.requestPrintInCaja = function(saleId, event) {
+  const reqTime = Date.now();
+  dbUpdateSaleProperty(saleId, 'printRequested', reqTime);
+  const btn = event?.currentTarget;
+  if (btn) {
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span>✅</span> ¡Enviado!';
+    btn.classList.add('bg-emerald-800', 'text-white', 'border-emerald-400');
+    setTimeout(() => {
+      btn.innerHTML = orig;
+      btn.classList.remove('bg-emerald-800', 'text-white', 'border-emerald-400');
+    }, 3000);
+  }
+  showReportToast(`🖨️ Pedido #${saleId} enviado a la computadora de caja`);
+};
+
 const printQueue = [];
 let isPrintingQueue = false;
 
@@ -862,26 +878,34 @@ function processPrintQueue() {
   }, 2600);
 }
 
-let lastHandledPrintRequestTime = Date.now() - 5000;
+const handledPrintRequestTokens = new Set();
+function getPrintRequestToken(sale) {
+  return `${sale.id}_${sale.printRequested}`;
+}
 
 function checkAutoPrintQueue(sales) {
   if (!Array.isArray(sales)) return;
   if (!hasInitializedPrintedCache) {
     initPrintedSalesCache();
+    sales.forEach(s => {
+      if (s && s.printRequested) handledPrintRequestTokens.add(getPrintRequestToken(s));
+    });
     return;
   }
 
-  const isEnabled = localStorage.getItem('flory_autoprint_enabled') === 'true';
+  const isEnabled = localStorage.getItem('flory_autoprint_enabled') !== 'false';
   const printedIds = getPrintedSaleIds();
   const myDeviceId = getDeviceId();
 
   for (const sale of sales) {
     const saleId = Number(sale.id);
 
-    // Caso 1: Solicitud manual de impresión remota desde un vendedor / tablet
-    if (sale.printRequested && Number(sale.printRequested) > lastHandledPrintRequestTime) {
-      lastHandledPrintRequestTime = Number(sale.printRequested);
-      if (isEnabled) {
+    // Caso 1: Solicitud manual o explícita de impresión remota desde tablet / celular / vendedor
+    if (sale.printRequested && Number(sale.printRequested) > 0) {
+      const token = getPrintRequestToken(sale);
+      if (!handledPrintRequestTokens.has(token)) {
+        handledPrintRequestTokens.add(token);
+        // Imprimir en la computadora con Xprinter de inmediato
         enqueueSalePrint(sale, true);
         return;
       }
@@ -889,7 +913,7 @@ function checkAutoPrintQueue(sales) {
 
     // Caso 2: Nueva orden entrante creada en otro dispositivo (tablet, mesero, celular)
     if (!printedIds.has(saleId)) {
-      if (isEnabled && sale.sourceDevice !== myDeviceId) {
+      if (isEnabled && sale.sourceDevice && sale.sourceDevice !== myDeviceId) {
         enqueueSalePrint(sale, true);
         return;
       } else {
@@ -902,8 +926,7 @@ function checkAutoPrintQueue(sales) {
 export function initAutoPrintToggle() {
   let isAutoPrintEnabled = localStorage.getItem('flory_autoprint_enabled');
   if (isAutoPrintEnabled === null) {
-    const isDesktop = typeof window !== 'undefined' && (window.innerWidth >= 1024 || !('ontouchstart' in window));
-    isAutoPrintEnabled = isDesktop ? 'true' : 'false';
+    isAutoPrintEnabled = 'true';
     localStorage.setItem('flory_autoprint_enabled', isAutoPrintEnabled);
   }
 
@@ -1015,7 +1038,7 @@ function openTicketModal() {
   if (btnSendCaja) {
     btnSendCaja.onclick = () => {
       syncCustomerInputs();
-      const saved = saveSale(total);
+      const saved = saveSale(total, true);
       cart = [];
       updateCartUI();
       resetCustomerInfo();
@@ -1666,7 +1689,7 @@ function setupEventListeners() {
 
 // --- Reports ---
 
-function saveSale(total) {
+function saveSale(total, requestPrintInCaja = false) {
   syncCustomerInputs();
   const now = new Date();
   const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
@@ -1690,11 +1713,12 @@ function saveSale(total) {
       price: i.price,
       description: i.description || ''
     })),
-    sourceDevice: getDeviceId()
+    sourceDevice: getDeviceId(),
+    printRequested: requestPrintInCaja ? Date.now() : 0
   });
 
-  // Marcar como ya procesado localmente en esta pestaña/equipo
-  if (sale && sale.id) {
+  // Marcar como ya procesado localmente en esta pestaña/equipo si no se pidió autoimpresión inmediata por cola
+  if (sale && sale.id && !requestPrintInCaja) {
     markSaleAsPrinted(sale.id);
   }
 
@@ -1831,7 +1855,8 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
         <td class="px-3 py-3.5 text-right font-black text-amber-400 whitespace-nowrap min-w-[95px] text-sm">
           <div class="flex items-center justify-end gap-1.5">
             <span>Q${saleTotal.toFixed(2)}</span>
-            <button type="button" onclick="window.reprintTicket(${sale.id})" title="Imprimir ticket en la impresora Xprinter" class="p-1.5 rounded-lg bg-slate-800 hover:bg-amber-500/20 text-slate-400 hover:text-amber-400 border border-slate-700 transition-all text-xs active:scale-90">🖨️</button>
+            <button type="button" onclick="window.requestPrintInCaja(${sale.id}, event)" title="Mandar a imprimir en la computadora de caja" class="p-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-800 text-emerald-300 border border-emerald-700/80 transition-all text-xs active:scale-90 flex items-center gap-1 font-bold">🖨️ Caja</button>
+            <button type="button" onclick="window.reprintTicket(${sale.id})" title="Imprimir local en este equipo" class="p-1.5 rounded-lg bg-slate-800 hover:bg-amber-500/20 text-slate-400 hover:text-amber-400 border border-slate-700 transition-all text-xs active:scale-90">🖨️</button>
           </div>
         </td>
       </tr>
@@ -1885,9 +1910,14 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
             <div class="text-xl font-black text-amber-400 font-sans">
               Q${saleTotal.toFixed(2)}
             </div>
-            <button type="button" onclick="window.reprintTicket(${sale.id})" title="Imprimir ticket" class="inline-flex items-center gap-1 mt-1 text-[11px] font-bold text-slate-300 hover:text-amber-400 bg-slate-800/80 hover:bg-slate-800 px-2.5 py-0.5 rounded-lg border border-slate-700 transition-all active:scale-95">
-              <span>🖨️</span> Ticket
-            </button>
+            <div class="flex items-center justify-end gap-1 mt-1">
+              <button type="button" onclick="window.requestPrintInCaja(${sale.id}, event)" title="Mandar a imprimir en la computadora de caja" class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 hover:text-white bg-emerald-950/80 hover:bg-emerald-900 px-2.5 py-1 rounded-lg border border-emerald-700/80 transition-all active:scale-95 shadow-sm">
+                <span>🖨️</span> Mandar a Caja
+              </button>
+              <button type="button" onclick="window.reprintTicket(${sale.id})" title="Imprimir local en este equipo" class="inline-flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 px-2 py-1 rounded-lg border border-slate-700 transition-all active:scale-95">
+                Local
+              </button>
+            </div>
           </div>
         </div>
 

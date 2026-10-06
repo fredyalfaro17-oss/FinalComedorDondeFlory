@@ -1881,11 +1881,11 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
             ${VENDEDORES.map(v => `<option value="${v}" ${vendNorm === v ? 'selected' : ''}>🛵 ${v}</option>`).join('')}
           </select>
         </td>
-        <td class="px-2 py-2.5 text-right font-black text-amber-400 whitespace-nowrap text-sm">
-          <div class="flex items-center justify-end gap-1.5">
-            <span>Q${saleTotal.toFixed(2)}</span>
-            <button type="button" onclick="window.smartPrintSale(${sale.id}, event)" title="Imprimir ticket (Automático en Xprinter)" class="py-1 px-2 rounded-lg bg-slate-800 hover:bg-emerald-900/60 text-slate-300 hover:text-emerald-300 border border-slate-700 hover:border-emerald-600 transition-all text-xs active:scale-90 flex items-center gap-1 font-bold">🖨️</button>
-          </div>
+        <td class="px-2 py-2.5 text-right font-black text-amber-400 whitespace-nowrap text-sm font-sans">
+          Q${saleTotal.toFixed(2)}
+        </td>
+        <td class="px-2 py-2.5 text-center whitespace-nowrap">
+          <button type="button" onclick="window.smartPrintSale(${sale.id}, event)" title="Imprimir ticket (Automático en Xprinter)" class="py-1 px-2 rounded-lg bg-slate-800 hover:bg-emerald-900/60 text-slate-300 hover:text-emerald-300 border border-slate-700 hover:border-emerald-600 transition-all text-xs active:scale-90 flex items-center justify-center gap-1 font-bold mx-auto">🖨️</button>
         </td>
       </tr>
     `;
@@ -2193,6 +2193,7 @@ window.renderReportModal = function() {
                 <th scope="col" class="px-2 py-3 text-center whitespace-nowrap">PAGO</th>
                 <th scope="col" class="px-2 py-3 text-center whitespace-nowrap">VENDEDOR</th>
                 <th scope="col" class="px-2 py-3 text-right whitespace-nowrap">TOTAL</th>
+                <th scope="col" class="px-2 py-3 text-center whitespace-nowrap">TICKET</th>
               </tr>
             </thead>
             <tbody id="report-table-body">
@@ -2329,7 +2330,7 @@ window.renderReportModal = function() {
     
     tbody.innerHTML = !isEmpty ? tableRows : `
       <tr>
-        <td colspan="8" class="px-4 py-12 text-center text-slate-500">
+        <td colspan="9" class="px-4 py-12 text-center text-slate-500">
           <div class="flex flex-col items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mb-3 opacity-50"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect><line x1="16" x2="16" y1="2" y2="6"></line><line x1="8" x2="8" y1="2" y2="6"></line><line x1="3" x2="21" y1="10" y2="10"></line></svg>
             ${(textFilter || vendFilter || custFilter) ? 'No se encontraron resultados para esta búsqueda' : 'No hay ventas'}

@@ -1843,10 +1843,10 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
 
     return `
       <tr id="report-row-${sale.id}" class="border-b border-slate-800 hover:bg-slate-800/40 transition-colors">
-        <td class="px-3 py-3.5 text-center font-mono font-bold text-amber-400 min-w-[50px] whitespace-nowrap">#${sale.id}</td>
-        <td class="px-3 py-3.5 min-w-[140px] font-semibold text-white">${sale.customerName || 'Cliente Mostrador'}</td>
-        <td class="px-3 py-3.5 text-center min-w-[120px] whitespace-nowrap">${phoneHtml}</td>
-        <td class="px-3 py-3.5 text-center min-w-[105px] whitespace-nowrap">
+        <td class="px-2 py-2.5 text-center font-mono font-bold text-amber-400 whitespace-nowrap text-xs">#${sale.id}</td>
+        <td class="px-2 py-2.5 font-semibold text-white text-xs sm:text-sm whitespace-nowrap max-w-[140px] truncate" title="${sale.customerName || 'Cliente Mostrador'}">${sale.customerName || 'Cliente Mostrador'}</td>
+        <td class="px-2 py-2.5 text-center whitespace-nowrap">${phoneHtml}</td>
+        <td class="px-2 py-2.5 text-center whitespace-nowrap">
           <input 
             type="text" 
             id="report-delivery-${sale.id}"
@@ -1855,36 +1855,36 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
             title="Hora de entrega (puedes editarla aquí directamente)"
             oninput="window.handleReportTimeInput(this, event)"
             onblur="window.handleReportTimeBlur(this, ${sale.id})"
-            class="w-24 text-center text-xs font-mono font-bold py-1.5 px-2 rounded-lg bg-slate-900 border border-slate-700 text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm cursor-text"
+            class="w-16 sm:w-20 text-center text-xs font-mono font-bold py-1 px-1 rounded-lg bg-slate-900 border border-slate-700 text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm cursor-text"
           />
         </td>
-        <td class="px-3 py-3.5 text-xs italic text-slate-300 min-w-[180px] leading-relaxed">${sale.items || '-'}</td>
-        <td class="px-3 py-3.5 text-center min-w-[175px] whitespace-nowrap">
+        <td class="px-2 py-2.5 text-xs italic text-slate-300 min-w-[120px] max-w-[180px] leading-tight break-words">${sale.items || '-'}</td>
+        <td class="px-2 py-2.5 text-center whitespace-nowrap">
           <select 
             id="report-pago-${sale.id}"
             onchange="window.updateSaleProperty(${sale.id}, 'pago', this.value, this)" 
-            class="w-full min-w-[165px] text-xs sm:text-sm font-bold py-2 px-3 rounded-xl border cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm ${getPaymentSelectStyle(pagoNorm)}"
+            class="text-xs font-bold py-1.5 px-2 rounded-xl border cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm ${getPaymentSelectStyle(pagoNorm)}"
           >
             <option value="EFECTIVO" ${pagoNorm === 'EFECTIVO' ? 'selected' : ''}>💵 EFECTIVO</option>
-            <option value="TRANSFERENCIA" ${pagoNorm === 'TRANSFERENCIA' ? 'selected' : ''}>📲 TRANSFERENCIA</option>
+            <option value="TRANSFERENCIA" ${pagoNorm === 'TRANSFERENCIA' ? 'selected' : ''}>📲 TRANSF.</option>
             <option value="TARJETA" ${pagoNorm === 'TARJETA' ? 'selected' : ''}>💳 TARJETA</option>
             <option value="NO PAGO" ${pagoNorm === 'NO PAGO' ? 'selected' : ''}>❌ NO PAGÓ</option>
           </select>
         </td>
-        <td class="px-3 py-3.5 text-center min-w-[150px] whitespace-nowrap">
+        <td class="px-2 py-2.5 text-center whitespace-nowrap">
           <select 
             id="report-vendor-${sale.id}"
             onchange="window.updateSaleProperty(${sale.id}, 'vendedor', this.value, this)" 
-            class="w-full min-w-[140px] text-xs sm:text-sm font-bold py-2 px-3 rounded-xl bg-slate-900 border border-slate-700 text-blue-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm"
+            class="text-xs font-bold py-1.5 px-2 rounded-xl bg-slate-900 border border-slate-700 text-blue-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm max-w-[125px]"
           >
             <option value="" ${!vendNorm ? 'selected' : ''}>-- Sin Vendedor --</option>
             ${VENDEDORES.map(v => `<option value="${v}" ${vendNorm === v ? 'selected' : ''}>🛵 ${v}</option>`).join('')}
           </select>
         </td>
-        <td class="px-3 py-3.5 text-right font-black text-amber-400 whitespace-nowrap min-w-[95px] text-sm">
+        <td class="px-2 py-2.5 text-right font-black text-amber-400 whitespace-nowrap text-sm">
           <div class="flex items-center justify-end gap-1.5">
             <span>Q${saleTotal.toFixed(2)}</span>
-            <button type="button" onclick="window.smartPrintSale(${sale.id}, event)" title="Imprimir ticket (Automático en Xprinter)" class="p-1.5 rounded-lg bg-slate-800 hover:bg-emerald-900/60 text-slate-300 hover:text-emerald-300 border border-slate-700 hover:border-emerald-600 transition-all text-xs active:scale-90 flex items-center gap-1 font-bold">🖨️ Imprimir</button>
+            <button type="button" onclick="window.smartPrintSale(${sale.id}, event)" title="Imprimir ticket (Automático en Xprinter)" class="py-1 px-2 rounded-lg bg-slate-800 hover:bg-emerald-900/60 text-slate-300 hover:text-emerald-300 border border-slate-700 hover:border-emerald-600 transition-all text-xs active:scale-90 flex items-center gap-1 font-bold">🖨️</button>
           </div>
         </td>
       </tr>
@@ -2115,9 +2115,9 @@ window.renderReportModal = function() {
   let currentReportView = localStorage.getItem('flory_report_view') || (window.innerWidth < 768 ? 'cards' : 'table');
   
   modalOverlay.innerHTML = `
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl h-[95vh] sm:h-auto sm:max-h-[92vh] flex flex-col shadow-2xl animate-scale-in mx-auto my-auto overflow-hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-[97vw] xl:max-w-7xl h-[95vh] sm:h-auto sm:max-h-[94vh] flex flex-col shadow-2xl animate-scale-in mx-auto my-auto overflow-hidden">
       <!-- Modal Header -->
-      <div class="p-4 sm:p-6 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-slate-800/50 shrink-0">
+      <div class="p-3.5 sm:p-5 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-slate-800/50 shrink-0">
         <div class="shrink-0 flex items-center justify-between w-full md:w-auto">
           <div>
             <h2 class="text-lg sm:text-2xl font-bold font-playfair text-white flex items-center gap-2.5 whitespace-nowrap">
@@ -2133,66 +2133,66 @@ window.renderReportModal = function() {
         </div>
         
         <!-- Controls: Filters and View Toggle -->
-        <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
           <!-- View Toggle (Table vs Cards) -->
           <div class="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-700 shrink-0">
-            <button id="report-view-table-btn" type="button" class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-amber-500 text-slate-950 shadow">
+            <button id="report-view-table-btn" type="button" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all bg-amber-500 text-slate-950 shadow">
               <span>📋</span> Tabla
             </button>
-            <button id="report-view-cards-btn" type="button" class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white">
+            <button id="report-view-cards-btn" type="button" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white">
               <span>📱</span> Tarjetas
             </button>
           </div>
 
-          <div class="relative flex-1 sm:w-56 min-w-[140px]">
-            <input type="text" id="report-customer-search" placeholder="Filtrar por cliente..." 
-              class="w-full bg-slate-950 border border-slate-700 text-white text-xs sm:text-sm rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:border-amber-500 transition-all">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-2.5 top-2.5 text-slate-500"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          <div class="relative flex-1 sm:w-44 min-w-[120px]">
+            <input type="text" id="report-customer-search" placeholder="Cliente..." 
+              class="w-full bg-slate-950 border border-slate-700 text-white text-xs rounded-xl pl-8 pr-2.5 py-1.5 focus:outline-none focus:border-amber-500 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-2.5 top-2 text-slate-500"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
           </div>
 
-          <div class="relative flex-1 sm:w-44 min-w-[140px]">
-            <input type="text" id="report-search" placeholder="Filtrar detalle..." 
-              class="w-full bg-slate-950 border border-slate-700 text-white text-xs sm:text-sm rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:border-amber-500 transition-all">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-2.5 top-2.5 text-slate-500"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+          <div class="relative flex-1 sm:w-36 min-w-[110px]">
+            <input type="text" id="report-search" placeholder="Platillo..." 
+              class="w-full bg-slate-950 border border-slate-700 text-white text-xs rounded-xl pl-8 pr-2.5 py-1.5 focus:outline-none focus:border-amber-500 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-2.5 top-2 text-slate-500"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
           </div>
 
-          <select id="report-vendor-filter" class="bg-slate-950 border border-slate-700 text-white text-xs sm:text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500 transition-all w-full sm:w-40 cursor-pointer font-semibold shrink-0">
-            <option value="">Todos los vendedores</option>
+          <select id="report-vendor-filter" class="bg-slate-950 border border-slate-700 text-white text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-amber-500 transition-all w-full sm:w-36 cursor-pointer font-semibold shrink-0">
+            <option value="">Vendedores</option>
             ${VENDEDORES.map(v => `<option value="${v}">${v}</option>`).join('')}
           </select>
 
-          <button id="close-report-btn-desktop" class="hidden md:flex p-2 text-slate-400 hover:text-white hover:bg-slate-700/80 rounded-xl transition-colors border border-slate-700/50" title="Cerrar">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+          <button id="close-report-btn-desktop" class="hidden md:flex p-1.5 text-slate-400 hover:text-white hover:bg-slate-700/80 rounded-xl transition-colors border border-slate-700/50" title="Cerrar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
           </button>
         </div>
       </div>
 
       <!-- Modal Body (Scrollable) -->
-      <div class="flex-1 min-h-0 overflow-y-auto p-3 sm:p-6 bg-slate-950">
+      <div class="flex-1 min-h-0 overflow-y-auto p-2 sm:p-4 bg-slate-950">
         
         <!-- Mobile Table Scroll Tip -->
-        <div id="report-table-tip" class="sm:hidden flex items-center justify-between bg-slate-900/90 border border-amber-500/30 px-3 py-2 rounded-xl mb-3 text-xs text-amber-400">
+        <div id="report-table-tip" class="sm:hidden flex items-center justify-between bg-slate-900/90 border border-amber-500/30 px-3 py-1.5 rounded-xl mb-2 text-xs text-amber-400">
           <span class="flex items-center gap-1.5 font-medium">
-            <span>👉</span> Desliza la tabla horizontalmente para ver todos los datos
+            <span>👉</span> Desliza la tabla horizontalmente
           </span>
           <span class="text-[10px] bg-amber-500/20 px-2 py-0.5 rounded font-bold uppercase">
-            ↔ 950px
+            ↔ Deslizar
           </span>
         </div>
 
         <!-- Table View -->
-        <div id="report-table-view" class="rounded-2xl border border-slate-800 overflow-x-auto shadow-inner bg-slate-900/40">
-          <table class="w-full text-sm text-left text-slate-300 min-w-[950px] border-collapse">
+        <div id="report-table-view" class="report-scroll-container rounded-2xl border border-slate-800 overflow-x-auto shadow-inner bg-slate-900/40">
+          <table class="w-full text-sm text-left text-slate-300 border-collapse min-w-[760px] lg:min-w-full">
             <thead class="text-xs text-slate-400 uppercase bg-slate-900/90 border-b border-slate-800 sticky top-0 z-10 backdrop-blur-sm">
               <tr>
-                <th scope="col" class="px-3 py-4 text-center min-w-[50px]">No.</th>
-                <th scope="col" class="px-3 py-4 min-w-[140px]">NOMBRE DEL CLIENTE</th>
-                <th scope="col" class="px-3 py-4 text-center min-w-[120px]">TELÉFONO</th>
-                <th scope="col" class="px-3 py-4 text-center min-w-[75px]">HORA</th>
-                <th scope="col" class="px-3 py-4 min-w-[180px]">DETALLE DE PEDIDO</th>
-                <th scope="col" class="px-3 py-4 text-center min-w-[175px]">FORMA DE PAGO</th>
-                <th scope="col" class="px-3 py-4 text-center min-w-[150px]">VENDEDOR</th>
-                <th scope="col" class="px-3 py-4 text-right min-w-[95px] whitespace-nowrap">TOTAL</th>
+                <th scope="col" class="px-2 py-3 text-center whitespace-nowrap">No.</th>
+                <th scope="col" class="px-2 py-3 whitespace-nowrap">CLIENTE</th>
+                <th scope="col" class="px-2 py-3 text-center whitespace-nowrap">TELÉFONO</th>
+                <th scope="col" class="px-2 py-3 text-center whitespace-nowrap">HORA</th>
+                <th scope="col" class="px-2 py-3">DETALLE</th>
+                <th scope="col" class="px-2 py-3 text-center whitespace-nowrap">PAGO</th>
+                <th scope="col" class="px-2 py-3 text-center whitespace-nowrap">VENDEDOR</th>
+                <th scope="col" class="px-2 py-3 text-right whitespace-nowrap">TOTAL</th>
               </tr>
             </thead>
             <tbody id="report-table-body">
@@ -2430,6 +2430,18 @@ window.renderReportModal = function() {
     const latestSales = getSales();
     exportToExcel(latestSales);
   };
+
+  const reportTableView = document.getElementById('report-table-view');
+  if (reportTableView) {
+    reportTableView.addEventListener('wheel', (e) => {
+      if (reportTableView.scrollWidth > reportTableView.clientWidth) {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+          reportTableView.scrollLeft += e.deltaY;
+          e.preventDefault();
+        }
+      }
+    }, { passive: false });
+  }
 
   modalOverlay.classList.remove('hidden');
   modalOverlay.classList.add('flex');

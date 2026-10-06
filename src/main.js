@@ -858,6 +858,35 @@ window.requestPrintInCaja = function(saleId, event) {
   showReportToast(`🖨️ Pedido #${saleId} enviado a la computadora de caja`);
 };
 
+window.smartPrintSale = function(saleId, event) {
+  const isTouchDevice = typeof window !== 'undefined' && (
+    window.innerWidth < 1024 ||
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  );
+
+  if (isTouchDevice) {
+    // Si estamos en tablet o teléfono, mandar la orden de impresión automática a caja
+    window.requestPrintInCaja(saleId, event);
+  } else {
+    // Si estamos en la computadora de caja, imprimir directamente en la Xprinter
+    const sales = getSales();
+    const sale = sales.find(s => Number(s.id) === Number(saleId));
+    if (sale) {
+      printTicketForSale(sale, false);
+      const btn = event?.currentTarget;
+      if (btn) {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<span>✅</span> Imprimiendo...';
+        btn.classList.add('bg-emerald-800', 'text-white', 'border-emerald-400');
+        setTimeout(() => {
+          btn.innerHTML = orig;
+          btn.classList.remove('bg-emerald-800', 'text-white', 'border-emerald-400');
+        }, 2500);
+      }
+    }
+  }
+};
+
 const printQueue = [];
 let isPrintingQueue = false;
 
@@ -1855,8 +1884,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
         <td class="px-3 py-3.5 text-right font-black text-amber-400 whitespace-nowrap min-w-[95px] text-sm">
           <div class="flex items-center justify-end gap-1.5">
             <span>Q${saleTotal.toFixed(2)}</span>
-            <button type="button" onclick="window.requestPrintInCaja(${sale.id}, event)" title="Mandar a imprimir en la computadora de caja" class="p-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-800 text-emerald-300 border border-emerald-700/80 transition-all text-xs active:scale-90 flex items-center gap-1 font-bold">🖨️ Caja</button>
-            <button type="button" onclick="window.reprintTicket(${sale.id})" title="Imprimir local en este equipo" class="p-1.5 rounded-lg bg-slate-800 hover:bg-amber-500/20 text-slate-400 hover:text-amber-400 border border-slate-700 transition-all text-xs active:scale-90">🖨️</button>
+            <button type="button" onclick="window.smartPrintSale(${sale.id}, event)" title="Imprimir ticket (Automático en Xprinter)" class="p-1.5 rounded-lg bg-slate-800 hover:bg-emerald-900/60 text-slate-300 hover:text-emerald-300 border border-slate-700 hover:border-emerald-600 transition-all text-xs active:scale-90 flex items-center gap-1 font-bold">🖨️ Imprimir</button>
           </div>
         </td>
       </tr>
@@ -1910,12 +1938,9 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
             <div class="text-xl font-black text-amber-400 font-sans">
               Q${saleTotal.toFixed(2)}
             </div>
-            <div class="flex items-center justify-end gap-1 mt-1">
-              <button type="button" onclick="window.requestPrintInCaja(${sale.id}, event)" title="Mandar a imprimir en la computadora de caja" class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 hover:text-white bg-emerald-950/80 hover:bg-emerald-900 px-2.5 py-1 rounded-lg border border-emerald-700/80 transition-all active:scale-95 shadow-sm">
-                <span>🖨️</span> Mandar a Caja
-              </button>
-              <button type="button" onclick="window.reprintTicket(${sale.id})" title="Imprimir local en este equipo" class="inline-flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 px-2 py-1 rounded-lg border border-slate-700 transition-all active:scale-95">
-                Local
+            <div class="flex items-center justify-end mt-1">
+              <button type="button" onclick="window.smartPrintSale(${sale.id}, event)" title="Imprimir ticket en la impresora Xprinter" class="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 hover:text-white bg-emerald-950/80 hover:bg-emerald-900 px-3 py-1.5 rounded-xl border border-emerald-700/80 transition-all active:scale-95 shadow-sm">
+                <span>🖨️</span> Imprimir Ticket
               </button>
             </div>
           </div>

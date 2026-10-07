@@ -104,6 +104,61 @@ export function sanitizeSale(sale, index = 0) {
   };
 }
 
+// Respaldo de seguridad diario inviolable en localStorage
+export function saveSafetyBackup(sales) {
+  try {
+    if (!Array.isArray(sales) || sales.length === 0 || typeof window === 'undefined') return;
+    const backupKey = `flory_sales_backup_${getTodayKey()}`;
+    const rawBackup = localStorage.getItem(backupKey);
+    const existingBackup = rawBackup ? JSON.parse(rawBackup) : [];
+    const mergedBackup = mergeSalesLists(existingBackup, sales);
+    localStorage.setItem(backupKey, JSON.stringify(mergedBackup));
+  } catch (e) {}
+}
+
+// Unión inteligente (Merge) de listas de ventas evitando duplicados o pérdida de órdenes
+export function mergeSalesLists(listA = [], listB = []) {
+  const map = new Map();
+
+  const getSaleTimestamp = (s) => {
+    if (!s) return 0;
+    if (s.updatedAt) {
+      const t = new Date(s.updatedAt).getTime();
+      if (!isNaN(t)) return t;
+    }
+    return 0;
+  };
+
+  const processSale = (s) => {
+    if (!s) return;
+    const clean = sanitizeSale(s);
+    if (!clean || !clean.id) return;
+    const id = Number(clean.id);
+
+    if (!map.has(id)) {
+      map.set(id, clean);
+    } else {
+      const existing = map.get(id);
+      const existingTime = getSaleTimestamp(existing);
+      const incomingTime = getSaleTimestamp(clean);
+
+      // Priorizar el registro con actualización más reciente
+      let base = incomingTime >= existingTime ? { ...existing, ...clean } : { ...clean, ...existing };
+      
+      // Preservar la solicitud de impresión si alguno de los dos la tiene pendiente
+      const printRequested = Math.max(Number(clean.printRequested) || 0, Number(existing.printRequested) || 0);
+      base.printRequested = printRequested;
+
+      map.set(id, base);
+    }
+  };
+
+  (listA || []).forEach(processSale);
+  (listB || []).forEach(processSale);
+
+  return Array.from(map.values()).sort((a, b) => Number(a.id) - Number(b.id));
+}
+
 // Obtener todas las ventas del día (inmediato desde caché o localStorage)
 export function getSales() {
   if (cachedSales !== null) {
@@ -123,6 +178,7 @@ export function getSales() {
     cachedSales = sanitized;
     if (needsResave && typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+      saveSafetyBackup(sanitized);
       syncWithCloud(sanitized);
     }
     return cachedSales;
@@ -138,6 +194,7 @@ export function persistSales(sales, emit = true, syncApi = true, syncCloud = tru
     const sanitized = (sales || []).map((s, idx) => sanitizeSale(s, idx));
     cachedSales = sanitized;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+    saveSafetyBackup(sanitized);
     if (emit) {
       if (syncChannel) {
         syncChannel.postMessage({ type: 'SALES_UPDATED', sales: sanitized });
@@ -182,6 +239,7 @@ export function addSale(saleData) {
   sales.push(newSale);
   cachedSales = sales;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(sales));
+  saveSafetyBackup(sales);
 
   if (syncChannel) {
     syncChannel.postMessage({ type: 'SALES_UPDATED', sales });
@@ -490,18 +548,18 @@ function setupRealtimeSSE() {
         const data = JSON.parse(event.data);
         if (data && Array.isArray(data.sales)) {
           const currentSales = cachedSales !== null ? cachedSales : getSales();
-          // Si el servidor envía un array vacío pero nosotros tenemos ventas locales,
-          // preservamos nuestras ventas y las subimos al servidor para recuperarlo.
-          if (data.sales.length === 0 && currentSales.length > 0) {
-            console.log('⚠️ Servidor vacío recibido; restaurando ventas locales hacia el servidor...');
-            postApiAction({ action: 'SAVE_ALL', sales: currentSales });
-            return;
+          const merged = mergeSalesLists(currentSales, data.sales);
+          saveSafetyBackup(merged);
+
+          if (!areSalesEqual(merged, currentSales)) {
+            cachedSales = merged;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+            notifyListeners(merged);
           }
 
-          if (!areSalesEqual(data.sales, currentSales)) {
-            cachedSales = data.sales;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data.sales));
-            notifyListeners(data.sales);
+          // Si merged tiene más pedidos que los que mandó el servidor, notificamos al servidor para que no los pierda
+          if (merged.length > data.sales.length) {
+            postApiAction({ action: 'SAVE_ALL', sales: merged });
           }
         }
       } catch (err) {
@@ -519,22 +577,26 @@ function setupRealtimeSSE() {
 
 setupRealtimeSSE();
 
-// Comparar si dos listas de ventas tienen cambios reales (evita rebotes por orden de llaves JSON)
+// Comparar si dos listas de ventas tienen cambios reales (usando Map por ID, no por índice estricto)
 export function areSalesEqual(a, b) {
   if (!Array.isArray(a) || !Array.isArray(b)) return false;
   if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    const sA = a[i];
-    const sB = b[i];
-    if (!sA || !sB) return false;
+  const mapA = new Map();
+  for (const s of a) {
+    if (s && s.id) mapA.set(Number(s.id), s);
+  }
+  for (const sB of b) {
+    if (!sB || !sB.id) return false;
+    const sA = mapA.get(Number(sB.id));
+    if (!sA) return false;
     if (
-      Number(sA.id) !== Number(sB.id) ||
       normalizePayment(sA.pago) !== normalizePayment(sB.pago) ||
       normalizeVendor(sA.vendedor) !== normalizeVendor(sB.vendedor) ||
       Number(sA.total) !== Number(sB.total) ||
       String(sA.customerName || '') !== String(sB.customerName || '') ||
       String(sA.items || '') !== String(sB.items || '') ||
-      Number(sA.printRequested || 0) !== Number(sB.printRequested || 0)
+      Number(sA.printRequested || 0) !== Number(sB.printRequested || 0) ||
+      String(sA.deliveryTime || '') !== String(sB.deliveryTime || '')
     ) {
       return false;
     }
@@ -555,14 +617,18 @@ async function syncFromServer() {
     const serverSales = await res.json();
     if (Array.isArray(serverSales)) {
       const currentSales = cachedSales !== null ? cachedSales : getSales();
-      if (serverSales.length === 0 && currentSales.length > 0) {
-        postApiAction({ action: 'SAVE_ALL', sales: currentSales });
-        return;
+      const merged = mergeSalesLists(currentSales, serverSales);
+      saveSafetyBackup(merged);
+
+      if (!areSalesEqual(merged, currentSales)) {
+        cachedSales = merged;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        notifyListeners(merged);
       }
-      if (!areSalesEqual(serverSales, currentSales)) {
-        cachedSales = serverSales;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(serverSales));
-        notifyListeners(serverSales);
+
+      // Si nuestro dispositivo local tiene órdenes que el servidor aún no tiene, preservarlas en el servidor
+      if (merged.length > serverSales.length) {
+        postApiAction({ action: 'SAVE_ALL', sales: merged });
       }
     }
   } catch (e) {
@@ -645,14 +711,22 @@ export async function initFirebase(config = FIREBASE_CONFIG) {
         const cloudSales = rawCloudSales.map((s, idx) => sanitizeSale(s, idx));
         const currentSales = cachedSales !== null ? cachedSales : getSales();
 
-        if (!areSalesEqual(cloudSales, currentSales)) {
-          console.log('⚡ Sincronización recibida de Firebase Cloud:', cloudSales.length, 'ventas');
-          cachedSales = cloudSales;
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudSales));
+        const merged = mergeSalesLists(currentSales, cloudSales);
+        saveSafetyBackup(merged);
+
+        if (!areSalesEqual(merged, currentSales)) {
+          console.log('⚡ Sincronización recibida de Firebase Cloud:', merged.length, 'ventas');
+          cachedSales = merged;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
           if (syncChannel) {
-            syncChannel.postMessage({ type: 'SALES_UPDATED', sales: cloudSales });
+            syncChannel.postMessage({ type: 'SALES_UPDATED', sales: merged });
           }
-          notifyListeners(cloudSales);
+          notifyListeners(merged);
+        }
+
+        // Si el dispositivo local tenía ventas que no estaban en la nube, subirlas para preservarlas
+        if (merged.length > cloudSales.length) {
+          syncWithCloud(merged);
         }
       } else {
         // Si no hay documento en la nube para hoy, pero este dispositivo tiene ventas, subirlas

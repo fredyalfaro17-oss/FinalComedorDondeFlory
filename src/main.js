@@ -453,7 +453,16 @@ function initPrintedSalesCache() {
   if (hasInitializedPrintedCache) return;
   const existing = getSales();
   const ids = getPrintedSaleIds();
-  existing.forEach(s => ids.add(Number(s.id)));
+  const now = Date.now();
+  existing.forEach(s => {
+    // Si la orden fue creada o solicitada en los últimos 5 minutos, NO la marcamos como ya impresa automáticamente
+    const hasRecentPrintReq = s.printRequested && (now - Number(s.printRequested) < 5 * 60 * 1000);
+    const saleTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
+    const isVeryRecent = saleTime && (now - saleTime < 5 * 60 * 1000);
+    if (!hasRecentPrintReq && !isVeryRecent) {
+      ids.add(Number(s.id));
+    }
+  });
   localStorage.setItem(getPrintedSalesKey(), JSON.stringify(Array.from(ids)));
   hasInitializedPrintedCache = true;
 }
@@ -917,9 +926,13 @@ function checkAutoPrintQueue(sales) {
   if (!hasInitializedPrintedCache) {
     initPrintedSalesCache();
     sales.forEach(s => {
-      if (s && s.printRequested) handledPrintRequestTokens.add(getPrintRequestToken(s));
+      if (s && s.printRequested) {
+        const isRecent = (Date.now() - Number(s.printRequested)) < 5 * 60 * 1000;
+        if (!isRecent) {
+          handledPrintRequestTokens.add(getPrintRequestToken(s));
+        }
+      }
     });
-    return;
   }
 
   const isEnabled = localStorage.getItem('flory_autoprint_enabled') !== 'false';
@@ -936,15 +949,14 @@ function checkAutoPrintQueue(sales) {
         handledPrintRequestTokens.add(token);
         // Imprimir en la computadora con Xprinter de inmediato
         enqueueSalePrint(sale, true);
-        return;
+        continue;
       }
     }
 
     // Caso 2: Nueva orden entrante creada en otro dispositivo (tablet, mesero, celular)
     if (!printedIds.has(saleId)) {
-      if (isEnabled && sale.sourceDevice && sale.sourceDevice !== myDeviceId) {
+      if (isEnabled && (!sale.sourceDevice || sale.sourceDevice !== myDeviceId)) {
         enqueueSalePrint(sale, true);
-        return;
       } else {
         markSaleAsPrinted(saleId);
       }

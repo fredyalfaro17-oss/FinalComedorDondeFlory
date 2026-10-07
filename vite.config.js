@@ -70,7 +70,19 @@ function salesSyncPlugin() {
               let currentSales = getSalesFromFile()
               
               if (data.action === 'SAVE_ALL') {
-                currentSales = Array.isArray(data.sales) ? data.sales : []
+                const incoming = Array.isArray(data.sales) ? data.sales : []
+                const map = new Map()
+                currentSales.forEach(s => {
+                  if (s && s.id) map.set(Number(s.id), s)
+                })
+                incoming.forEach(s => {
+                  if (s && s.id) {
+                    const id = Number(s.id)
+                    const existing = map.get(id)
+                    map.set(id, existing ? { ...existing, ...s } : s)
+                  }
+                })
+                currentSales = Array.from(map.values()).sort((a, b) => Number(a.id) - Number(b.id))
               } else if (data.action === 'UPDATE_PROP') {
                 const targetId = Number(data.id)
                 const idx = currentSales.findIndex(s => Number(s.id) === targetId)

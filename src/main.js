@@ -55,7 +55,7 @@ function init() {
 function renderCategories() {
   const categoriesHtml = menuData.categories.map(cat => `
     <button 
-      class="cat-btn px-6 py-2.5 rounded-full text-base font-bold uppercase tracking-wide whitespace-nowrap border border-slate-800 bg-slate-800/50 text-slate-400 hover:text-white transition-all ${cat.id === currentCategory ? 'active' : ''}" 
+      class="cat-btn px-5 sm:px-6 py-2 sm:py-2.5 rounded-full text-sm sm:text-base font-extrabold uppercase tracking-wide whitespace-nowrap border border-slate-800/80 bg-slate-900/80 text-slate-300 hover:text-white hover:border-slate-700 transition-all focus:outline-none select-none ${cat.id === currentCategory ? 'active' : ''}" 
       data-id="${cat.id}"
       style="--cat-color: ${cat.color}; --cat-color-alpha: ${cat.color}44"
     >
@@ -65,14 +65,14 @@ function renderCategories() {
 
   const exitBtnHtml = `
     <a href="index.html" 
-      class="px-6 py-2.5 rounded-full text-base font-bold uppercase tracking-wide whitespace-nowrap border border-red-500/20 bg-red-500/10 text-red-500 hover:bg-red-600 hover:text-white transition-all flex items-center gap-2 ml-4"
+      class="px-5 sm:px-6 py-2 sm:py-2.5 rounded-full text-sm sm:text-base font-extrabold uppercase tracking-wide whitespace-nowrap border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-600 hover:text-white transition-all flex items-center gap-2 ml-3 select-none"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
         <polyline points="16 17 21 12 16 7"></polyline>
         <line x1="21" y1="12" x2="9" y2="12"></line>
       </svg>
-      SALIR
+      <span>SALIR</span>
     </a>
   `;
 
@@ -94,17 +94,22 @@ function renderMenu() {
   if (!category) return;
 
   menuContainer.innerHTML = category.items.map(item => `
-    <div class="menu-item-card bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-col justify-between group cursor-pointer" data-item='${JSON.stringify(item)}'>
-      <div class="flex justify-between items-start gap-4 mb-2">
-        <div>
-          <h3 class="font-black text-lg md:text-xl text-white group-hover:text-red-400 transition-colors">${item.name}</h3>
-          ${item.description ? `<p class="text-xs text-slate-500 mt-1.5 leading-relaxed">${item.description}</p>` : ''}
+    <div class="menu-item-card bg-slate-900/95 border border-slate-800/90 hover:border-amber-500/50 p-4 sm:p-5 rounded-2xl flex flex-col justify-between group cursor-pointer transition-all duration-200 active:scale-[0.98] shadow-md hover:shadow-xl hover:shadow-amber-500/5 relative overflow-hidden" data-item='${JSON.stringify(item)}'>
+      <div class="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-amber-500/10 transition-colors"></div>
+      <div>
+        <div class="flex justify-between items-start gap-3 mb-2">
+          <h3 class="font-black text-base sm:text-lg text-white group-hover:text-amber-400 transition-colors leading-snug">${item.name}</h3>
+          <div class="shrink-0 px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 font-black text-base sm:text-lg shadow-sm font-mono tracking-tight">
+            Q${item.price.toFixed(0)}
+          </div>
         </div>
-        <span class="font-black text-red-500 text-xl">Q${item.price.toFixed(0)}</span>
+        ${item.description ? `<p class="text-xs text-slate-400 mt-1 leading-relaxed line-clamp-2">${item.description}</p>` : ''}
       </div>
-      <div class="mt-4 flex justify-end">
-        <button class="add-btn bg-slate-800 hover:bg-slate-700 p-2 rounded-xl text-slate-300 transition-all hover:scale-110 active:scale-95 group-hover:bg-red-600 group-hover:text-white">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+      <div class="mt-3.5 pt-3 border-t border-slate-800/80 flex items-center justify-between">
+        <span class="text-[11px] font-bold text-slate-500 group-hover:text-slate-400 transition-colors uppercase tracking-wider">Toca para ordenar</span>
+        <button type="button" class="add-btn flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 group-hover:bg-amber-500 text-slate-300 group-hover:text-slate-950 font-bold text-xs border border-slate-700/80 group-hover:border-amber-400 transition-all shadow-sm">
+          <span class="text-sm font-black">+</span>
+          <span>Pedir</span>
         </button>
       </div>
     </div>
@@ -122,9 +127,14 @@ function renderMenu() {
 function updateCartUI() {
   if (cart.length === 0) {
     cartItemsContainer.innerHTML = `
-      <div class="flex flex-col items-center justify-center h-full text-slate-600 opacity-50 space-y-4 animate-fade-in">
-        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"></circle><circle cx="19" cy="21" r="1"></circle><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path></svg>
-        <p class="font-medium">Tu carrito está vacío</p>
+      <div class="flex flex-col items-center justify-center h-full text-slate-600 opacity-60 space-y-3 animate-fade-in p-6 text-center">
+        <div class="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-3xl shadow-inner">
+          🛒
+        </div>
+        <div>
+          <p class="font-bold text-slate-400 text-sm">Tu orden está vacía</p>
+          <p class="text-xs text-slate-500 mt-0.5">Selecciona platillos del menú para comenzar</p>
+        </div>
       </div>
     `;
     cartTotalEl.textContent = 'Q0.00';
@@ -142,17 +152,28 @@ function updateCartUI() {
     const subtotal = item.price * item.quantity;
     total += subtotal;
     return `
-      <div class="bg-slate-800/80 border border-slate-700/50 p-4 rounded-xl flex items-center justify-between gap-4">
-        <div class="flex-1 min-w-0">
-          <h4 class="font-black text-base text-white truncate">${item.name}</h4>
-          ${item.description ? `<p class="text-sm text-slate-400 font-medium italic mt-0.5 line-clamp-2">${item.description}</p>` : ''}
-          <p class="text-xs text-slate-500 mt-1 font-bold uppercase tracking-wider">${item.quantity} × Q${item.price.toFixed(2)}</p>
+      <div class="bg-slate-900/90 border border-slate-800/90 hover:border-slate-700/80 p-3.5 rounded-2xl flex flex-col gap-2.5 transition-all shadow-sm">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex-1 min-w-0">
+            <h4 class="font-bold text-sm text-white truncate leading-snug">${item.name}</h4>
+            ${item.description ? `<p class="text-xs text-slate-400 italic mt-0.5 line-clamp-2">${item.description}</p>` : ''}
+            <span class="text-[11px] font-semibold text-slate-500 font-mono">Q${item.price.toFixed(2)} c/u</span>
+          </div>
+          <span class="font-black text-amber-400 text-sm font-mono shrink-0">Q${subtotal.toFixed(2)}</span>
         </div>
-        <div class="flex flex-col items-end gap-2 shrink-0">
-          <span class="font-black text-red-500 text-base">Q${subtotal.toFixed(2)}</span>
-          <button class="remove-cart-item text-slate-500 hover:text-red-500 transition-colors p-1" data-index="${index}">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+
+        <div class="flex items-center justify-between pt-2 border-t border-slate-800/60">
+          <button class="remove-cart-item text-slate-500 hover:text-red-400 transition-colors p-1 text-xs flex items-center gap-1 font-semibold" data-index="${index}" title="Quitar platillo">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+            <span>Quitar</span>
           </button>
+
+          <!-- Stepper rápido de cantidad -->
+          <div class="flex items-center bg-slate-950 rounded-xl border border-slate-800 p-0.5">
+            <button type="button" class="cart-qty-minus w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white font-bold transition-all active:scale-90" data-index="${index}">-</button>
+            <span class="w-7 text-center font-bold text-xs text-white font-mono">${item.quantity}</span>
+            <button type="button" class="cart-qty-plus w-7 h-7 flex items-center justify-center rounded-lg text-amber-400 hover:bg-amber-500 hover:text-slate-950 font-bold transition-all active:scale-90" data-index="${index}">+</button>
+          </div>
         </div>
       </div>
     `;
@@ -160,13 +181,40 @@ function updateCartUI() {
 
   cartTotalEl.textContent = `Q${total.toFixed(2)}`;
 
-  // Remove listeners
+  // Listeners para quitar
   document.querySelectorAll('.remove-cart-item').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const index = parseInt(btn.dataset.index);
       cart.splice(index, 1);
       updateCartUI();
+    });
+  });
+
+  // Listeners para steppers + y -
+  document.querySelectorAll('.cart-qty-plus').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const index = parseInt(btn.dataset.index);
+      if (cart[index]) {
+        cart[index].quantity += 1;
+        updateCartUI();
+      }
+    });
+  });
+
+  document.querySelectorAll('.cart-qty-minus').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const index = parseInt(btn.dataset.index);
+      if (cart[index]) {
+        if (cart[index].quantity > 1) {
+          cart[index].quantity -= 1;
+        } else {
+          cart.splice(index, 1);
+        }
+        updateCartUI();
+      }
     });
   });
 
@@ -737,7 +785,7 @@ export function generateTicketPreviewHtml(data) {
   }
 
   return `
-    <div id="ticket-preview" class="ticket-container bg-white shadow-2xl rounded-lg text-black">
+    <div id="ticket-preview" class="ticket-container ticket-sawtooth bg-white shadow-2xl rounded-t-xl text-black">
       <div class="ticket-header space-y-0.5">
         <h2 class="text-xl font-bold uppercase tracking-tighter">Comedor Donde Flory</h2>
         <p class="ticket-info">Sabor Casero y Profesional</p>

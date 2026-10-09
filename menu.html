@@ -9,19 +9,23 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-amber-500/30" style="min-height: 100dvh;">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-amber-500/30"
+  style="min-height: 100dvh;">
   <div id="app" class="flex flex-col h-screen overflow-hidden" style="height: 100dvh;">
     <!-- Top Header -->
     <header
       class="bg-slate-900 border-b border-slate-800 px-3 sm:px-6 md:px-8 py-2 sm:py-3.5 shadow-xl flex items-center justify-between shrink-0 gap-2 sm:gap-4 md:gap-8 relative overflow-hidden">
       <div class="absolute inset-0 bg-gradient-to-r from-red-600/5 to-transparent pointer-events-none"></div>
-      
+
       <div class="shrink-0 relative z-10 flex items-center gap-2">
-        <img src="/logo.png" alt="Comedor Donde Flory" class="h-10 sm:h-14 md:h-16 w-auto object-contain drop-shadow-2xl animate-logo-float">
+        <img src="/logo.png" alt="Comedor Donde Flory"
+          class="h-10 sm:h-14 md:h-16 w-auto object-contain drop-shadow-2xl animate-logo-float">
       </div>
 
       <div class="flex-1 text-center hidden md:block">
@@ -45,7 +49,8 @@
 
       <div class="text-right flex flex-col items-end gap-1.5 shrink-0 relative z-10">
         <div class="flex items-center gap-2">
-          <div class="hidden xl:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-950/80 border border-slate-800 text-[10px] font-bold text-slate-300 shadow-inner">
+          <div
+            class="hidden xl:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-950/80 border border-slate-800 text-[10px] font-bold text-slate-300 shadow-inner">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             <span class="text-emerald-400">En Vivo</span>
           </div>
@@ -53,19 +58,23 @@
         </div>
         <div class="flex items-center gap-1.5 sm:gap-2">
           <!-- Auto-print solo visible en PC / Tablet con impresora física -->
-          <button id="toggle-autoprint-btn" class="hidden md:flex text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 sm:px-3 py-1.5 rounded-xl hover:bg-emerald-500/30 transition-all items-center gap-1.5 shadow-sm active:scale-95" title="Activar/Desactivar auto-impresión de pedidos de meseros/tablets">
+          <button id="toggle-autoprint-btn"
+            class="hidden md:flex text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 sm:px-3 py-1.5 rounded-xl hover:bg-emerald-500/30 transition-all items-center gap-1.5 shadow-sm active:scale-95"
+            title="Activar/Desactivar auto-impresión de pedidos de meseros/tablets">
             <span id="autoprint-indicator" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
             <span id="autoprint-text" class="hidden lg:inline">🖨️ AUTO-PRINT: ON</span>
             <span id="autoprint-text-sm" class="lg:hidden">🖨️ ON</span>
           </button>
 
-          <button id="vendors-link-btn" class="text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 sm:px-3 py-1.5 rounded-xl hover:bg-blue-500/30 transition-all flex items-center gap-1 sm:gap-1.5 shadow-sm active:scale-95 whitespace-nowrap">
+          <button id="vendors-link-btn"
+            class="text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 sm:px-3 py-1.5 rounded-xl hover:bg-blue-500/30 transition-all flex items-center gap-1 sm:gap-1.5 shadow-sm active:scale-95 whitespace-nowrap">
             <span>📱</span>
             <span class="hidden sm:inline">LINK</span>
             <span class="hidden xs:inline">VENDEDORES</span>
           </button>
 
-          <button id="view-report-btn" class="text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 px-2.5 sm:px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 sm:gap-1.5 shadow-sm active:scale-95 whitespace-nowrap">
+          <button id="view-report-btn"
+            class="text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 px-2.5 sm:px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 sm:gap-1.5 shadow-sm active:scale-95 whitespace-nowrap">
             <span>📊</span>
             <span>REPORTE</span>
             <span class="hidden sm:inline">DEL DÍA</span>
@@ -77,7 +86,8 @@
     <!-- Navigation & Filters -->
     <nav id="category-nav"
       class="bg-slate-900/90 backdrop-blur-md sticky top-0 z-20 border-b border-slate-800/80 px-3 sm:px-6 py-2 shrink-0">
-      <div class="flex items-center gap-2 sm:gap-2.5 overflow-x-auto no-scrollbar py-1.5 px-1" id="categories-container">
+      <div class="flex items-center gap-2 sm:gap-2.5 overflow-x-auto no-scrollbar py-1.5 px-1"
+        id="categories-container">
         <!-- Categories will be injected here -->
       </div>
     </nav>
@@ -96,10 +106,13 @@
               <div class="relative">
                 <input type="text" id="customer-name" placeholder="Nombre completo..." autocomplete="off"
                   class="w-full bg-slate-800 border-slate-700 rounded-lg pl-3.5 pr-8 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all placeholder:text-slate-600">
-                <button type="button" id="customer-clear-btn" tabindex="-1" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 text-xs" title="Borrar cliente">✕</button>
+                <button type="button" id="customer-clear-btn" tabindex="-1"
+                  class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 text-xs"
+                  title="Borrar cliente">✕</button>
               </div>
               <!-- Floating Suggestions Dropdown -->
-              <div id="customer-suggestions" class="hidden fixed z-[9999] bg-slate-900/98 backdrop-blur-md border border-slate-700/80 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden max-h-72 overflow-y-auto no-scrollbar">
+              <div id="customer-suggestions"
+                class="hidden fixed z-[9999] bg-slate-900/98 backdrop-blur-md border border-slate-700/80 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden max-h-72 overflow-y-auto no-scrollbar">
               </div>
             </div>
             <div class="shrink-0 w-36 md:w-auto">
@@ -109,7 +122,8 @@
             </div>
             <div class="shrink-0 w-36 md:w-44">
               <label class="text-sm uppercase tracking-wider text-amber-400 font-bold mb-1.5 block">Entrega</label>
-              <input type="text" id="customer-time" list="delivery-time-presets" placeholder="00:00" maxlength="5" autocomplete="off"
+              <input type="text" id="customer-time" list="delivery-time-presets" placeholder="00:00" maxlength="5"
+                autocomplete="off"
                 class="w-full bg-slate-800 border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-white font-mono font-medium focus:ring-2 focus:ring-amber-500 outline-none transition-all placeholder:text-slate-500">
               <datalist id="delivery-time-presets">
                 <option value="11:30">11:30 (Almuerzo)</option>
@@ -185,7 +199,8 @@
       </section>
 
       <!-- Right Section: Cart -->
-      <aside id="cart-sidebar" class="fixed inset-0 z-[60] lg:static w-full lg:w-96 bg-slate-900 lg:border-l lg:border-slate-800 flex flex-col shrink-0 hidden lg:flex">
+      <aside id="cart-sidebar"
+        class="fixed inset-0 z-[60] lg:static w-full lg:w-96 bg-slate-900 lg:border-l lg:border-slate-800 flex flex-col shrink-0 hidden lg:flex">
         <div class="p-6 border-b border-slate-800 flex items-center justify-between">
           <h2 class="text-xl font-bold flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -201,7 +216,11 @@
             <button id="clear-cart-btn"
               class="text-xs font-bold text-red-500 hover:text-red-400 uppercase tracking-widest transition-colors hidden">Vaciar</button>
             <button id="close-cart-mobile-btn" class="lg:hidden text-slate-400 hover:text-white p-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 6 6 18"></path>
+                <path d="m6 6 12 12"></path>
+              </svg>
             </button>
           </div>
         </div>
@@ -221,9 +240,11 @@
 
         <!-- Cart Subtotal & Checkout -->
         <div class="p-4 sm:p-5 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 space-y-3.5 shrink-0">
-          <div class="flex justify-between items-center bg-slate-950/80 px-4 py-3 rounded-2xl border border-slate-800 shadow-inner">
+          <div
+            class="flex justify-between items-center bg-slate-950/80 px-4 py-3 rounded-2xl border border-slate-800 shadow-inner">
             <div>
-              <span class="text-[10px] font-black uppercase tracking-widest text-amber-500/90 block">TOTAL A COBRAR</span>
+              <span class="text-[10px] font-black uppercase tracking-widest text-amber-500/90 block">TOTAL A
+                COBRAR</span>
               <span class="text-[11px] text-slate-400 font-medium">Comedor Donde Flory</span>
             </div>
             <span class="text-3xl font-black text-amber-400 font-mono tracking-tight" id="cart-total">Q0.00</span>
@@ -237,9 +258,16 @@
       </aside>
 
       <!-- Floating Cart Button for Mobile -->
-      <button id="mobile-cart-btn" class="lg:hidden fixed bottom-6 right-6 bg-red-600 text-white p-4 rounded-full shadow-2xl z-[40] flex items-center justify-center hover:scale-110 transition-transform">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"></circle><circle cx="19" cy="21" r="1"></circle><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path></svg>
-        <span id="mobile-cart-badge" class="absolute -top-2 -right-2 bg-amber-500 text-slate-900 text-[10px] font-black px-2 py-0.5 rounded-full hidden">0</span>
+      <button id="mobile-cart-btn"
+        class="lg:hidden fixed bottom-6 right-6 bg-red-600 text-white p-4 rounded-full shadow-2xl z-[40] flex items-center justify-center hover:scale-110 transition-transform">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="8" cy="21" r="1"></circle>
+          <circle cx="19" cy="21" r="1"></circle>
+          <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path>
+        </svg>
+        <span id="mobile-cart-badge"
+          class="absolute -top-2 -right-2 bg-amber-500 text-slate-900 text-[10px] font-black px-2 py-0.5 rounded-full hidden">0</span>
       </button>
 
       <!-- Sidebar Footer (Admin Toggle) -->
@@ -276,7 +304,7 @@
             },
             red: {
               400: '#FFB300', // Primary Gold
-              500: '#FFB300', 
+              500: '#FFB300',
               600: '#FFB300',
               700: '#CC8F00',
             },

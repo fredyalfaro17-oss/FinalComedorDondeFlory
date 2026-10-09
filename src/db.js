@@ -77,6 +77,28 @@ export function getDeviceId() {
   return DEVICE_ID;
 }
 
+// Identificador de rol del dispositivo (Computadora central de Caja vs Tablets/Móviles)
+export function isCajaDevice() {
+  if (typeof window === 'undefined') return false;
+
+  // 1. Rol forzado en localStorage si se requiere
+  const role = localStorage.getItem('flory_device_role');
+  if (role === 'caja') return true;
+  if (role === 'tablet' || role === 'vendedor') return false;
+
+  // 2. Si corre en localhost o 127.0.0.1 (servidor nativo de Caja en la PC principal)
+  const host = window.location.hostname;
+  if (host === 'localhost' || host === '127.0.0.1') return true;
+
+  // 3. Si es un dispositivo móvil o táctil (Tablet Android, iPad, celular)
+  const isMobileOrTablet = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    (window.innerWidth < 1024 && ('ontouchstart' in window || navigator.maxTouchPoints > 0));
+  if (isMobileOrTablet) return false;
+
+  // Por defecto en pantallas de escritorio
+  return true;
+}
+
 // Normalizar vendedores válidos (o vacío si no tiene ninguno asignado)
 export function normalizeVendor(vendor) {
   if (!vendor || vendor === '-' || vendor === 'SIN ASIGNAR' || vendor === 'Sin Asignar') {
@@ -108,10 +130,20 @@ export function sanitizeSale(sale, index = 0) {
 export function saveSafetyBackup(sales) {
   try {
     if (!Array.isArray(sales) || sales.length === 0 || typeof window === 'undefined') return;
-    const backupKey = `flory_sales_backup_${getTodayKey()}`;
+    const today = getTodayKey();
+    const localClearedAt = Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0;
+    const validSales = localClearedAt > 0
+      ? sales.filter(s => {
+          const t = s && s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
+          return t > localClearedAt;
+        })
+      : sales;
+    if (validSales.length === 0) return;
+
+    const backupKey = `flory_sales_backup_${today}`;
     const rawBackup = localStorage.getItem(backupKey);
     const existingBackup = rawBackup ? JSON.parse(rawBackup) : [];
-    const mergedBackup = mergeSalesLists(existingBackup, sales);
+    const mergedBackup = mergeSalesLists(existingBackup, validSales);
     localStorage.setItem(backupKey, JSON.stringify(mergedBackup));
   } catch (e) {}
 }
@@ -119,6 +151,10 @@ export function saveSafetyBackup(sales) {
 // Unión inteligente (Merge) de listas de ventas evitando duplicados o pérdida de órdenes
 export function mergeSalesLists(listA = [], listB = []) {
   const map = new Map();
+  const today = getTodayKey();
+  const localClearedAt = typeof window !== 'undefined'
+    ? (Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0)
+    : 0;
 
   const getSaleTimestamp = (s) => {
     if (!s) return 0;
@@ -133,6 +169,15 @@ export function mergeSalesLists(listA = [], listB = []) {
     if (!s) return;
     const clean = sanitizeSale(s);
     if (!clean || !clean.id) return;
+
+    // Si hubo borrado hoy en este día y esta orden es anterior o igual al borrado, descartarla
+    if (localClearedAt > 0) {
+      const saleTime = getSaleTimestamp(clean);
+      if (saleTime > 0 && saleTime <= localClearedAt) {
+        return;
+      }
+    }
+
     const id = Number(clean.id);
 
     if (!map.has(id)) {
@@ -165,16 +210,32 @@ export function getSales() {
     return cachedSales;
   }
   try {
+    const today = getTodayKey();
+    const localClearedAt = typeof window !== 'undefined'
+      ? (Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0)
+      : 0;
+
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
     let needsResave = false;
-    const sanitized = parsed.map((s, idx) => {
-      const clean = sanitizeSale(s, idx);
-      if (s.pago !== clean.pago || s.vendedor !== clean.vendedor || Number(s.total) !== clean.total) {
-        needsResave = true;
-      }
-      return clean;
-    });
+    const sanitized = parsed
+      .filter(s => {
+        if (localClearedAt > 0) {
+          const t = s && s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
+          if (t > 0 && t <= localClearedAt) {
+            needsResave = true;
+            return false;
+          }
+        }
+        return true;
+      })
+      .map((s, idx) => {
+        const clean = sanitizeSale(s, idx);
+        if (s.pago !== clean.pago || s.vendedor !== clean.vendedor || Number(s.total) !== clean.total) {
+          needsResave = true;
+        }
+        return clean;
+      });
     cachedSales = sanitized;
     if (needsResave && typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
@@ -296,16 +357,30 @@ export function updateSaleProperty(saleId, property, value) {
   return null;
 }
 
-// Borrar historial
+// Borrar historial (Acción exclusiva de la Computadora Central de Caja)
 export function clearAllSales() {
-  cachedSales = [];
+  if (!isCajaDevice()) {
+    console.warn('⚠️ Intento de borrado ignorado: solo permitido desde la computadora central de Caja.');
+    alert('⚠️ Esta acción solo está permitida desde la computadora central de caja.');
+    return false;
+  }
+
+  const clearTimestamp = Date.now();
+  const today = getTodayKey();
+
+  localStorage.setItem(`flory_sales_cleared_at_${today}`, String(clearTimestamp));
+  localStorage.removeItem(`flory_sales_backup_${today}`);
   localStorage.removeItem(STORAGE_KEY);
+  cachedSales = [];
+
   if (syncChannel) {
-    syncChannel.postMessage({ type: 'SALES_UPDATED', sales: [] });
+    syncChannel.postMessage({ type: 'SALES_CLEARED', clearedAt: clearTimestamp, sales: [] });
   }
   notifyListeners([]);
-  syncWithCloud([]);
-  postApiAction({ action: 'CLEAR' });
+
+  syncWithCloud([], clearTimestamp);
+  postApiAction({ action: 'CLEAR', clearedAt: clearTimestamp });
+  return true;
 }
 
 // Suscribirse a cambios en tiempo real
@@ -546,7 +621,28 @@ function setupRealtimeSSE() {
     sse.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        const today = getTodayKey();
+
+        // 1. Manejar orden de borrado global
+        if (data && (data.action === 'CLEAR' || data.type === 'CLEAR')) {
+          const clearedAt = Number(data.clearedAt) || Date.now();
+          localStorage.setItem(`flory_sales_cleared_at_${today}`, String(clearedAt));
+          cachedSales = [];
+          localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+          localStorage.removeItem(`flory_sales_backup_${today}`);
+          notifyListeners([]);
+          return;
+        }
+
         if (data && Array.isArray(data.sales)) {
+          const localClearedAt = Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0;
+          if (data.sales.length === 0 && localClearedAt > 0) {
+            cachedSales = [];
+            localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+            notifyListeners([]);
+            return;
+          }
+
           const currentSales = cachedSales !== null ? cachedSales : getSales();
           const merged = mergeSalesLists(currentSales, data.sales);
           saveSafetyBackup(merged);
@@ -557,8 +653,8 @@ function setupRealtimeSSE() {
             notifyListeners(merged);
           }
 
-          // Si merged tiene más pedidos que los que mandó el servidor, notificamos al servidor para que no los pierda
-          if (merged.length > data.sales.length) {
+          // Si merged tiene más pedidos que los que mandó el servidor, notificamos al servidor para que no los pierda (solo si no hubo borrado reciente)
+          if (merged.length > data.sales.length && localClearedAt === 0) {
             postApiAction({ action: 'SAVE_ALL', sales: merged });
           }
         }
@@ -616,6 +712,16 @@ async function syncFromServer() {
     if (!res.ok) return;
     const serverSales = await res.json();
     if (Array.isArray(serverSales)) {
+      const today = getTodayKey();
+      const localClearedAt = Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0;
+
+      if (serverSales.length === 0 && localClearedAt > 0) {
+        cachedSales = [];
+        localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+        notifyListeners([]);
+        return;
+      }
+
       const currentSales = cachedSales !== null ? cachedSales : getSales();
       const merged = mergeSalesLists(currentSales, serverSales);
       saveSafetyBackup(merged);
@@ -627,7 +733,7 @@ async function syncFromServer() {
       }
 
       // Si nuestro dispositivo local tiene órdenes que el servidor aún no tiene, preservarlas en el servidor
-      if (merged.length > serverSales.length) {
+      if (merged.length > serverSales.length && localClearedAt === 0) {
         postApiAction({ action: 'SAVE_ALL', sales: merged });
       }
     }
@@ -649,7 +755,16 @@ if (typeof window !== 'undefined') {
 // Escuchar sincronización de otras pestañas en la misma máquina
 if (syncChannel) {
   syncChannel.onmessage = (event) => {
-    if (event.data && event.data.type === 'SALES_UPDATED') {
+    if (event.data && event.data.type === 'SALES_CLEARED') {
+      const today = getTodayKey();
+      if (event.data.clearedAt) {
+        localStorage.setItem(`flory_sales_cleared_at_${today}`, String(event.data.clearedAt));
+      }
+      cachedSales = [];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+      localStorage.removeItem(`flory_sales_backup_${today}`);
+      notifyListeners([]);
+    } else if (event.data && event.data.type === 'SALES_UPDATED') {
       cachedSales = event.data.sales || getSales();
       notifyListeners(cachedSales);
     } else if (event.data && event.data.type === 'CUSTOMERS_UPDATED') {
@@ -709,9 +824,43 @@ export async function initFirebase(config = FIREBASE_CONFIG) {
         const cloudData = docSnap.data();
         const rawCloudSales = Array.isArray(cloudData.sales) ? cloudData.sales : [];
         const cloudSales = rawCloudSales.map((s, idx) => sanitizeSale(s, idx));
-        const currentSales = cachedSales !== null ? cachedSales : getSales();
+        const cloudClearedAt = Number(cloudData.clearedAt) || 0;
+        const localClearedAt = Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0;
 
-        const merged = mergeSalesLists(currentSales, cloudSales);
+        // 1. Si la nube indica que hubo un borrado en este día
+        if (cloudClearedAt > 0 && cloudClearedAt >= localClearedAt) {
+          localStorage.setItem(`flory_sales_cleared_at_${today}`, String(cloudClearedAt));
+
+          // Filtrar órdenes que se hayan creado ANTES de la orden de borrado
+          const validCloudSales = cloudSales.filter(s => {
+            const sTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
+            return sTime > cloudClearedAt;
+          });
+
+          // Si la nube quedó vacía tras el borrado, purgar la memoria local de este dispositivo y detener
+          if (validCloudSales.length === 0) {
+            cachedSales = [];
+            localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+            localStorage.removeItem(`flory_sales_backup_${today}`);
+            if (syncChannel) {
+              syncChannel.postMessage({ type: 'SALES_UPDATED', sales: [] });
+            }
+            notifyListeners([]);
+            console.log('🧹 Historial purgado en este dispositivo por orden central de Caja.');
+            return; // ¡IMPORTANTE! NO HACER MERGE NI RE-SUBIR VENTAS ANTIGUAS
+          }
+        }
+
+        const currentSales = cachedSales !== null ? cachedSales : getSales();
+        const effectiveClearedAt = Math.max(cloudClearedAt, localClearedAt);
+        const filteredCurrentSales = effectiveClearedAt > 0
+          ? currentSales.filter(s => {
+              const sTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
+              return sTime > effectiveClearedAt;
+            })
+          : currentSales;
+
+        const merged = mergeSalesLists(filteredCurrentSales, cloudSales);
         saveSafetyBackup(merged);
 
         if (!areSalesEqual(merged, currentSales)) {
@@ -724,15 +873,18 @@ export async function initFirebase(config = FIREBASE_CONFIG) {
           notifyListeners(merged);
         }
 
-        // Si el dispositivo local tenía ventas que no estaban en la nube, subirlas para preservarlas
-        if (merged.length > cloudSales.length) {
+        // Si el dispositivo local tenía ventas NUEVAS que no estaban en la nube, subirlas
+        if (merged.length > cloudSales.length && (!effectiveClearedAt || cloudSales.length > 0)) {
           syncWithCloud(merged);
         }
       } else {
-        // Si no hay documento en la nube para hoy, pero este dispositivo tiene ventas, subirlas
-        const localSales = getSales();
-        if (localSales && localSales.length > 0) {
-          syncWithCloud(localSales);
+        // Si no hay documento en la nube para hoy, pero este dispositivo tiene ventas, subirlas solo si no fue purgado hoy
+        const localClearedAt = Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0;
+        if (localClearedAt === 0) {
+          const localSales = getSales();
+          if (localSales && localSales.length > 0) {
+            syncWithCloud(localSales);
+          }
         }
       }
     }, (error) => {
@@ -780,17 +932,21 @@ export async function initFirebase(config = FIREBASE_CONFIG) {
 }
 
 // Enviar cambios a Firebase Firestore
-async function syncWithCloud(sales) {
+async function syncWithCloud(sales, clearedAt = 0) {
   if (!firebaseDb) return;
   try {
     isWritingToCloud = true;
     lastCloudWriteTimestamp = Date.now();
     const { doc, setDoc } = await dynamicImport('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
     const today = getTodayKey();
-    await setDoc(doc(firebaseDb, 'ventas_diarias', today), {
+    const payload = {
       sales: sales || [],
       lastUpdated: new Date().toISOString()
-    }, { merge: true });
+    };
+    if (clearedAt > 0) {
+      payload.clearedAt = clearedAt;
+    }
+    await setDoc(doc(firebaseDb, 'ventas_diarias', today), payload, { merge: true });
     console.log('☁️ Ventas sincronizadas en Firebase:', (sales || []).length);
   } catch (err) {
     console.error('Error sincronizando con Firebase:', err);

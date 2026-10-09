@@ -1,5 +1,5 @@
 import { menuData } from './data.js'
-import { getSales, addSale, updateSaleProperty as dbUpdateSaleProperty, clearAllSales, subscribeSales, VENDEDORES, FORMAS_PAGO, getTodayKey, normalizePayment, normalizeVendor, searchCustomers, saveCustomer, deleteCustomer, getCustomers, subscribeCustomers, getDeviceId } from './db.js'
+import { getSales, addSale, updateSaleProperty as dbUpdateSaleProperty, clearAllSales, subscribeSales, VENDEDORES, FORMAS_PAGO, getTodayKey, normalizePayment, normalizeVendor, searchCustomers, saveCustomer, deleteCustomer, getCustomers, subscribeCustomers, getDeviceId, isCajaDevice } from './db.js'
 
 const ExcelJS = window.ExcelJS || {};
 const saveAs = window.saveAs || function() {};
@@ -986,24 +986,41 @@ function checkAutoPrintQueue(sales) {
   const isEnabled = localStorage.getItem('flory_autoprint_enabled') !== 'false';
   const printedIds = getPrintedSaleIds();
   const myDeviceId = getDeviceId();
+  const now = Date.now();
+  const today = getTodayKey();
+  const clearedAt = Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0;
 
   for (const sale of sales) {
     const saleId = Number(sale.id);
+    const saleTime = sale.updatedAt ? new Date(sale.updatedAt).getTime() : 0;
+
+    // Escudo 1: Si la orden fue creada antes del último borrado de hoy, NUNCA imprimir
+    if (clearedAt > 0 && saleTime > 0 && saleTime <= clearedAt) {
+      markSaleAsPrinted(saleId);
+      continue;
+    }
 
     // Caso 1: Solicitud manual o explícita de impresión remota desde tablet / celular / vendedor
     if (sale.printRequested && Number(sale.printRequested) > 0) {
+      const isRecentReq = (now - Number(sale.printRequested)) < 5 * 60 * 1000;
       const token = getPrintRequestToken(sale);
       if (!handledPrintRequestTokens.has(token)) {
         handledPrintRequestTokens.add(token);
-        // Imprimir en la computadora con Xprinter de inmediato
-        enqueueSalePrint(sale, true);
+        if (isRecentReq) {
+          // Imprimir en la computadora con Xprinter de inmediato
+          enqueueSalePrint(sale, true);
+        } else {
+          markSaleAsPrinted(saleId);
+        }
         continue;
       }
     }
 
     // Caso 2: Nueva orden entrante creada en otro dispositivo (tablet, mesero, celular)
     if (!printedIds.has(saleId)) {
-      if (isEnabled && (!sale.sourceDevice || sale.sourceDevice !== myDeviceId)) {
+      // Escudo 2: Solo auto-imprimir si es una orden fresca creada en los últimos 5 minutos
+      const isFreshOrder = saleTime ? (now - saleTime < 5 * 60 * 1000) : false;
+      if (isEnabled && (!sale.sourceDevice || sale.sourceDevice !== myDeviceId) && isFreshOrder) {
         enqueueSalePrint(sale, true);
       } else {
         markSaleAsPrinted(saleId);
@@ -2136,6 +2153,11 @@ window.handleReportTimeBlur = function(el, saleId) {
 
 // Sincronización en vivo: auto-impresión de nuevos pedidos y refresco del informe
 subscribeSales((sales) => {
+  if (Array.isArray(sales) && sales.length === 0) {
+    printQueue.length = 0;
+    handledPrintRequestTokens.clear();
+  }
+
   // 1. Monitoreo y auto-impresión en caja de nuevos pedidos o solicitudes remotas
   checkAutoPrintQueue(sales);
 
@@ -2278,9 +2300,15 @@ window.renderReportModal = function() {
 
       <!-- Modal Footer -->
       <div class="p-3.5 sm:p-5 border-t border-slate-800 bg-slate-900 rounded-b-2xl flex flex-wrap justify-between items-center gap-3 shrink-0">
-        <button id="clear-sales-btn" class="text-xs sm:text-sm font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3.5 py-2 rounded-xl transition-colors border border-transparent hover:border-red-500/20 active:scale-95">
-          🗑️ Borrar Historial
-        </button>
+        ${isCajaDevice() ? `
+          <button id="clear-sales-btn" class="text-xs sm:text-sm font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3.5 py-2 rounded-xl transition-colors border border-transparent hover:border-red-500/20 active:scale-95">
+            🗑️ Borrar Historial
+          </button>
+        ` : `
+          <div class="text-xs text-slate-400 flex items-center gap-1.5 py-2 px-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
+            <span>🔒</span> <span>Cierre de ventas gestionado desde Caja</span>
+          </div>
+        `}
 
         <div class="flex items-center gap-2">
           <button id="close-report-bottom-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 px-4 rounded-xl border border-slate-700 transition-all flex items-center gap-1.5 active:scale-95 text-xs sm:text-sm">
@@ -2480,12 +2508,19 @@ window.renderReportModal = function() {
   if (closeBtnDesktop) closeBtnDesktop.onclick = handleClose;
   if (closeBottomBtn) closeBottomBtn.onclick = handleClose;
 
-  document.getElementById('clear-sales-btn').onclick = () => {
-    if (confirm('¿Estás seguro de que deseas borrar todo el historial de ventas del día?')) {
-      clearAllSales();
-      window.renderReportModal();
-    }
-  };
+  const clearSalesBtn = document.getElementById('clear-sales-btn');
+  if (clearSalesBtn) {
+    clearSalesBtn.onclick = () => {
+      if (!isCajaDevice()) {
+        alert('⚠️ Esta acción solo está permitida desde la computadora central de caja.');
+        return;
+      }
+      if (confirm('¿Estás seguro de que deseas borrar todo el historial de ventas del día?\n\nEsta acción limpiará también la tablet y los reportes de forma definitiva.')) {
+        clearAllSales();
+        window.renderReportModal();
+      }
+    };
+  }
 
   document.getElementById('export-excel-btn').onclick = () => {
     const latestSales = getSales();

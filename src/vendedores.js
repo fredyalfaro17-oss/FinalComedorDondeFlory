@@ -626,10 +626,7 @@ window.seedDemoSales = function() {
 };
 
 window.handleClearAllSales = function() {
-  if (confirm('¿Estás seguro de que deseas borrar todo el historial de ventas del día?')) {
-    clearAllSales();
-    showToast('🗑️ Historial borrado');
-  }
+  alert('⚠️ El borrado del historial solo está permitido desde la computadora central de caja.');
 };
 
 window.requestPrintInCaja = function(saleId, event) {

@@ -105,6 +105,20 @@ function salesSyncPlugin() {
                 }
               } else if (data.action === 'CLEAR') {
                 currentSales = []
+                const clearedAt = Number(data.clearedAt) || Date.now()
+                saveSalesToFile([])
+
+                const eventPayload = `data: ${JSON.stringify({ type: 'CLEAR', clearedAt, sales: [] })}\n\n`
+                clients.forEach(c => {
+                  try { c.write(eventPayload) } catch(e) {}
+                })
+
+                res.writeHead(200, {
+                  'Content-Type': 'application/json',
+                  'Access-Control-Allow-Origin': '*'
+                })
+                res.end(JSON.stringify({ success: true, cleared: true, clearedAt, sales: [] }))
+                return
               }
 
               saveSalesToFile(currentSales)

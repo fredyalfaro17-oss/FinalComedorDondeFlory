@@ -5,6 +5,7 @@ import { defineConfig } from 'vite'
 
 function salesSyncPlugin() {
   const salesFile = path.resolve(__dirname, 'sales_data.json')
+  const trashFile = path.resolve(__dirname, 'sales_trash_data.json')
   
   const getTodayKey = () => {
     const now = new Date()
@@ -41,6 +42,29 @@ function salesSyncPlugin() {
     }
   }
 
+  const getTrashFromFile = () => {
+    try {
+      if (fs.existsSync(trashFile)) {
+        const raw = JSON.parse(fs.readFileSync(trashFile, 'utf-8'))
+        if (Array.isArray(raw)) {
+          const today = getTodayKey()
+          return raw.filter(s => !s.date || s.date === today)
+        }
+      }
+    } catch (e) {
+      console.error('Error reading sales_trash_data.json:', e)
+    }
+    return []
+  }
+
+  const saveTrashToFile = (trash) => {
+    try {
+      fs.writeFileSync(trashFile, JSON.stringify(trash, null, 2), 'utf-8')
+    } catch (e) {
+      console.error('Error writing sales_trash_data.json:', e)
+    }
+  }
+
   let clients = []
 
   return {
@@ -57,7 +81,7 @@ function salesSyncPlugin() {
             'Connection': 'keep-alive',
             'Access-Control-Allow-Origin': '*'
           })
-          res.write(`data: ${JSON.stringify({ type: 'INIT', sales: getSalesFromFile() })}\n\n`)
+          res.write(`data: ${JSON.stringify({ type: 'INIT', sales: getSalesFromFile(), trash: getTrashFromFile() })}\n\n`)
           clients.push(res)
 
           req.on('close', () => {
@@ -73,6 +97,16 @@ function salesSyncPlugin() {
             'Access-Control-Allow-Origin': '*'
           })
           res.end(JSON.stringify(getSalesFromFile()))
+          return
+        }
+
+        // GET /api/trash
+        if (url === '/api/trash' && req.method === 'GET') {
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          })
+          res.end(JSON.stringify(getTrashFromFile()))
           return
         }
 
@@ -120,11 +154,15 @@ function salesSyncPlugin() {
                   currentSales.push(newSale)
                 }
               } else if (data.action === 'CLEAR') {
+                const trashToSave = (Array.isArray(data.trashBackup) && data.trashBackup.length > 0)
+                  ? data.trashBackup
+                  : (currentSales.length > 0 ? currentSales : getTrashFromFile())
+                saveTrashToFile(trashToSave)
                 currentSales = []
                 const clearedAt = Number(data.clearedAt) || Date.now()
                 saveSalesToFile([])
 
-                const eventPayload = `data: ${JSON.stringify({ type: 'CLEAR', clearedAt, sales: [] })}\n\n`
+                const eventPayload = `data: ${JSON.stringify({ type: 'CLEAR', clearedAt, sales: [], trashBackup: trashToSave })}\n\n`
                 clients.forEach(c => {
                   try { c.write(eventPayload) } catch(e) {}
                 })
@@ -133,7 +171,27 @@ function salesSyncPlugin() {
                   'Content-Type': 'application/json',
                   'Access-Control-Allow-Origin': '*'
                 })
-                res.end(JSON.stringify({ success: true, cleared: true, clearedAt, sales: [] }))
+                res.end(JSON.stringify({ success: true, cleared: true, clearedAt, sales: [], trashBackup: trashToSave }))
+                return
+              } else if (data.action === 'RESTORE') {
+                const toRestore = (Array.isArray(data.sales) && data.sales.length > 0)
+                  ? data.sales
+                  : getTrashFromFile()
+                const now = new Date().toISOString()
+                const restored = toRestore.map(s => ({ ...s, updatedAt: now }))
+                saveSalesToFile(restored)
+                saveTrashToFile([])
+
+                const eventPayload = `data: ${JSON.stringify({ type: 'UPDATE', sales: restored, restored: true })}\n\n`
+                clients.forEach(c => {
+                  try { c.write(eventPayload) } catch(e) {}
+                })
+
+                res.writeHead(200, {
+                  'Content-Type': 'application/json',
+                  'Access-Control-Allow-Origin': '*'
+                })
+                res.end(JSON.stringify({ success: true, restored: true, sales: restored }))
                 return
               }
 

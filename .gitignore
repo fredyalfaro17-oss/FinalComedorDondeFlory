@@ -24,3 +24,4 @@ dist-ssr
 *.sw?
 cloudflared.exe
 sales_data.json
+sales_trash_data.json

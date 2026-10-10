@@ -40,6 +40,20 @@ export function getTodayKey() {
   return `${year}-${month}-${day}`;
 }
 
+// Purgar marcas obsoletas de borrado en localStorage para evitar bloqueos cruzados
+if (typeof window !== 'undefined') {
+  try {
+    const today = getTodayKey();
+    localStorage.removeItem(`flory_sales_cleared_at_${today}`);
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('flory_sales_cleared_at_')) {
+        localStorage.removeItem(k);
+      }
+    }
+  } catch(e) {}
+}
+
 // Notificar a observadores locales
 function notifyListeners(sales) {
   listeners.forEach(cb => {
@@ -153,19 +167,10 @@ export function saveSafetyBackup(sales) {
   try {
     if (!Array.isArray(sales) || sales.length === 0 || typeof window === 'undefined') return;
     const today = getTodayKey();
-    const localClearedAt = Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0;
-    const validSales = localClearedAt > 0
-      ? sales.filter(s => {
-          const t = s && s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
-          return t > localClearedAt;
-        })
-      : sales;
-    if (validSales.length === 0) return;
-
     const backupKey = `flory_sales_backup_${today}`;
     const rawBackup = localStorage.getItem(backupKey);
     const existingBackup = rawBackup ? JSON.parse(rawBackup) : [];
-    const mergedBackup = mergeSalesLists(existingBackup, validSales);
+    const mergedBackup = mergeSalesLists(existingBackup, sales);
     localStorage.setItem(backupKey, JSON.stringify(mergedBackup));
   } catch (e) {}
 }
@@ -174,9 +179,6 @@ export function saveSafetyBackup(sales) {
 export function mergeSalesLists(listA = [], listB = []) {
   const map = new Map();
   const today = getTodayKey();
-  const localClearedAt = typeof window !== 'undefined'
-    ? (Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0)
-    : 0;
 
   const getSaleTimestamp = (s) => {
     if (!s) return 0;
@@ -192,17 +194,9 @@ export function mergeSalesLists(listA = [], listB = []) {
     const clean = sanitizeSale(s);
     if (!clean || !clean.id) return;
 
-    // Escudo 1: Si la orden pertenece explícitamente a otra fecha, descartar (pertenece a días anteriores)
+    // Si la orden pertenece explícitamente a otra fecha, descartar (pertenece a días anteriores)
     if (clean.date && clean.date !== today) {
       return;
-    }
-
-    // Escudo 2: Si hubo borrado hoy en este día y esta orden es anterior o igual al borrado, descartarla
-    if (localClearedAt > 0) {
-      const saleTime = getSaleTimestamp(clean);
-      if (saleTime > 0 && saleTime <= localClearedAt) {
-        return;
-      }
     }
 
     const id = Number(clean.id);
@@ -259,38 +253,9 @@ export function getSales() {
     return cachedSales;
   }
   try {
-
-    const localClearedAt = typeof window !== 'undefined'
-      ? (Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0)
-      : 0;
-
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    let needsResave = false;
-    const sanitized = parsed
-      .filter(s => {
-        if (localClearedAt > 0) {
-          const t = s && s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
-          if (t > 0 && t <= localClearedAt) {
-            needsResave = true;
-            return false;
-          }
-        }
-        return true;
-      })
-      .map((s, idx) => {
-        const clean = sanitizeSale(s, idx);
-        if (s.pago !== clean.pago || s.vendedor !== clean.vendedor || Number(s.total) !== clean.total) {
-          needsResave = true;
-        }
-        return clean;
-      });
-    cachedSales = sanitized;
-    if (needsResave && typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
-      saveSafetyBackup(sanitized);
-      syncWithCloud(sanitized);
-    }
+    cachedSales = parsed.map((s, idx) => sanitizeSale(s, idx));
     return cachedSales;
   } catch (err) {
     console.error('Error parsing daily_sales:', err);
@@ -411,6 +376,25 @@ export function updateSaleProperty(saleId, property, value) {
 }
 
 // Borrar historial (Acción exclusiva de la Computadora Central de Caja)
+let memoryTrashBackup = null;
+
+// Precarga asíncrona de papelera desde el servidor local (por si se reinició el navegador)
+if (typeof window !== 'undefined') {
+  fetch('/api/trash')
+    .then(r => r.ok ? r.json() : null)
+    .then(list => {
+      if (Array.isArray(list) && list.length > 0) {
+        memoryTrashBackup = list;
+        const today = getTodayKey();
+        try {
+          localStorage.setItem(`flory_sales_trash_backup_${today}`, JSON.stringify(list));
+        } catch(e) {}
+        notifyListeners(getSales());
+      }
+    })
+    .catch(() => {});
+}
+
 export function clearAllSales() {
   if (!isCajaDevice()) {
     console.warn('⚠️ Intento de borrado ignorado: solo permitido desde la computadora central de Caja.');
@@ -422,28 +406,49 @@ export function clearAllSales() {
   const today = getTodayKey();
 
   // Guardar copia de seguridad en la Papelera antes de borrar
-  const currentSales = getSales();
-  if (currentSales && currentSales.length > 0) {
+  let currentSales = (cachedSales && cachedSales.length > 0) ? cachedSales : getSales();
+  if (!currentSales || currentSales.length === 0) {
     try {
-      localStorage.setItem(`flory_sales_trash_backup_${today}`, JSON.stringify(currentSales));
-      localStorage.setItem(`flory_sales_trash_timestamp_${today}`, String(clearTimestamp));
+      const b = localStorage.getItem(`flory_sales_backup_${today}`);
+      if (b) {
+        const list = JSON.parse(b);
+        if (Array.isArray(list) && list.length > 0) currentSales = list;
+      }
+    } catch(e) {}
+  }
+
+  let trashToKeep = null;
+  if (currentSales && currentSales.length > 0) {
+    trashToKeep = currentSales.map((s, idx) => sanitizeSale(s, idx));
+    memoryTrashBackup = trashToKeep;
+    try {
+      localStorage.setItem(`flory_sales_trash_backup_${today}`, JSON.stringify(trashToKeep));
     } catch (e) {
       console.warn('No se pudo guardar respaldo en papelera:', e);
     }
+  } else {
+    try {
+      const prev = localStorage.getItem(`flory_sales_trash_backup_${today}`);
+      if (prev) {
+        trashToKeep = JSON.parse(prev);
+        memoryTrashBackup = trashToKeep;
+      }
+    } catch (e) {}
+    if (!trashToKeep && memoryTrashBackup) {
+      trashToKeep = memoryTrashBackup;
+    }
   }
 
-  localStorage.setItem(`flory_sales_cleared_at_${today}`, String(clearTimestamp));
-  localStorage.removeItem(`flory_sales_backup_${today}`);
   localStorage.removeItem(STORAGE_KEY);
   cachedSales = [];
 
   if (syncChannel) {
-    syncChannel.postMessage({ type: 'SALES_CLEARED', clearedAt: clearTimestamp, sales: [], trashBackup: currentSales });
+    syncChannel.postMessage({ type: 'SALES_CLEARED', clearedAt: clearTimestamp, sales: [], trashBackup: trashToKeep });
   }
   notifyListeners([]);
 
-  syncWithCloud([], clearTimestamp, currentSales);
-  postApiAction({ action: 'CLEAR', clearedAt: clearTimestamp, trashBackup: currentSales });
+  syncWithCloud([], clearTimestamp, trashToKeep);
+  postApiAction({ action: 'CLEAR', clearedAt: clearTimestamp, trashBackup: trashToKeep });
   return true;
 }
 
@@ -451,37 +456,128 @@ export function clearAllSales() {
 export function hasTrashBackup() {
   if (typeof window === 'undefined') return false;
   const today = getTodayKey();
-  const raw = localStorage.getItem(`flory_sales_trash_backup_${today}`);
-  if (!raw) return false;
-  try {
-    const list = JSON.parse(raw);
-    return Array.isArray(list) && list.length > 0;
-  } catch (e) {
+
+  // Si ya hay ventas activas en el sistema, la papelera no debe estar disponible (ya están visibles/restauradas)
+  const currentSales = cachedSales !== null ? cachedSales : getSales();
+  if (currentSales && currentSales.length > 0) {
     return false;
   }
+
+  // 1. Memoria rápida de papelera
+  if (memoryTrashBackup && Array.isArray(memoryTrashBackup) && memoryTrashBackup.length > 0) {
+    return true;
+  }
+
+  // 2. localStorage papelera de hoy
+  const raw = localStorage.getItem(`flory_sales_trash_backup_${today}`);
+  if (raw) {
+    try {
+      const list = JSON.parse(raw);
+      if (Array.isArray(list) && list.length > 0) {
+        memoryTrashBackup = list;
+        return true;
+      }
+    } catch (e) {}
+  }
+
+  return false;
 }
 
 // Restaurar el historial borrado desde la papelera de hoy
-export function restoreLastClearedSales() {
-  if (!isCajaDevice()) {
-    alert('⚠️ Esta acción solo está permitida desde la computadora central de caja.');
+export async function restoreLastClearedSales() {
+  const today = getTodayKey();
+
+  // Si ya hay ventas activas en el sistema, no hay nada que restaurar
+  const currentSales = cachedSales !== null ? cachedSales : getSales();
+  if (currentSales && currentSales.length > 0) {
+    alert('✅ El historial de ventas ya se encuentra restaurado y activo en el sistema.');
+    return true;
+  }
+
+  let backupSales = null;
+
+  // 1. Intentar desde localStorage papelera
+  const raw = localStorage.getItem(`flory_sales_trash_backup_${today}`);
+  if (raw) {
+    try {
+      const list = JSON.parse(raw);
+      if (Array.isArray(list) && list.length > 0) backupSales = list;
+    } catch (e) {}
+  }
+
+  // 2. Intentar desde memoryTrashBackup
+  if (!backupSales && memoryTrashBackup && memoryTrashBackup.length > 0) {
+    backupSales = memoryTrashBackup;
+  }
+
+  // 3. Intentar desde Firebase Firestore (trashBackup)
+  if (!backupSales && firebaseDb) {
+    try {
+      const { doc, getDoc } = await dynamicImport('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const docSnap = await getDoc(doc(firebaseDb, 'ventas_diarias', today));
+      if (docSnap.exists()) {
+        const d = docSnap.data();
+        if (Array.isArray(d.trashBackup) && d.trashBackup.length > 0) {
+          backupSales = d.trashBackup;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 4. Intentar desde la API local en disco (/api/trash)
+  if (!backupSales) {
+    try {
+      const res = await fetch('/api/trash');
+      if (res.ok) {
+        const list = await res.json();
+        if (Array.isArray(list) && list.length > 0) backupSales = list;
+      }
+    } catch (e) {}
+  }
+
+  // 5. Intentar desde safety backup
+  if (!backupSales) {
+    try {
+      const b = localStorage.getItem(`flory_sales_backup_${today}`);
+      if (b) {
+        const list = JSON.parse(b);
+        if (Array.isArray(list) && list.length > 0) backupSales = list;
+      }
+    } catch (e) {}
+  }
+
+  if (!backupSales || backupSales.length === 0) {
+    alert('⚠️ No hay ventas en la papelera para restaurar.');
     return false;
   }
-  const today = getTodayKey();
-  const raw = localStorage.getItem(`flory_sales_trash_backup_${today}`);
-  if (!raw) return false;
+
   try {
-    const backupSales = JSON.parse(raw);
-    if (!Array.isArray(backupSales) || backupSales.length === 0) return false;
+    const now = new Date().toISOString();
+    const restoredSales = backupSales.map((s, idx) => ({
+      ...sanitizeSale(s, idx),
+      updatedAt: now
+    }));
 
-    // Eliminar marcas de borrado
-    localStorage.removeItem(`flory_sales_cleared_at_${today}`);
-    localStorage.removeItem(`flory_sales_trash_backup_${today}`);
-    localStorage.removeItem(`flory_sales_trash_timestamp_${today}`);
+    // Eliminar papelera
+    try {
+      localStorage.removeItem(`flory_sales_trash_backup_${today}`);
+    } catch (e) {}
+    memoryTrashBackup = null;
 
-    // Restaurar ventas y vaciar papelera en la nube
-    syncWithCloud(backupSales, 0, []);
-    persistSales(backupSales, true, true, true);
+    // Actualizar ventas locales
+    cachedSales = restoredSales;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(restoredSales));
+    saveSafetyBackup(restoredSales);
+
+    // Restaurar ventas y vaciar papelera en la nube y servidor local
+    await syncWithCloud(restoredSales, 0, []);
+    postApiAction({ action: 'RESTORE', sales: restoredSales });
+
+    if (syncChannel) {
+      syncChannel.postMessage({ type: 'SALES_UPDATED', sales: restoredSales, restored: true });
+    }
+    notifyListeners(restoredSales);
+
     return true;
   } catch (e) {
     console.error('Error restaurando papelera:', e);
@@ -729,39 +825,47 @@ function setupRealtimeSSE() {
         const data = JSON.parse(event.data);
         const today = getTodayKey();
 
+        // Precarga de papelera al iniciar SSE
+        if (data && data.trash && Array.isArray(data.trash) && data.trash.length > 0) {
+          memoryTrashBackup = data.trash;
+          try {
+            localStorage.setItem(`flory_sales_trash_backup_${today}`, JSON.stringify(data.trash));
+          } catch (e) {}
+        }
+
+        // Si fue una restauración
+        if (data && (data.restored || data.type === 'RESTORE')) {
+          localStorage.removeItem(`flory_sales_cleared_at_${today}`);
+          localStorage.removeItem(`flory_sales_trash_backup_${today}`);
+          localStorage.removeItem(`flory_sales_trash_timestamp_${today}`);
+          memoryTrashBackup = null;
+        }
+
         // 1. Manejar orden de borrado global
         if (data && (data.action === 'CLEAR' || data.type === 'CLEAR')) {
-          const clearedAt = Number(data.clearedAt) || Date.now();
-          localStorage.setItem(`flory_sales_cleared_at_${today}`, String(clearedAt));
+          if (data.trashBackup && Array.isArray(data.trashBackup) && data.trashBackup.length > 0) {
+            memoryTrashBackup = data.trashBackup;
+            try {
+              localStorage.setItem(`flory_sales_trash_backup_${today}`, JSON.stringify(data.trashBackup));
+            } catch (e) {}
+          }
           cachedSales = [];
           localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-          localStorage.removeItem(`flory_sales_backup_${today}`);
           notifyListeners([]);
           return;
         }
 
         if (data && Array.isArray(data.sales)) {
-          const localClearedAt = Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0;
-          if (data.sales.length === 0 && localClearedAt > 0) {
-            cachedSales = [];
-            localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-            notifyListeners([]);
-            return;
-          }
+          if (data.sales.length > 0) {
+            const currentSales = cachedSales !== null ? cachedSales : getSales();
+            const merged = mergeSalesLists(currentSales, data.sales);
+            saveSafetyBackup(merged);
 
-          const currentSales = cachedSales !== null ? cachedSales : getSales();
-          const merged = mergeSalesLists(currentSales, data.sales);
-          saveSafetyBackup(merged);
-
-          if (!areSalesEqual(merged, currentSales)) {
-            cachedSales = merged;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-            notifyListeners(merged);
-          }
-
-          // Si merged tiene más pedidos que los que mandó el servidor, notificamos al servidor para que no los pierda (solo si no hubo borrado reciente)
-          if (merged.length > data.sales.length && localClearedAt === 0) {
-            postApiAction({ action: 'SAVE_ALL', sales: merged });
+            if (!areSalesEqual(merged, currentSales)) {
+              cachedSales = merged;
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+              notifyListeners(merged);
+            }
           }
         }
       } catch (err) {
@@ -818,17 +922,17 @@ async function syncFromServer() {
     if (!res.ok) return;
     const serverSales = await res.json();
     if (Array.isArray(serverSales)) {
-      const today = getTodayKey();
-      const localClearedAt = Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0;
+      const currentSales = cachedSales !== null ? cachedSales : getSales();
 
-      if (serverSales.length === 0 && localClearedAt > 0) {
-        cachedSales = [];
-        localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-        notifyListeners([]);
+      // Si el servidor local en disco está vacío pero tenemos ventas activas en memoria o cloud, sincronizar al servidor
+      if (serverSales.length === 0 && currentSales.length > 0) {
+        postApiAction({ action: 'SAVE_ALL', sales: currentSales });
         return;
       }
 
-      const currentSales = cachedSales !== null ? cachedSales : getSales();
+      // Si el servidor local está vacío y no tenemos ventas, nada que fusionar
+      if (serverSales.length === 0) return;
+
       const merged = mergeSalesLists(currentSales, serverSales);
       saveSafetyBackup(merged);
 
@@ -839,7 +943,7 @@ async function syncFromServer() {
       }
 
       // Si nuestro dispositivo local tiene órdenes que el servidor aún no tiene, preservarlas en el servidor
-      if (merged.length > serverSales.length && localClearedAt === 0) {
+      if (merged.length > serverSales.length) {
         postApiAction({ action: 'SAVE_ALL', sales: merged });
       }
     }
@@ -863,14 +967,23 @@ if (syncChannel) {
   syncChannel.onmessage = (event) => {
     if (event.data && event.data.type === 'SALES_CLEARED') {
       const today = getTodayKey();
-      if (event.data.clearedAt) {
-        localStorage.setItem(`flory_sales_cleared_at_${today}`, String(event.data.clearedAt));
+      if (event.data.trashBackup && Array.isArray(event.data.trashBackup) && event.data.trashBackup.length > 0) {
+        memoryTrashBackup = event.data.trashBackup;
+        try {
+          localStorage.setItem(`flory_sales_trash_backup_${today}`, JSON.stringify(event.data.trashBackup));
+        } catch (e) {}
       }
       cachedSales = [];
       localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-      localStorage.removeItem(`flory_sales_backup_${today}`);
       notifyListeners([]);
     } else if (event.data && event.data.type === 'SALES_UPDATED') {
+      if (event.data.restored) {
+        const today = getTodayKey();
+        try {
+          localStorage.removeItem(`flory_sales_trash_backup_${today}`);
+        } catch(e) {}
+        memoryTrashBackup = null;
+      }
       cachedSales = event.data.sales || getSales();
       notifyListeners(cachedSales);
     } else if (event.data && event.data.type === 'CUSTOMERS_UPDATED') {
@@ -930,74 +1043,60 @@ export async function initFirebase(config = FIREBASE_CONFIG) {
         const cloudData = docSnap.data();
         const rawCloudSales = Array.isArray(cloudData.sales) ? cloudData.sales : [];
         const cloudSales = rawCloudSales.map((s, idx) => sanitizeSale(s, idx));
-        const cloudClearedAt = Number(cloudData.clearedAt) || 0;
-        const localClearedAt = Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0;
 
-        // 1. Si la nube indica que hubo un borrado en este día
-        if (cloudClearedAt > 0 && cloudClearedAt >= localClearedAt) {
-          localStorage.setItem(`flory_sales_cleared_at_${today}`, String(cloudClearedAt));
+        // CASO 1: La nube tiene ventas activas (o restauradas)
+        if (cloudSales.length > 0) {
+          // Vaciar papelera porque las ventas ya están activas en el sistema
+          try {
+            localStorage.removeItem(`flory_sales_trash_backup_${today}`);
+          } catch(e) {}
+          memoryTrashBackup = null;
 
-          // Filtrar órdenes que se hayan creado ANTES de la orden de borrado
-          const validCloudSales = cloudSales.filter(s => {
-            const sTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
-            return sTime > cloudClearedAt;
-          });
+          const currentSales = cachedSales !== null ? cachedSales : getSales();
+          const merged = mergeSalesLists(currentSales, cloudSales);
+          saveSafetyBackup(merged);
 
-          // Si la nube quedó vacía tras el borrado, purgar la memoria local de este dispositivo y detener
-          if (validCloudSales.length === 0) {
-            if (cloudData.trashBackup && Array.isArray(cloudData.trashBackup) && cloudData.trashBackup.length > 0) {
-              try {
-                localStorage.setItem(`flory_sales_trash_backup_${today}`, JSON.stringify(cloudData.trashBackup));
-                localStorage.setItem(`flory_sales_trash_timestamp_${today}`, String(cloudClearedAt || Date.now()));
-              } catch (e) {}
-            }
-            cachedSales = [];
-            localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-            localStorage.removeItem(`flory_sales_backup_${today}`);
+          if (!areSalesEqual(merged, currentSales)) {
+            console.log('⚡ Sincronización recibida de Firebase Cloud:', merged.length, 'ventas');
+            cachedSales = merged;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
             if (syncChannel) {
-              syncChannel.postMessage({ type: 'SALES_UPDATED', sales: [] });
+              syncChannel.postMessage({ type: 'SALES_UPDATED', sales: merged });
             }
-            notifyListeners([]);
-            console.log('🧹 Historial purgado en este dispositivo por orden central de Caja.');
-            return; // ¡IMPORTANTE! NO HACER MERGE NI RE-SUBIR VENTAS ANTIGUAS
+            notifyListeners(merged);
+            postApiAction({ action: 'SAVE_ALL', sales: merged });
           }
+
+          // Si el dispositivo local tenía ventas NUEVAS que la nube aún no tiene, subirlas
+          if (merged.length > cloudSales.length) {
+            syncWithCloud(merged, 0, []);
+          }
+          return;
         }
 
-        const currentSales = cachedSales !== null ? cachedSales : getSales();
-        const effectiveClearedAt = Math.max(cloudClearedAt, localClearedAt);
-        const filteredCurrentSales = effectiveClearedAt > 0
-          ? currentSales.filter(s => {
-              const sTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
-              return sTime > effectiveClearedAt;
-            })
-          : currentSales;
+        // CASO 2: La nube está vacía pero tiene ventas en la papelera (historial borrado centralmente)
+        if (cloudData.trashBackup && Array.isArray(cloudData.trashBackup) && cloudData.trashBackup.length > 0) {
+          memoryTrashBackup = cloudData.trashBackup;
+          try {
+            localStorage.setItem(`flory_sales_trash_backup_${today}`, JSON.stringify(cloudData.trashBackup));
+          } catch (e) {}
 
-        const merged = mergeSalesLists(filteredCurrentSales, cloudSales);
-        saveSafetyBackup(merged);
-
-        if (!areSalesEqual(merged, currentSales)) {
-          console.log('⚡ Sincronización recibida de Firebase Cloud:', merged.length, 'ventas');
-          cachedSales = merged;
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+          cachedSales = [];
+          localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
           if (syncChannel) {
-            syncChannel.postMessage({ type: 'SALES_UPDATED', sales: merged });
+            syncChannel.postMessage({ type: 'SALES_UPDATED', sales: [] });
           }
-          notifyListeners(merged);
+          notifyListeners([]);
+          console.log('🧹 Historial purgado en este dispositivo por orden central de Caja.');
+          return;
         }
 
-        // Si el dispositivo local tenía ventas NUEVAS que no estaban en la nube, subirlas
-        if (merged.length > cloudSales.length && (!effectiveClearedAt || cloudSales.length > 0)) {
-          syncWithCloud(merged);
-        }
-      } else {
-        // Si no hay documento en la nube para hoy, pero este dispositivo tiene ventas, subirlas solo si no fue purgado hoy y pertenecen a la fecha activa
-        const localClearedAt = Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0;
-        const activeDate = typeof window !== 'undefined' ? localStorage.getItem('flory_sales_active_date') : '';
-        if (localClearedAt === 0 && activeDate === today) {
-          const localSales = getSales();
-          if (localSales && localSales.length > 0) {
-            syncWithCloud(localSales);
-          }
+        // CASO 3: Nube completamente vacía (día nuevo o sin ventas)
+        const currentSales = cachedSales !== null ? cachedSales : getSales();
+        if (currentSales.length === 0) {
+          cachedSales = [];
+          localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+          notifyListeners([]);
         }
       }
     }, (error) => {
@@ -1054,11 +1153,9 @@ async function syncWithCloud(sales, clearedAt = 0, trashBackup = null) {
     const today = getTodayKey();
     const payload = {
       sales: sales || [],
+      clearedAt: Number(clearedAt) || 0,
       lastUpdated: new Date().toISOString()
     };
-    if (clearedAt > 0) {
-      payload.clearedAt = clearedAt;
-    }
     if (trashBackup !== null) {
       payload.trashBackup = Array.isArray(trashBackup) ? trashBackup : [];
     }

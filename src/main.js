@@ -2300,20 +2300,30 @@ window.renderReportModal = function() {
 
       <!-- Modal Footer -->
       <div class="p-3.5 sm:p-5 border-t border-slate-800 bg-slate-900 rounded-b-2xl flex flex-wrap justify-between items-center gap-3 shrink-0">
-        ${isCajaDevice() ? `
-          <div class="flex items-center flex-wrap gap-2">
+        <div class="flex items-center flex-wrap gap-2">
+          ${isCajaDevice() ? `
             <button id="clear-sales-btn" class="text-xs sm:text-sm font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3.5 py-2 rounded-xl transition-colors border border-transparent hover:border-red-500/20 active:scale-95">
               🗑️ Borrar Historial
             </button>
-            ${hasTrashBackup() ? `
-              <button id="restore-sales-btn" class="text-xs sm:text-sm font-bold text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 px-3 py-2 rounded-xl transition-colors border border-amber-500/30 flex items-center gap-1.5 active:scale-95 shadow-sm shadow-amber-950/30" title="Recuperar las ventas que fueron borradas por error hoy">
-                🔄 Restaurar Borrado
-              </button>
-            ` : `
-              <button id="restore-sales-btn" disabled class="text-xs sm:text-sm font-medium text-slate-500 bg-slate-800/40 px-3 py-2 rounded-xl border border-slate-700/40 flex items-center gap-1.5 opacity-60 cursor-not-allowed select-none" title="No hay ventas borradas hoy para restaurar (papelera vacía)">
-                🔄 Restaurar Borrado (Vacío)
-              </button>
-            `}
+          ` : `
+            <button id="clear-sales-btn" class="text-xs sm:text-sm font-bold text-red-400/80 hover:text-red-300 hover:bg-red-500/10 px-3.5 py-2 rounded-xl transition-colors border border-red-500/20 active:scale-95" title="Borrar historial del día (requiere PIN 5577)">
+              🗑️ Borrar Historial
+            </button>
+          `}
+
+          <span id="restore-sales-wrapper">
+          ${hasTrashBackup() ? `
+            <button id="restore-sales-btn" class="text-xs sm:text-sm font-bold text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 px-3 py-2 rounded-xl transition-colors border border-amber-500/30 flex items-center gap-1.5 active:scale-95 shadow-sm shadow-amber-950/30" title="Recuperar las ventas que fueron borradas por error hoy">
+              🔄 Restaurar Borrado
+            </button>
+          ` : `
+            <button id="restore-sales-btn" disabled class="text-xs sm:text-sm font-medium text-slate-500 bg-slate-800/40 px-3 py-2 rounded-xl border border-slate-700/40 flex items-center gap-1.5 opacity-60 cursor-not-allowed select-none" title="No hay ventas borradas hoy para restaurar (papelera vacía)">
+              🔄 Restaurar Borrado (Vacío)
+            </button>
+          `}
+          </span>
+
+          ${isCajaDevice() ? `
             <div class="flex items-center gap-1.5">
               <span class="text-[11px] font-semibold text-emerald-400/90 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 select-none" title="Equipo autorizado como Caja Central">
                 <span>🖥️</span> <span>Caja Autorizada</span>
@@ -2322,17 +2332,12 @@ window.renderReportModal = function() {
                 🔒 Bloquear
               </button>
             </div>
-          </div>
-        ` : `
-          <div class="flex items-center flex-wrap gap-2">
-            <div class="text-xs text-slate-400 flex items-center gap-1.5 py-2 px-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
-              <span>🔒</span> <span>Cierre protegido</span>
-            </div>
+          ` : `
             <button id="unlock-caja-btn" class="text-xs sm:text-sm font-bold text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 px-3 py-2 rounded-xl transition-colors border border-amber-500/30 flex items-center gap-1.5 active:scale-95" title="Desbloquear este equipo como Caja Principal con PIN">
               🔑 Desbloquear Caja
             </button>
-          </div>
-        `}
+          `}
+        </div>
 
         <div class="flex items-center gap-2">
           <button id="close-report-bottom-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 px-4 rounded-xl border border-slate-700 transition-all flex items-center gap-1.5 active:scale-95 text-xs sm:text-sm">
@@ -2461,6 +2466,51 @@ window.renderReportModal = function() {
 
     renderSummaryBar(totalDia, totalEfectivo, totalTransferencia, totalTarjeta, totalNoPago, cantidadFiltrada, textFilter, vendFilter, custFilter);
     highlightSelected();
+    updateRestoreButton();
+  }
+
+  function attachRestoreHandler() {
+    const btn = document.getElementById('restore-sales-btn');
+    if (btn && !btn.disabled) {
+      btn.onclick = async () => {
+        if (!isCajaDevice()) {
+          const pin = prompt('🔐 Ingrese el PIN de Administrador (5577) para restaurar el historial:');
+          if (pin === null) return;
+          if (!unlockCajaWithPin(pin)) {
+            alert('❌ PIN incorrecto.');
+            return;
+          }
+        }
+        if (confirm('¿Deseas restaurar las ventas borradas de hoy desde la copia de respaldo?')) {
+          const ok = await restoreLastClearedSales();
+          if (ok) {
+            window.renderReportModal();
+            alert('✅ Ventas restauradas correctamente.');
+          } else {
+            alert('No se encontraron ventas para restaurar.');
+          }
+        }
+      };
+    }
+  }
+
+  function updateRestoreButton() {
+    const wrapper = document.getElementById('restore-sales-wrapper');
+    if (!wrapper) return;
+    if (hasTrashBackup()) {
+      wrapper.innerHTML = `
+        <button id="restore-sales-btn" class="text-xs sm:text-sm font-bold text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 px-3 py-2 rounded-xl transition-colors border border-amber-500/30 flex items-center gap-1.5 active:scale-95 shadow-sm shadow-amber-950/30" title="Recuperar las ventas que fueron borradas por error hoy">
+          🔄 Restaurar Borrado
+        </button>
+      `;
+      attachRestoreHandler();
+    } else {
+      wrapper.innerHTML = `
+        <button id="restore-sales-btn" disabled class="text-xs sm:text-sm font-medium text-slate-500 bg-slate-800/40 px-3 py-2 rounded-xl border border-slate-700/40 flex items-center gap-1.5 opacity-60 cursor-not-allowed select-none" title="No hay ventas borradas hoy para restaurar (papelera vacía)">
+          🔄 Restaurar Borrado (Vacío)
+        </button>
+      `;
+    }
   }
 
   // --- Resaltado Interactivo de Fila / Tarjeta Seleccionada (Efecto Excel) ---
@@ -2557,6 +2607,7 @@ window.renderReportModal = function() {
 
     renderSummaryBar(totalDia, totalEfectivo, totalTransferencia, totalTarjeta, totalNoPago, cantidadFiltrada, textFilter, vendFilter, custFilter);
     highlightSelected();
+    updateRestoreButton();
   };
 
   // Registrar callback para refresco dinámico
@@ -2640,28 +2691,7 @@ window.renderReportModal = function() {
     };
   }
 
-  const restoreSalesBtn = document.getElementById('restore-sales-btn');
-  if (restoreSalesBtn) {
-    restoreSalesBtn.onclick = () => {
-      if (!isCajaDevice()) {
-        const pin = prompt('🔐 Ingrese el PIN de Administrador para restaurar el historial:');
-        if (pin === null) return;
-        if (!unlockCajaWithPin(pin)) {
-          alert('❌ PIN incorrecto.');
-          return;
-        }
-      }
-      if (confirm('¿Deseas restaurar las ventas borradas de hoy desde la copia de respaldo?')) {
-        const ok = restoreLastClearedSales();
-        if (ok) {
-          window.renderReportModal();
-          alert('✅ Ventas restauradas correctamente.');
-        } else {
-          alert('No se encontraron ventas para restaurar.');
-        }
-      }
-    };
-  }
+  attachRestoreHandler();
 
   document.getElementById('export-excel-btn').onclick = () => {
     const latestSales = getSales();

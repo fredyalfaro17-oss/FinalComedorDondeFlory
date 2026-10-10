@@ -1,5 +1,5 @@
 import { menuData } from './data.js'
-import { getSales, addSale, updateSaleProperty as dbUpdateSaleProperty, clearAllSales, subscribeSales, VENDEDORES, FORMAS_PAGO, getTodayKey, normalizePayment, normalizeVendor, searchCustomers, saveCustomer, deleteCustomer, getCustomers, subscribeCustomers, getDeviceId, isCajaDevice } from './db.js'
+import { getSales, addSale, updateSaleProperty as dbUpdateSaleProperty, clearAllSales, hasTrashBackup, restoreLastClearedSales, subscribeSales, VENDEDORES, FORMAS_PAGO, getTodayKey, normalizePayment, normalizeVendor, searchCustomers, saveCustomer, deleteCustomer, getCustomers, subscribeCustomers, getDeviceId, isCajaDevice } from './db.js'
 
 const ExcelJS = window.ExcelJS || {};
 const saveAs = window.saveAs || function() {};
@@ -1919,7 +1919,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
       : `<span class="text-slate-500 text-xs">${sale.phone || '-'}</span>`;
 
     return `
-      <tr id="report-row-${sale.id}" class="border-b border-slate-800 hover:bg-slate-800/40 transition-colors">
+      <tr id="report-row-${sale.id}" class="report-table-row border-b border-slate-800 hover:bg-slate-800/60 transition-colors cursor-pointer select-text">
         <td class="px-2 py-2.5 text-center font-mono font-bold text-amber-400 whitespace-nowrap text-xs">#${sale.id}</td>
         <td class="px-2 py-2.5 font-semibold text-white text-xs sm:text-sm whitespace-nowrap max-w-[140px] truncate" title="${sale.customerName || 'Cliente Mostrador'}">${sale.customerName || 'Cliente Mostrador'}</td>
         <td class="px-2 py-2.5 text-center whitespace-nowrap">${phoneHtml}</td>
@@ -1985,7 +1985,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
     ` : '';
 
     return `
-      <div id="report-card-${sale.id}" class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg hover:border-slate-700 transition-all">
+      <div id="report-card-${sale.id}" class="report-card-item bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg hover:border-slate-700 transition-all cursor-pointer">
         <div class="flex items-start justify-between gap-3">
           <div>
             <div class="flex items-center gap-2">
@@ -2301,9 +2301,16 @@ window.renderReportModal = function() {
       <!-- Modal Footer -->
       <div class="p-3.5 sm:p-5 border-t border-slate-800 bg-slate-900 rounded-b-2xl flex flex-wrap justify-between items-center gap-3 shrink-0">
         ${isCajaDevice() ? `
-          <button id="clear-sales-btn" class="text-xs sm:text-sm font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3.5 py-2 rounded-xl transition-colors border border-transparent hover:border-red-500/20 active:scale-95">
-            🗑️ Borrar Historial
-          </button>
+          <div class="flex items-center gap-2">
+            <button id="clear-sales-btn" class="text-xs sm:text-sm font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3.5 py-2 rounded-xl transition-colors border border-transparent hover:border-red-500/20 active:scale-95">
+              🗑️ Borrar Historial
+            </button>
+            ${hasTrashBackup() ? `
+              <button id="restore-sales-btn" class="text-xs sm:text-sm font-bold text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 px-3 py-2 rounded-xl transition-colors border border-amber-500/30 flex items-center gap-1.5 active:scale-95" title="Recuperar las ventas que fueron borradas por error">
+                🔄 Restaurar Borrado
+              </button>
+            ` : ''}
+          </div>
         ` : `
           <div class="text-xs text-slate-400 flex items-center gap-1.5 py-2 px-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
             <span>🔒</span> <span>Cierre de ventas gestionado desde Caja</span>
@@ -2436,6 +2443,65 @@ window.renderReportModal = function() {
     }
 
     renderSummaryBar(totalDia, totalEfectivo, totalTransferencia, totalTarjeta, totalNoPago, cantidadFiltrada, textFilter, vendFilter, custFilter);
+    highlightSelected();
+  }
+
+  // --- Resaltado Interactivo de Fila / Tarjeta Seleccionada (Efecto Excel) ---
+  let selectedSaleId = null;
+
+  function highlightSelected() {
+    if (!selectedSaleId) return;
+    const row = document.getElementById(`report-row-${selectedSaleId}`);
+    if (row) row.classList.add('report-row-highlight');
+    const card = document.getElementById(`report-card-${selectedSaleId}`);
+    if (card) card.classList.add('report-card-highlight');
+  }
+
+  function setSelectedSale(id) {
+    if (selectedSaleId) {
+      const prevRow = document.getElementById(`report-row-${selectedSaleId}`);
+      if (prevRow) prevRow.classList.remove('report-row-highlight');
+      const prevCard = document.getElementById(`report-card-${selectedSaleId}`);
+      if (prevCard) prevCard.classList.remove('report-card-highlight');
+    }
+    selectedSaleId = id;
+    highlightSelected();
+  }
+
+  if (tbody) {
+    tbody.addEventListener('click', (e) => {
+      const row = e.target.closest('tr');
+      if (row && row.id && row.id.startsWith('report-row-')) {
+        const id = row.id.replace('report-row-', '');
+        setSelectedSale(id);
+      }
+    });
+
+    tbody.addEventListener('focusin', (e) => {
+      const row = e.target.closest('tr');
+      if (row && row.id && row.id.startsWith('report-row-')) {
+        const id = row.id.replace('report-row-', '');
+        setSelectedSale(id);
+      }
+    });
+  }
+
+  if (cardsContainer) {
+    cardsContainer.addEventListener('click', (e) => {
+      const card = e.target.closest('.report-card-item');
+      if (card && card.id && card.id.startsWith('report-card-')) {
+        const id = card.id.replace('report-card-', '');
+        setSelectedSale(id);
+      }
+    });
+
+    cardsContainer.addEventListener('focusin', (e) => {
+      const card = e.target.closest('.report-card-item');
+      if (card && card.id && card.id.startsWith('report-card-')) {
+        const id = card.id.replace('report-card-', '');
+        setSelectedSale(id);
+      }
+    });
   }
 
   // Permite recalcular totales sin redibujar la tabla completa
@@ -2473,6 +2539,7 @@ window.renderReportModal = function() {
     });
 
     renderSummaryBar(totalDia, totalEfectivo, totalTransferencia, totalTarjeta, totalNoPago, cantidadFiltrada, textFilter, vendFilter, custFilter);
+    highlightSelected();
   };
 
   // Registrar callback para refresco dinámico
@@ -2515,9 +2582,24 @@ window.renderReportModal = function() {
         alert('⚠️ Esta acción solo está permitida desde la computadora central de caja.');
         return;
       }
-      if (confirm('¿Estás seguro de que deseas borrar todo el historial de ventas del día?\n\nEsta acción limpiará también la tablet y los reportes de forma definitiva.')) {
+      if (confirm('¿Estás seguro de que deseas borrar el historial de ventas del día?\n\nℹ️ Se guardará una copia de seguridad automática para restaurarla si fue por error.')) {
         clearAllSales();
         window.renderReportModal();
+      }
+    };
+  }
+
+  const restoreSalesBtn = document.getElementById('restore-sales-btn');
+  if (restoreSalesBtn) {
+    restoreSalesBtn.onclick = () => {
+      if (!isCajaDevice()) return;
+      if (confirm('¿Deseas restaurar las ventas borradas de hoy desde la copia de respaldo?')) {
+        const ok = restoreLastClearedSales();
+        if (ok) {
+          window.renderReportModal();
+        } else {
+          alert('No se encontraron ventas para restaurar.');
+        }
       }
     };
   }
@@ -2836,6 +2918,19 @@ async function exportToExcel(sales) {
       };
       
       row.getCell('F').numFmt = currencyFmt;
+
+      // Color alternado suave (cebra celeste tenue) y bordes definidos
+      const isEven = (currentRow % 2 === 0);
+      const zebraFill = isEven
+        ? { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F7FC' } }
+        : { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+
+      ['A','B','C','D','E','F','G','H'].forEach(col => {
+        const c = row.getCell(col);
+        c.border = borderThin;
+        c.fill = zebraFill;
+      });
+
       currentRow++;
     });
     return { start, end: currentRow - 1 };
@@ -2893,6 +2988,24 @@ async function exportToExcel(sales) {
   currentRow += 3;
 
   console.log('Adding conditional formatting...');
+  // Resaltado de fila activa (Amarillo suave elegante que resalta toda la fila)
+  worksheet.addConditionalFormatting({
+    ref: 'A3:H1000',
+    rules: [
+      {
+        type: 'expression',
+        formulae: ['ROW()=CELL("row")'],
+        style: {
+          fill: { 
+            type: 'pattern', 
+            pattern: 'solid', 
+            bgColor: { argb: 'FFFFF9C4' } // Amarillo pastel resaltador suave
+          }
+        }
+      }
+    ]
+  });
+
   // Add elegant conditional formatting for the VENDEDOR column (H)
   worksheet.addConditionalFormatting({
     ref: 'H3:H1000',
@@ -3186,6 +3299,24 @@ async function exportToExcel(sales) {
   } else {
     searchSheet.getCell('A7').value = 'No hay ventas registradas.';
   }
+
+  // Resaltado de fila activa en Buscador Inteligente
+  searchSheet.addConditionalFormatting({
+    ref: 'A7:H1000',
+    rules: [
+      {
+        type: 'expression',
+        formulae: ['ROW()=CELL("row")'],
+        style: {
+          fill: { 
+            type: 'pattern', 
+            pattern: 'solid', 
+            bgColor: { argb: 'FFFFF9C4' } // Amarillo pastel resaltador suave
+          }
+        }
+      }
+    ]
+  });
 
   // Add elegant conditional formatting for the FORMA DE PAGO column (G) on Buscador Inteligente
   searchSheet.addConditionalFormatting({

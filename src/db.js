@@ -90,13 +90,8 @@ export function isCajaDevice() {
   const host = window.location.hostname;
   if (host === 'localhost' || host === '127.0.0.1') return true;
 
-  // 3. Si es un dispositivo móvil o táctil (Tablet Android, iPad, celular)
-  const isMobileOrTablet = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-    (window.innerWidth < 1024 && ('ontouchstart' in window || navigator.maxTouchPoints > 0));
-  if (isMobileOrTablet) return false;
-
-  // Por defecto en pantallas de escritorio
-  return true;
+  // 3. Cualquier dispositivo conectado por red Wi-Fi (IP local, tablet, celular) NO es Caja
+  return false;
 }
 
 // Normalizar vendedores válidos (o vacío si no tiene ninguno asignado)
@@ -211,6 +206,26 @@ export function getSales() {
   }
   try {
     const today = getTodayKey();
+    if (typeof window !== 'undefined') {
+      const activeDate = localStorage.getItem('flory_sales_active_date');
+      if (activeDate && activeDate !== today) {
+        // Cambio de día detectado: archivar ventas del día anterior
+        const oldRaw = localStorage.getItem(STORAGE_KEY);
+        if (oldRaw && oldRaw !== '[]') {
+          try {
+            localStorage.setItem(`flory_sales_archive_${activeDate}`, oldRaw);
+          } catch (e) {}
+        }
+        // Iniciar el nuevo día completamente en cero en este dispositivo
+        localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+        localStorage.setItem('flory_sales_active_date', today);
+        cachedSales = [];
+        return [];
+      } else if (!activeDate) {
+        localStorage.setItem('flory_sales_active_date', today);
+      }
+    }
+
     const localClearedAt = typeof window !== 'undefined'
       ? (Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0)
       : 0;
@@ -252,6 +267,10 @@ export function getSales() {
 // Guardar array de ventas y emitir evento
 export function persistSales(sales, emit = true, syncApi = true, syncCloud = true) {
   try {
+    const today = getTodayKey();
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('flory_sales_active_date', today);
+    }
     const sanitized = (sales || []).map((s, idx) => sanitizeSale(s, idx));
     cachedSales = sanitized;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
@@ -368,6 +387,17 @@ export function clearAllSales() {
   const clearTimestamp = Date.now();
   const today = getTodayKey();
 
+  // Guardar copia de seguridad en la Papelera antes de borrar
+  const currentSales = getSales();
+  if (currentSales && currentSales.length > 0) {
+    try {
+      localStorage.setItem(`flory_sales_trash_backup_${today}`, JSON.stringify(currentSales));
+      localStorage.setItem(`flory_sales_trash_timestamp_${today}`, String(clearTimestamp));
+    } catch (e) {
+      console.warn('No se pudo guardar respaldo en papelera:', e);
+    }
+  }
+
   localStorage.setItem(`flory_sales_cleared_at_${today}`, String(clearTimestamp));
   localStorage.removeItem(`flory_sales_backup_${today}`);
   localStorage.removeItem(STORAGE_KEY);
@@ -381,6 +411,47 @@ export function clearAllSales() {
   syncWithCloud([], clearTimestamp);
   postApiAction({ action: 'CLEAR', clearedAt: clearTimestamp });
   return true;
+}
+
+// Comprobar si hay respaldo en papelera para el día de hoy
+export function hasTrashBackup() {
+  if (typeof window === 'undefined') return false;
+  const today = getTodayKey();
+  const raw = localStorage.getItem(`flory_sales_trash_backup_${today}`);
+  if (!raw) return false;
+  try {
+    const list = JSON.parse(raw);
+    return Array.isArray(list) && list.length > 0;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Restaurar el historial borrado desde la papelera de hoy
+export function restoreLastClearedSales() {
+  if (!isCajaDevice()) {
+    alert('⚠️ Esta acción solo está permitida desde la computadora central de caja.');
+    return false;
+  }
+  const today = getTodayKey();
+  const raw = localStorage.getItem(`flory_sales_trash_backup_${today}`);
+  if (!raw) return false;
+  try {
+    const backupSales = JSON.parse(raw);
+    if (!Array.isArray(backupSales) || backupSales.length === 0) return false;
+
+    // Eliminar marcas de borrado
+    localStorage.removeItem(`flory_sales_cleared_at_${today}`);
+    localStorage.removeItem(`flory_sales_trash_backup_${today}`);
+    localStorage.removeItem(`flory_sales_trash_timestamp_${today}`);
+
+    // Restaurar ventas
+    persistSales(backupSales, true, true, true);
+    return true;
+  } catch (e) {
+    console.error('Error restaurando papelera:', e);
+    return false;
+  }
 }
 
 // Suscribirse a cambios en tiempo real
@@ -878,9 +949,10 @@ export async function initFirebase(config = FIREBASE_CONFIG) {
           syncWithCloud(merged);
         }
       } else {
-        // Si no hay documento en la nube para hoy, pero este dispositivo tiene ventas, subirlas solo si no fue purgado hoy
+        // Si no hay documento en la nube para hoy, pero este dispositivo tiene ventas, subirlas solo si no fue purgado hoy y pertenecen a la fecha activa
         const localClearedAt = Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0;
-        if (localClearedAt === 0) {
+        const activeDate = typeof window !== 'undefined' ? localStorage.getItem('flory_sales_active_date') : '';
+        if (localClearedAt === 0 && activeDate === today) {
           const localSales = getSales();
           if (localSales && localSales.length > 0) {
             syncWithCloud(localSales);

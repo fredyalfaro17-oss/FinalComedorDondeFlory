@@ -2306,10 +2306,14 @@ window.renderReportModal = function() {
               🗑️ Borrar Historial
             </button>
             ${hasTrashBackup() ? `
-              <button id="restore-sales-btn" class="text-xs sm:text-sm font-bold text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 px-3 py-2 rounded-xl transition-colors border border-amber-500/30 flex items-center gap-1.5 active:scale-95" title="Recuperar las ventas que fueron borradas por error">
+              <button id="restore-sales-btn" class="text-xs sm:text-sm font-bold text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 px-3 py-2 rounded-xl transition-colors border border-amber-500/30 flex items-center gap-1.5 active:scale-95 shadow-sm shadow-amber-950/30" title="Recuperar las ventas que fueron borradas por error hoy">
                 🔄 Restaurar Borrado
               </button>
-            ` : ''}
+            ` : `
+              <button id="restore-sales-btn" disabled class="text-xs sm:text-sm font-medium text-slate-500 bg-slate-800/40 px-3 py-2 rounded-xl border border-slate-700/40 flex items-center gap-1.5 opacity-60 cursor-not-allowed select-none" title="No hay ventas borradas hoy para restaurar (papelera vacía)">
+                🔄 Restaurar Borrado (Vacío)
+              </button>
+            `}
             <div class="flex items-center gap-1.5">
               <span class="text-[11px] font-semibold text-emerald-400/90 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 select-none" title="Equipo autorizado como Caja Central">
                 <span>🖥️</span> <span>Caja Autorizada</span>

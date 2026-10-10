@@ -438,12 +438,12 @@ export function clearAllSales() {
   cachedSales = [];
 
   if (syncChannel) {
-    syncChannel.postMessage({ type: 'SALES_CLEARED', clearedAt: clearTimestamp, sales: [] });
+    syncChannel.postMessage({ type: 'SALES_CLEARED', clearedAt: clearTimestamp, sales: [], trashBackup: currentSales });
   }
   notifyListeners([]);
 
-  syncWithCloud([], clearTimestamp);
-  postApiAction({ action: 'CLEAR', clearedAt: clearTimestamp });
+  syncWithCloud([], clearTimestamp, currentSales);
+  postApiAction({ action: 'CLEAR', clearedAt: clearTimestamp, trashBackup: currentSales });
   return true;
 }
 
@@ -479,7 +479,8 @@ export function restoreLastClearedSales() {
     localStorage.removeItem(`flory_sales_trash_backup_${today}`);
     localStorage.removeItem(`flory_sales_trash_timestamp_${today}`);
 
-    // Restaurar ventas
+    // Restaurar ventas y vaciar papelera en la nube
+    syncWithCloud(backupSales, 0, []);
     persistSales(backupSales, true, true, true);
     return true;
   } catch (e) {
@@ -944,6 +945,12 @@ export async function initFirebase(config = FIREBASE_CONFIG) {
 
           // Si la nube quedó vacía tras el borrado, purgar la memoria local de este dispositivo y detener
           if (validCloudSales.length === 0) {
+            if (cloudData.trashBackup && Array.isArray(cloudData.trashBackup) && cloudData.trashBackup.length > 0) {
+              try {
+                localStorage.setItem(`flory_sales_trash_backup_${today}`, JSON.stringify(cloudData.trashBackup));
+                localStorage.setItem(`flory_sales_trash_timestamp_${today}`, String(cloudClearedAt || Date.now()));
+              } catch (e) {}
+            }
             cachedSales = [];
             localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
             localStorage.removeItem(`flory_sales_backup_${today}`);
@@ -1038,7 +1045,7 @@ export async function initFirebase(config = FIREBASE_CONFIG) {
 }
 
 // Enviar cambios a Firebase Firestore
-async function syncWithCloud(sales, clearedAt = 0) {
+async function syncWithCloud(sales, clearedAt = 0, trashBackup = null) {
   if (!firebaseDb) return;
   try {
     isWritingToCloud = true;
@@ -1051,6 +1058,9 @@ async function syncWithCloud(sales, clearedAt = 0) {
     };
     if (clearedAt > 0) {
       payload.clearedAt = clearedAt;
+    }
+    if (trashBackup !== null) {
+      payload.trashBackup = Array.isArray(trashBackup) ? trashBackup : [];
     }
     await setDoc(doc(firebaseDb, 'ventas_diarias', today), payload, { merge: true });
     console.log('☁️ Ventas sincronizadas en Firebase:', (sales || []).length);

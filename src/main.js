@@ -2310,9 +2310,14 @@ window.renderReportModal = function() {
                 🔄 Restaurar Borrado
               </button>
             ` : ''}
-            <span class="text-[11px] font-semibold text-emerald-400/90 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 select-none" title="Equipo autorizado como Caja Central">
-              <span>🖥️</span> <span>Caja Autorizada</span>
-            </span>
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11px] font-semibold text-emerald-400/90 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 select-none" title="Equipo autorizado como Caja Central">
+                <span>🖥️</span> <span>Caja Autorizada</span>
+              </span>
+              <button id="relock-caja-btn" class="text-[11px] text-slate-400 hover:text-amber-300 hover:bg-slate-800 px-2 py-1.5 rounded-lg border border-slate-700/60 transition-colors" title="Volver a bloquear este dispositivo para que requiera PIN">
+                🔒 Bloquear
+              </button>
+            </div>
           </div>
         ` : `
           <div class="flex items-center flex-wrap gap-2">
@@ -2589,11 +2594,20 @@ window.renderReportModal = function() {
       const pin = prompt('🔐 Ingrese el PIN de Administrador (4 dígitos) para autorizar este equipo como Caja:');
       if (pin === null) return;
       if (unlockCajaWithPin(pin)) {
-        alert('✅ ¡Equipo autorizado como Caja Principal!\nYa puedes gestionar y borrar el historial en esta computadora.');
+        alert('✅ ¡Equipo autorizado como Caja Principal!\nYa puedes gestionar y borrar el historial en este dispositivo.');
         window.renderReportModal();
       } else {
         alert('❌ PIN incorrecto.');
       }
+    };
+  }
+
+  const relockCajaBtn = document.getElementById('relock-caja-btn');
+  if (relockCajaBtn) {
+    relockCajaBtn.onclick = () => {
+      lockCajaDevice();
+      window.renderReportModal();
+      alert('🔒 Dispositivo protegido nuevamente.\nAhora requerirá el PIN para acceder a las opciones de Caja.');
     };
   }
 

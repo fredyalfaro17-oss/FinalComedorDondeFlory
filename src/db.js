@@ -112,7 +112,12 @@ export function unlockCajaWithPin(pin) {
 
 export function lockCajaDevice() {
   if (typeof window !== 'undefined') {
-    localStorage.removeItem('flory_device_role');
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      localStorage.setItem('flory_device_role', 'tablet');
+    } else {
+      localStorage.removeItem('flory_device_role');
+    }
   }
 }
 

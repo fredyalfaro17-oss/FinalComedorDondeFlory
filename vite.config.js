@@ -6,10 +6,26 @@ import { defineConfig } from 'vite'
 function salesSyncPlugin() {
   const salesFile = path.resolve(__dirname, 'sales_data.json')
   
+  const getTodayKey = () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
   const getSalesFromFile = () => {
     try {
       if (fs.existsSync(salesFile)) {
-        return JSON.parse(fs.readFileSync(salesFile, 'utf-8'))
+        const raw = JSON.parse(fs.readFileSync(salesFile, 'utf-8'))
+        if (Array.isArray(raw)) {
+          const today = getTodayKey()
+          const todaySales = raw.filter(s => !s.date || s.date === today)
+          if (todaySales.length !== raw.length) {
+            saveSalesToFile(todaySales)
+          }
+          return todaySales
+        }
       }
     } catch (e) {
       console.error('Error reading sales_data.json:', e)

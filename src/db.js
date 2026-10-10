@@ -187,7 +187,12 @@ export function mergeSalesLists(listA = [], listB = []) {
     const clean = sanitizeSale(s);
     if (!clean || !clean.id) return;
 
-    // Si hubo borrado hoy en este día y esta orden es anterior o igual al borrado, descartarla
+    // Escudo 1: Si la orden pertenece explícitamente a otra fecha, descartar (pertenece a días anteriores)
+    if (clean.date && clean.date !== today) {
+      return;
+    }
+
+    // Escudo 2: Si hubo borrado hoy en este día y esta orden es anterior o igual al borrado, descartarla
     if (localClearedAt > 0) {
       const saleTime = getSaleTimestamp(clean);
       if (saleTime > 0 && saleTime <= localClearedAt) {
@@ -223,30 +228,32 @@ export function mergeSalesLists(listA = [], listB = []) {
 
 // Obtener todas las ventas del día (inmediato desde caché o localStorage)
 export function getSales() {
+  const today = getTodayKey();
+
+  if (typeof window !== 'undefined') {
+    const activeDate = localStorage.getItem('flory_sales_active_date');
+    if (activeDate && activeDate !== today) {
+      // Cambio de día detectado: archivar ventas del día anterior
+      const oldRaw = localStorage.getItem(STORAGE_KEY);
+      if (oldRaw && oldRaw !== '[]') {
+        try {
+          localStorage.setItem(`flory_sales_archive_${activeDate}`, oldRaw);
+        } catch (e) {}
+      }
+      // Iniciar el nuevo día completamente en cero en este dispositivo
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+      localStorage.setItem('flory_sales_active_date', today);
+      cachedSales = [];
+      return [];
+    } else if (!activeDate) {
+      localStorage.setItem('flory_sales_active_date', today);
+    }
+  }
+
   if (cachedSales !== null) {
     return cachedSales;
   }
   try {
-    const today = getTodayKey();
-    if (typeof window !== 'undefined') {
-      const activeDate = localStorage.getItem('flory_sales_active_date');
-      if (activeDate && activeDate !== today) {
-        // Cambio de día detectado: archivar ventas del día anterior
-        const oldRaw = localStorage.getItem(STORAGE_KEY);
-        if (oldRaw && oldRaw !== '[]') {
-          try {
-            localStorage.setItem(`flory_sales_archive_${activeDate}`, oldRaw);
-          } catch (e) {}
-        }
-        // Iniciar el nuevo día completamente en cero en este dispositivo
-        localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-        localStorage.setItem('flory_sales_active_date', today);
-        cachedSales = [];
-        return [];
-      } else if (!activeDate) {
-        localStorage.setItem('flory_sales_active_date', today);
-      }
-    }
 
     const localClearedAt = typeof window !== 'undefined'
       ? (Number(localStorage.getItem(`flory_sales_cleared_at_${today}`)) || 0)
@@ -1054,4 +1061,16 @@ async function syncWithCloud(sales, clearedAt = 0) {
 // Iniciar Firebase automáticamente en cualquier navegador
 if (typeof window !== 'undefined') {
   initFirebase(FIREBASE_CONFIG);
+
+  // Monitor de cambio de fecha a medianoche (reinicio automático garantizado a 0 ventas)
+  setInterval(() => {
+    const today = getTodayKey();
+    const activeDate = localStorage.getItem('flory_sales_active_date');
+    if (activeDate && activeDate !== today) {
+      console.log('🌅 Cambio de día detectado a medianoche. Reiniciando ventas a cero.');
+      cachedSales = null;
+      const newSales = getSales();
+      notifyListeners(newSales);
+    }
+  }, 30000);
 }

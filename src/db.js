@@ -78,10 +78,12 @@ export function getDeviceId() {
 }
 
 // Identificador de rol del dispositivo (Computadora central de Caja vs Tablets/Móviles)
+export const CAJA_ADMIN_PIN = '5577';
+
 export function isCajaDevice() {
   if (typeof window === 'undefined') return false;
 
-  // 1. Rol forzado en localStorage si se requiere
+  // 1. Rol forzado o desbloqueado con PIN en localStorage
   const role = localStorage.getItem('flory_device_role');
   if (role === 'caja') return true;
   if (role === 'tablet' || role === 'vendedor') return false;
@@ -92,6 +94,26 @@ export function isCajaDevice() {
 
   // 3. Cualquier dispositivo conectado por red Wi-Fi (IP local, tablet, celular) NO es Caja
   return false;
+}
+
+export function verifyAdminPin(pin) {
+  return String(pin || '').trim() === CAJA_ADMIN_PIN;
+}
+
+export function unlockCajaWithPin(pin) {
+  if (verifyAdminPin(pin)) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('flory_device_role', 'caja');
+    }
+    return true;
+  }
+  return false;
+}
+
+export function lockCajaDevice() {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('flory_device_role');
+  }
 }
 
 // Normalizar vendedores válidos (o vacío si no tiene ninguno asignado)

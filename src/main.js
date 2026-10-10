@@ -1,5 +1,5 @@
 import { menuData } from './data.js'
-import { getSales, addSale, updateSaleProperty as dbUpdateSaleProperty, clearAllSales, hasTrashBackup, restoreLastClearedSales, subscribeSales, VENDEDORES, FORMAS_PAGO, getTodayKey, normalizePayment, normalizeVendor, searchCustomers, saveCustomer, deleteCustomer, getCustomers, subscribeCustomers, getDeviceId, isCajaDevice } from './db.js'
+import { getSales, addSale, updateSaleProperty as dbUpdateSaleProperty, clearAllSales, hasTrashBackup, restoreLastClearedSales, subscribeSales, VENDEDORES, FORMAS_PAGO, getTodayKey, normalizePayment, normalizeVendor, searchCustomers, saveCustomer, deleteCustomer, getCustomers, subscribeCustomers, getDeviceId, isCajaDevice, unlockCajaWithPin, verifyAdminPin, lockCajaDevice } from './db.js'
 
 const ExcelJS = window.ExcelJS || {};
 const saveAs = window.saveAs || function() {};
@@ -2301,7 +2301,7 @@ window.renderReportModal = function() {
       <!-- Modal Footer -->
       <div class="p-3.5 sm:p-5 border-t border-slate-800 bg-slate-900 rounded-b-2xl flex flex-wrap justify-between items-center gap-3 shrink-0">
         ${isCajaDevice() ? `
-          <div class="flex items-center gap-2">
+          <div class="flex items-center flex-wrap gap-2">
             <button id="clear-sales-btn" class="text-xs sm:text-sm font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3.5 py-2 rounded-xl transition-colors border border-transparent hover:border-red-500/20 active:scale-95">
               🗑️ Borrar Historial
             </button>
@@ -2310,10 +2310,18 @@ window.renderReportModal = function() {
                 🔄 Restaurar Borrado
               </button>
             ` : ''}
+            <span class="text-[11px] font-semibold text-emerald-400/90 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 select-none" title="Equipo autorizado como Caja Central">
+              <span>🖥️</span> <span>Caja Autorizada</span>
+            </span>
           </div>
         ` : `
-          <div class="text-xs text-slate-400 flex items-center gap-1.5 py-2 px-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
-            <span>🔒</span> <span>Cierre de ventas gestionado desde Caja</span>
+          <div class="flex items-center flex-wrap gap-2">
+            <div class="text-xs text-slate-400 flex items-center gap-1.5 py-2 px-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
+              <span>🔒</span> <span>Cierre protegido</span>
+            </div>
+            <button id="unlock-caja-btn" class="text-xs sm:text-sm font-bold text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 px-3 py-2 rounded-xl transition-colors border border-amber-500/30 flex items-center gap-1.5 active:scale-95" title="Desbloquear este equipo como Caja Principal con PIN">
+              🔑 Desbloquear Caja
+            </button>
           </div>
         `}
 
@@ -2575,28 +2583,61 @@ window.renderReportModal = function() {
   if (closeBtnDesktop) closeBtnDesktop.onclick = handleClose;
   if (closeBottomBtn) closeBottomBtn.onclick = handleClose;
 
+  const unlockCajaBtn = document.getElementById('unlock-caja-btn');
+  if (unlockCajaBtn) {
+    unlockCajaBtn.onclick = () => {
+      const pin = prompt('🔐 Ingrese el PIN de Administrador (4 dígitos) para autorizar este equipo como Caja:');
+      if (pin === null) return;
+      if (unlockCajaWithPin(pin)) {
+        alert('✅ ¡Equipo autorizado como Caja Principal!\nYa puedes gestionar y borrar el historial en esta computadora.');
+        window.renderReportModal();
+      } else {
+        alert('❌ PIN incorrecto.');
+      }
+    };
+  }
+
   const clearSalesBtn = document.getElementById('clear-sales-btn');
   if (clearSalesBtn) {
     clearSalesBtn.onclick = () => {
       if (!isCajaDevice()) {
-        alert('⚠️ Esta acción solo está permitida desde la computadora central de caja.');
+        const pin = prompt('🔐 Ingrese el PIN de Administrador (5577) para autorizar el borrado:');
+        if (pin === null) return;
+        if (!unlockCajaWithPin(pin)) {
+          alert('❌ PIN incorrecto.');
+          return;
+        }
+      }
+
+      const pinConfirm = prompt('⚠️ ¿Estás seguro de que deseas borrar el historial de ventas del día?\n\nℹ️ Se guardará una copia de seguridad en la papelera.\n\nPara confirmar, escribe el PIN de Administrador (5577):');
+      if (pinConfirm === null) return;
+      if (!verifyAdminPin(pinConfirm)) {
+        alert('❌ PIN incorrecto. No se borró el historial.');
         return;
       }
-      if (confirm('¿Estás seguro de que deseas borrar el historial de ventas del día?\n\nℹ️ Se guardará una copia de seguridad automática para restaurarla si fue por error.')) {
-        clearAllSales();
-        window.renderReportModal();
-      }
+
+      clearAllSales();
+      window.renderReportModal();
+      alert('🗑️ Historial de ventas borrado correctamente.');
     };
   }
 
   const restoreSalesBtn = document.getElementById('restore-sales-btn');
   if (restoreSalesBtn) {
     restoreSalesBtn.onclick = () => {
-      if (!isCajaDevice()) return;
+      if (!isCajaDevice()) {
+        const pin = prompt('🔐 Ingrese el PIN de Administrador para restaurar el historial:');
+        if (pin === null) return;
+        if (!unlockCajaWithPin(pin)) {
+          alert('❌ PIN incorrecto.');
+          return;
+        }
+      }
       if (confirm('¿Deseas restaurar las ventas borradas de hoy desde la copia de respaldo?')) {
         const ok = restoreLastClearedSales();
         if (ok) {
           window.renderReportModal();
+          alert('✅ Ventas restauradas correctamente.');
         } else {
           alert('No se encontraron ventas para restaurar.');
         }

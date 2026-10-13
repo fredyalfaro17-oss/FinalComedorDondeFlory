@@ -1842,6 +1842,8 @@ function getPaymentSelectStyle(pago) {
       return 'bg-purple-950/90 text-purple-300 border-purple-500/80 shadow-purple-950/50';
     case 'NO PAGO':
       return 'bg-red-950/90 text-red-300 border-red-500/80 shadow-red-950/50';
+    case 'MIXTO':
+      return 'bg-amber-950/90 text-amber-300 border-amber-500/80 shadow-amber-950/50';
     default:
       return 'bg-emerald-950/90 text-emerald-300 border-emerald-500/80 shadow-emerald-950/50';
   }
@@ -1866,6 +1868,254 @@ function showReportToast(message) {
     toast.classList.add('opacity-0', '-translate-y-4');
   }, 2200);
 }
+
+function formatMixtoBadge(detalle) {
+  if (!detalle) return '🔀 Mixto';
+  const parts = [];
+  if (Number(detalle.efectivo) > 0) parts.push(`💵 Q${Number(detalle.efectivo).toFixed(0)}`);
+  if (Number(detalle.transferencia) > 0) parts.push(`📲 Q${Number(detalle.transferencia).toFixed(0)}`);
+  if (Number(detalle.tarjeta) > 0) parts.push(`💳 Q${Number(detalle.tarjeta).toFixed(0)}`);
+  if (Number(detalle.noPago) > 0) parts.push(`❌ Q${Number(detalle.noPago).toFixed(0)}`);
+  return parts.length > 0 ? parts.join(' + ') : '🔀 Asignar montos';
+}
+
+window.openMixtoModal = function(saleId, targetElement = null) {
+  const sales = getSales();
+  const sale = sales.find(s => Number(s.id) === Number(saleId));
+  if (!sale) return;
+
+  const total = Number(sale.total) || 0;
+  const existing = sale.pagoDetalle || {};
+  let curEf = Number(existing.efectivo) || 0;
+  let curTr = Number(existing.transferencia) || 0;
+  let curTj = Number(existing.tarjeta) || 0;
+  let curNp = Number(existing.noPago) || 0;
+
+  // Si aún no tiene montos asignados, colocar Efectivo = total como punto de partida
+  if (!sale.pagoDetalle && curEf === 0 && curTr === 0 && curTj === 0 && curNp === 0) {
+    curEf = total;
+  }
+
+  // Eliminar modal previo si existiera
+  const prevModal = document.getElementById('flory-mixto-modal-overlay');
+  if (prevModal) prevModal.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'flory-mixto-modal-overlay';
+  overlay.className = 'fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[300] flex items-center justify-center p-3 sm:p-4 select-none';
+
+  overlay.innerHTML = `
+    <div class="bg-slate-900 border border-amber-500/40 rounded-2xl p-4 sm:p-6 w-full max-w-md shadow-2xl shadow-black flex flex-col gap-4 animate-scale-in">
+      <!-- Header -->
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-xl shadow-inner">
+            🔀
+          </div>
+          <div>
+            <h3 class="text-base sm:text-lg font-bold text-white tracking-wide">Desglose de Pago Mixto</h3>
+            <p class="text-xs text-slate-400">Pedido #${sale.id} • ${sale.customerName || 'Cliente Mostrador'}</p>
+          </div>
+        </div>
+        <button type="button" id="mixto-close-x" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 text-lg">✕</button>
+      </div>
+
+      <!-- Target Total Badge -->
+      <div class="bg-slate-950/80 border border-slate-800 p-3 rounded-xl flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total del Pedido:</span>
+        <span class="text-xl font-black text-amber-400 font-mono">Q${total.toFixed(2)}</span>
+      </div>
+
+      <!-- Input Fields -->
+      <form id="mixto-form" class="flex flex-col gap-2.5">
+        <!-- Efectivo -->
+        <div class="flex items-center gap-2 bg-slate-950/50 p-2 rounded-xl border border-slate-800 focus-within:border-emerald-500/60 transition-colors">
+          <span class="text-lg pl-1">💵</span>
+          <div class="flex-1">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">Efectivo (Q)</span>
+            <input type="number" step="0.01" min="0" id="mixto-input-efectivo" value="${curEf > 0 ? curEf : ''}" placeholder="0.00" class="w-full bg-transparent text-white font-mono font-bold text-sm outline-none" />
+          </div>
+          <button type="button" data-field="efectivo" class="btn-fill-remaining text-[10px] font-bold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 px-2 py-1 rounded-lg transition-colors active:scale-95" title="Asignar el saldo restante a Efectivo">Restante</button>
+        </div>
+
+        <!-- Transferencia -->
+        <div class="flex items-center gap-2 bg-slate-950/50 p-2 rounded-xl border border-slate-800 focus-within:border-sky-500/60 transition-colors">
+          <span class="text-lg pl-1">📲</span>
+          <div class="flex-1">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-sky-400 block">Transferencia (Q)</span>
+            <input type="number" step="0.01" min="0" id="mixto-input-transferencia" value="${curTr > 0 ? curTr : ''}" placeholder="0.00" class="w-full bg-transparent text-white font-mono font-bold text-sm outline-none" />
+          </div>
+          <button type="button" data-field="transferencia" class="btn-fill-remaining text-[10px] font-bold text-sky-300 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 px-2 py-1 rounded-lg transition-colors active:scale-95" title="Asignar el saldo restante a Transferencia">Restante</button>
+        </div>
+
+        <!-- Tarjeta -->
+        <div class="flex items-center gap-2 bg-slate-950/50 p-2 rounded-xl border border-slate-800 focus-within:border-purple-500/60 transition-colors">
+          <span class="text-lg pl-1">💳</span>
+          <div class="flex-1">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-purple-400 block">Tarjeta (Q)</span>
+            <input type="number" step="0.01" min="0" id="mixto-input-tarjeta" value="${curTj > 0 ? curTj : ''}" placeholder="0.00" class="w-full bg-transparent text-white font-mono font-bold text-sm outline-none" />
+          </div>
+          <button type="button" data-field="tarjeta" class="btn-fill-remaining text-[10px] font-bold text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 px-2 py-1 rounded-lg transition-colors active:scale-95" title="Asignar el saldo restante a Tarjeta">Restante</button>
+        </div>
+
+        <!-- No Pago -->
+        <div class="flex items-center gap-2 bg-slate-950/50 p-2 rounded-xl border border-slate-800 focus-within:border-red-500/60 transition-colors">
+          <span class="text-lg pl-1">❌</span>
+          <div class="flex-1">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-red-400 block">No Pagó / Pendiente (Q)</span>
+            <input type="number" step="0.01" min="0" id="mixto-input-nopago" value="${curNp > 0 ? curNp : ''}" placeholder="0.00" class="w-full bg-transparent text-white font-mono font-bold text-sm outline-none" />
+          </div>
+          <button type="button" data-field="nopago" class="btn-fill-remaining text-[10px] font-bold text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 px-2 py-1 rounded-lg transition-colors active:scale-95" title="Asignar el saldo restante a No Pagó">Restante</button>
+        </div>
+
+        <!-- Live Validation Banner -->
+        <div id="mixto-balance-banner" class="mt-1 p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between border transition-all">
+          <!-- Injected via updateMath -->
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="flex items-center gap-2 pt-2 border-t border-slate-800 mt-1">
+          <button type="button" id="mixto-cancel-btn" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs sm:text-sm font-semibold transition-colors active:scale-95">
+            Cancelar
+          </button>
+          <button type="submit" id="mixto-save-btn" class="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs sm:text-sm transition-all shadow-lg shadow-amber-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+            Guardar Desglose
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const inputEf = overlay.querySelector('#mixto-input-efectivo');
+  const inputTr = overlay.querySelector('#mixto-input-transferencia');
+  const inputTj = overlay.querySelector('#mixto-input-tarjeta');
+  const inputNp = overlay.querySelector('#mixto-input-nopago');
+  const banner = overlay.querySelector('#mixto-balance-banner');
+  const saveBtn = overlay.querySelector('#mixto-save-btn');
+  const form = overlay.querySelector('#mixto-form');
+  const cancelBtn = overlay.querySelector('#mixto-cancel-btn');
+  const closeX = overlay.querySelector('#mixto-close-x');
+
+  const getValues = () => ({
+    ef: Math.max(0, parseFloat(inputEf.value) || 0),
+    tr: Math.max(0, parseFloat(inputTr.value) || 0),
+    tj: Math.max(0, parseFloat(inputTj.value) || 0),
+    np: Math.max(0, parseFloat(inputNp.value) || 0)
+  });
+
+  const updateMath = () => {
+    const { ef, tr, tj, np } = getValues();
+    const sum = Math.round((ef + tr + tj + np) * 100) / 100;
+    const diff = Math.round((total - sum) * 100) / 100;
+
+    if (Math.abs(diff) <= 0.01) {
+      banner.className = 'mt-1 p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between border bg-emerald-950/60 border-emerald-500/60 text-emerald-300';
+      banner.innerHTML = `
+        <div class="flex items-center gap-1.5">
+          <span>✅</span>
+          <span>¡Cuadra exacto! Suma: Q${sum.toFixed(2)}</span>
+        </div>
+        <span class="text-[11px] font-bold text-emerald-400">100% Cubierto</span>
+      `;
+      saveBtn.disabled = false;
+    } else if (diff > 0.01) {
+      banner.className = 'mt-1 p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between border bg-amber-950/60 border-amber-500/60 text-amber-300';
+      banner.innerHTML = `
+        <div class="flex items-center gap-1.5">
+          <span>⚠️</span>
+          <span>Suma: Q${sum.toFixed(2)} (Faltan Q${diff.toFixed(2)})</span>
+        </div>
+        <span class="text-[11px] font-bold text-amber-400">Incompleto</span>
+      `;
+      saveBtn.disabled = true;
+    } else {
+      banner.className = 'mt-1 p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between border bg-red-950/60 border-red-500/60 text-red-300';
+      banner.innerHTML = `
+        <div class="flex items-center gap-1.5">
+          <span>❌</span>
+          <span>Suma: Q${sum.toFixed(2)} (Te pasas por Q${Math.abs(diff).toFixed(2)})</span>
+        </div>
+        <span class="text-[11px] font-bold text-red-400">Excedido</span>
+      `;
+      saveBtn.disabled = true;
+    }
+  };
+
+  [inputEf, inputTr, inputTj, inputNp].forEach(inp => {
+    inp.addEventListener('input', updateMath);
+  });
+
+  // Botones "Restante"
+  overlay.querySelectorAll('.btn-fill-remaining').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const field = btn.getAttribute('data-field');
+      const { ef, tr, tj, np } = getValues();
+      let otherSum = 0;
+      if (field !== 'efectivo') otherSum += ef;
+      if (field !== 'transferencia') otherSum += tr;
+      if (field !== 'tarjeta') otherSum += tj;
+      if (field !== 'nopago') otherSum += np;
+
+      const remaining = Math.max(0, Math.round((total - otherSum) * 100) / 100);
+      if (field === 'efectivo') inputEf.value = remaining > 0 ? remaining : '';
+      if (field === 'transferencia') inputTr.value = remaining > 0 ? remaining : '';
+      if (field === 'tarjeta') inputTj.value = remaining > 0 ? remaining : '';
+      if (field === 'nopago') inputNp.value = remaining > 0 ? remaining : '';
+
+      updateMath();
+    });
+  });
+
+  updateMath();
+  setTimeout(() => inputEf.focus(), 60);
+
+  const close = (saved = false) => {
+    overlay.remove();
+    if (!saved) {
+      if (targetElement && sale.pago !== 'MIXTO') {
+        targetElement.value = normalizePayment(sale.pago);
+        targetElement.className = targetElement.className
+          .replace(/bg-\S+/g, '')
+          .replace(/text-\S+/g, '')
+          .replace(/border-\S+/g, '')
+          .replace(/shadow-\S+/g, '')
+          .trim() + ` ${getPaymentSelectStyle(sale.pago)}`;
+      }
+    }
+  };
+
+  cancelBtn.addEventListener('click', () => close(false));
+  closeX.addEventListener('click', () => close(false));
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close(false);
+  });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const { ef, tr, tj, np } = getValues();
+    const sum = Math.round((ef + tr + tj + np) * 100) / 100;
+    if (Math.abs(total - sum) > 0.01) {
+      alert(`⚠️ La suma de pagos (Q${sum.toFixed(2)}) debe coincidir exactamente con el total (Q${total.toFixed(2)}).`);
+      return;
+    }
+
+    const detalle = {
+      efectivo: ef,
+      transferencia: tr,
+      tarjeta: tj,
+      noPago: np
+    };
+
+    window.updateSaleProperty(sale.id, 'pago', 'MIXTO', targetElement, detalle);
+    close(true);
+
+    if (typeof window.__refreshReportModal === 'function') {
+      window.__refreshReportModal();
+    }
+  });
+};
 
 function renderReportContent(sales, textFilter = '', vendorFilter = '', customerFilter = '') {
   let filteredSales = sales;
@@ -1895,7 +2145,12 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
     const vendNorm = normalizeVendor(sale.vendedor);
 
     totalDia += saleTotal;
-    if (pagoNorm === 'EFECTIVO') totalEfectivo += saleTotal;
+    if (pagoNorm === 'MIXTO' && sale.pagoDetalle) {
+      totalEfectivo += Number(sale.pagoDetalle.efectivo) || 0;
+      totalTransferencia += Number(sale.pagoDetalle.transferencia) || 0;
+      totalTarjeta += Number(sale.pagoDetalle.tarjeta) || 0;
+      totalNoPago += Number(sale.pagoDetalle.noPago) || 0;
+    } else if (pagoNorm === 'EFECTIVO') totalEfectivo += saleTotal;
     else if (pagoNorm === 'TRANSFERENCIA') totalTransferencia += saleTotal;
     else if (pagoNorm === 'TARJETA') totalTarjeta += saleTotal;
     else if (pagoNorm === 'NO PAGO') totalNoPago += saleTotal;
@@ -1937,16 +2192,24 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
         </td>
         <td class="px-2 py-2.5 text-xs italic text-slate-300 min-w-[120px] max-w-[180px] leading-tight break-words">${sale.items || '-'}</td>
         <td class="px-2 py-2.5 text-center whitespace-nowrap">
-          <select 
-            id="report-pago-${sale.id}"
-            onchange="window.updateSaleProperty(${sale.id}, 'pago', this.value, this)" 
-            class="text-xs font-bold py-1.5 px-2 rounded-xl border cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm ${getPaymentSelectStyle(pagoNorm)}"
-          >
-            <option value="EFECTIVO" ${pagoNorm === 'EFECTIVO' ? 'selected' : ''}>💵 EFECTIVO</option>
-            <option value="TRANSFERENCIA" ${pagoNorm === 'TRANSFERENCIA' ? 'selected' : ''}>📲 TRANSF.</option>
-            <option value="TARJETA" ${pagoNorm === 'TARJETA' ? 'selected' : ''}>💳 TARJETA</option>
-            <option value="NO PAGO" ${pagoNorm === 'NO PAGO' ? 'selected' : ''}>❌ NO PAGÓ</option>
-          </select>
+          <div class="flex flex-col items-center gap-1">
+            <select 
+              id="report-pago-${sale.id}"
+              onchange="window.handlePaymentChange(${sale.id}, this.value, this)" 
+              class="text-xs font-bold py-1.5 px-2 rounded-xl border cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm ${getPaymentSelectStyle(pagoNorm)}"
+            >
+              <option value="EFECTIVO" ${pagoNorm === 'EFECTIVO' ? 'selected' : ''}>💵 EFECTIVO</option>
+              <option value="TRANSFERENCIA" ${pagoNorm === 'TRANSFERENCIA' ? 'selected' : ''}>📲 TRANSF.</option>
+              <option value="TARJETA" ${pagoNorm === 'TARJETA' ? 'selected' : ''}>💳 TARJETA</option>
+              <option value="NO PAGO" ${pagoNorm === 'NO PAGO' ? 'selected' : ''}>❌ NO PAGÓ</option>
+              <option value="MIXTO" ${pagoNorm === 'MIXTO' ? 'selected' : ''}>🔀 MIXTO...</option>
+            </select>
+            ${pagoNorm === 'MIXTO' ? `
+              <button type="button" onclick="window.openMixtoModal(${sale.id}, document.getElementById('report-pago-${sale.id}'))" class="text-[10px] font-bold text-amber-300 bg-amber-500/20 hover:bg-amber-500/35 px-2 py-0.5 rounded-lg border border-amber-500/40 transition-colors shadow-sm whitespace-nowrap active:scale-95" title="Clic para editar montos de pago mixto">
+                ${formatMixtoBadge(sale.pagoDetalle)} ✏️
+              </button>
+            ` : ''}
+          </div>
         </td>
         <td class="px-2 py-2.5 text-center whitespace-nowrap">
           <select 
@@ -2035,14 +2298,21 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
             </label>
             <select 
               id="report-card-pago-${sale.id}"
-              onchange="window.updateSaleProperty(${sale.id}, 'pago', this.value, this)"
+              onchange="window.handlePaymentChange(${sale.id}, this.value, this)"
               class="w-full text-xs sm:text-sm font-bold py-2.5 px-3 rounded-xl border cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-sm ${getPaymentSelectStyle(pagoNorm)}"
             >
               <option value="EFECTIVO" ${pagoNorm === 'EFECTIVO' ? 'selected' : ''}>💵 EFECTIVO</option>
               <option value="TRANSFERENCIA" ${pagoNorm === 'TRANSFERENCIA' ? 'selected' : ''}>📲 TRANSFERENCIA</option>
               <option value="TARJETA" ${pagoNorm === 'TARJETA' ? 'selected' : ''}>💳 TARJETA</option>
               <option value="NO PAGO" ${pagoNorm === 'NO PAGO' ? 'selected' : ''}>❌ NO PAGÓ</option>
+              <option value="MIXTO" ${pagoNorm === 'MIXTO' ? 'selected' : ''}>🔀 MIXTO / DIVIDIDO...</option>
             </select>
+            ${pagoNorm === 'MIXTO' ? `
+              <button type="button" onclick="window.openMixtoModal(${sale.id}, document.getElementById('report-card-pago-${sale.id}'))" class="w-full mt-1.5 text-xs text-amber-300 bg-amber-500/20 hover:bg-amber-500/35 py-1.5 px-2.5 rounded-xl border border-amber-500/40 font-mono font-bold flex items-center justify-between transition-colors shadow-sm active:scale-95" title="Clic para editar montos de pago mixto">
+                <span>${formatMixtoBadge(sale.pagoDetalle)}</span>
+                <span class="text-xs">✏️ Editar</span>
+              </button>
+            ` : ''}
           </div>
 
           <div class="flex items-center justify-between gap-2 pt-1">
@@ -2068,11 +2338,22 @@ function openReportModal() {
   window.renderReportModal();
 }
 
-window.updateSaleProperty = function(saleId, property, value, targetElement) {
+window.handlePaymentChange = function(saleId, value, targetElement) {
+  if (value === 'MIXTO') {
+    window.openMixtoModal(saleId, targetElement);
+  } else {
+    window.updateSaleProperty(saleId, 'pago', value, targetElement);
+    if (typeof window.__refreshReportModal === 'function') {
+      window.__refreshReportModal();
+    }
+  }
+};
+
+window.updateSaleProperty = function(saleId, property, value, targetElement, extraData = null) {
   window.__isLocalReportUpdate = true;
   try {
     // 1. Guardar en base de datos local y sincronizar con la nube
-    dbUpdateSaleProperty(saleId, property, value);
+    dbUpdateSaleProperty(saleId, property, value, extraData);
 
     // 2. Si es cambio de forma de pago y tenemos el elemento select, actualizar estilos en el DOM en tiempo real
     if (targetElement && property === 'pago') {
@@ -2705,7 +2986,12 @@ window.renderReportModal = function() {
       const tot = Number(s.total) || 0;
       const p = normalizePayment(s.pago);
       totalDia += tot;
-      if (p === 'EFECTIVO') totalEfectivo += tot;
+      if (p === 'MIXTO' && s.pagoDetalle) {
+        totalEfectivo += Number(s.pagoDetalle.efectivo) || 0;
+        totalTransferencia += Number(s.pagoDetalle.transferencia) || 0;
+        totalTarjeta += Number(s.pagoDetalle.tarjeta) || 0;
+        totalNoPago += Number(s.pagoDetalle.noPago) || 0;
+      } else if (p === 'EFECTIVO') totalEfectivo += tot;
       else if (p === 'TRANSFERENCIA') totalTransferencia += tot;
       else if (p === 'TARJETA') totalTarjeta += tot;
       else if (p === 'NO PAGO') totalNoPago += tot;
@@ -3082,6 +3368,11 @@ async function exportToExcel(sales) {
   // Set AutoFilter for the header row
   worksheet.autoFilter = 'A2:H2';
 
+  // Helper breakdown columns (I=Efectivo, J=Transferencia, K=Tarjeta, L=No Pago)
+  ['I', 'J', 'K', 'L'].forEach(col => {
+    worksheet.getColumn(col).hidden = true;
+  });
+
   // Force Excel to recalculate all formulas when the workbook opens
   workbook.calcProperties.fullCalcOnLoad = true;
 
@@ -3114,12 +3405,17 @@ async function exportToExcel(sales) {
       row.getCell('E').value = sale.items;
       row.getCell('F').value = sale.total;
       
+      const pagoNorm = normalizePayment(sale.pago);
+      const isMixto = (pagoNorm === 'MIXTO' && sale.pagoDetalle);
       const pagoCell = row.getCell('G');
-      pagoCell.value = normalizePayment(sale.pago);
+      pagoCell.value = pagoNorm;
       pagoCell.dataValidation = {
         type: 'list', allowBlank: true, showErrorMessage: false,
-        formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA,NO PAGO"']
+        formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA,NO PAGO,MIXTO"']
       };
+      if (isMixto) {
+        pagoCell.note = formatMixtoBadge(sale.pagoDetalle);
+      }
 
       const vendedorCell = row.getCell('H');
       vendedorCell.value = normalizeVendor(sale.vendedor);
@@ -3129,6 +3425,20 @@ async function exportToExcel(sales) {
       };
       
       row.getCell('F').numFmt = currencyFmt;
+
+      // Helper columns I, J, K, L (Efectivo, Transferencia, Tarjeta, No Pago) para cálculo exacto
+      if (isMixto) {
+        row.getCell('I').value = Number(sale.pagoDetalle.efectivo) || 0;
+        row.getCell('J').value = Number(sale.pagoDetalle.transferencia) || 0;
+        row.getCell('K').value = Number(sale.pagoDetalle.tarjeta) || 0;
+        row.getCell('L').value = Number(sale.pagoDetalle.noPago) || 0;
+      } else {
+        row.getCell('I').value = { formula: `IF(G${currentRow}="EFECTIVO", F${currentRow}, 0)` };
+        row.getCell('J').value = { formula: `IF(G${currentRow}="TRANSFERENCIA", F${currentRow}, 0)` };
+        row.getCell('K').value = { formula: `IF(G${currentRow}="TARJETA", F${currentRow}, 0)` };
+        row.getCell('L').value = { formula: `IF(G${currentRow}="NO PAGO", F${currentRow}, 0)` };
+      }
+      ['I','J','K','L'].forEach(c => { row.getCell(c).numFmt = currencyFmt; });
 
       // Color alternado suave (cebra celeste tenue) y bordes definidos
       const isEven = (currentRow % 2 === 0);
@@ -3283,6 +3593,13 @@ async function exportToExcel(sales) {
           font: { color: { argb: 'FF922B21' }, bold: true },
           fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FADBD8' } }
         }
+      },
+      {
+        type: 'cellIs', operator: 'equal', formulae: ['"MIXTO"'],
+        style: { 
+          font: { color: { argb: 'FF7E5109' }, bold: true },
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFDEBD0' } }
+        }
       }
     ]
   });
@@ -3331,12 +3648,11 @@ async function exportToExcel(sales) {
     // Data for this vendor table
     const dataRow = worksheet.getRow(currentRow);
     const maxRow = (afternoonRange.end || morningRange.end || 3);
-    const formulaBase = `SUMIFS(F3:F${maxRow}, H3:H${maxRow}, "${v}", G3:G${maxRow}, `;
     
-    dataRow.getCell('D').value = { formula: formulaBase + '"EFECTIVO")' };
-    dataRow.getCell('E').value = { formula: formulaBase + '"TRANSFERENCIA")' };
-    dataRow.getCell('F').value = { formula: formulaBase + '"TARJETA")' };
-    dataRow.getCell('G').value = { formula: formulaBase + '"NO PAGO")' };
+    dataRow.getCell('D').value = { formula: `SUMIFS(I3:I${maxRow}, H3:H${maxRow}, "${v}")` };
+    dataRow.getCell('E').value = { formula: `SUMIFS(J3:J${maxRow}, H3:H${maxRow}, "${v}")` };
+    dataRow.getCell('F').value = { formula: `SUMIFS(K3:K${maxRow}, H3:H${maxRow}, "${v}")` };
+    dataRow.getCell('G').value = { formula: `SUMIFS(L3:L${maxRow}, H3:H${maxRow}, "${v}")` };
     dataRow.getCell('H').value = { formula: `D${currentRow} + E${currentRow} + F${currentRow} + G${currentRow}` };
     
     vendorTotalRows.push(currentRow);
@@ -3437,7 +3753,7 @@ async function exportToExcel(sales) {
   const pagoInput = searchSheet.getCell('E4');
   pagoInput.dataValidation = {
     type: 'list', allowBlank: true, showErrorMessage: false,
-    formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA,NO PAGO"']
+    formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA,NO PAGO,MIXTO"']
   };
   pagoInput.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } };
   pagoInput.border = borderThin;

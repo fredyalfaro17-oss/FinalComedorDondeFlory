@@ -14,7 +14,8 @@ export const FORMAS_PAGO = [
   'EFECTIVO',
   'TRANSFERENCIA',
   'TARJETA',
-  'NO PAGO'
+  'NO PAGO',
+  'MIXTO'
 ];
 
 export const FIREBASE_CONFIG = {
@@ -65,11 +66,12 @@ function notifyListeners(sales) {
   });
 }
 
-// Normalizar métodos de pago válidos (EFECTIVO, TRANSFERENCIA, TARJETA, NO PAGO)
+// Normalizar métodos de pago válidos (EFECTIVO, TRANSFERENCIA, TARJETA, NO PAGO, MIXTO)
 export function normalizePayment(pago) {
   if (!pago) return 'EFECTIVO';
   const clean = String(pago).trim().toUpperCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // quita acentos (NO PAGÓ -> NO PAGO)
+  if (clean === 'MIXTO' || clean.startsWith('MIX')) return 'MIXTO';
   if (clean === 'TRANSFERENCIA' || clean.startsWith('TRANS')) return 'TRANSFERENCIA';
   if (clean === 'TARJETA' || clean.startsWith('TARJ')) return 'TARJETA';
   if (clean === 'NO PAGO' || clean === 'NOPAGO' || clean.startsWith('NO PAG') || clean.startsWith('NO_PAG')) return 'NO PAGO';
@@ -148,11 +150,18 @@ export function normalizeVendor(vendor) {
 // Sanitizar y reparar registros de ventas heredados
 export function sanitizeSale(sale, index = 0) {
   if (!sale || typeof sale !== 'object') return null;
+  const normPago = normalizePayment(sale.pago);
   return {
     ...sale,
     id: Number(sale.id) || (index + 1),
     total: Number(sale.total) || 0,
-    pago: normalizePayment(sale.pago),
+    pago: normPago,
+    pagoDetalle: normPago === 'MIXTO' && sale.pagoDetalle ? {
+      efectivo: Number(sale.pagoDetalle.efectivo) || 0,
+      transferencia: Number(sale.pagoDetalle.transferencia) || 0,
+      tarjeta: Number(sale.pagoDetalle.tarjeta) || 0,
+      noPago: Number(sale.pagoDetalle.noPago) || 0
+    } : (sale.pagoDetalle || null),
     vendedor: normalizeVendor(sale.vendedor),
     cartItems: Array.isArray(sale.cartItems) ? sale.cartItems : [],
     printRequested: Number(sale.printRequested) || 0,
@@ -342,12 +351,24 @@ export function addSale(saleData) {
 }
 
 // Actualizar una propiedad específica de una venta (ej: pago, vendedor)
-export function updateSaleProperty(saleId, property, value) {
+export function updateSaleProperty(saleId, property, value, extraData = null) {
   const sales = getSales();
   const index = sales.findIndex(s => Number(s.id) === Number(saleId));
   if (index !== -1) {
     let finalValue = value;
-    if (property === 'pago') finalValue = normalizePayment(value);
+    if (property === 'pago') {
+      finalValue = normalizePayment(value);
+      if (finalValue === 'MIXTO' && extraData) {
+        sales[index].pagoDetalle = {
+          efectivo: Number(extraData.efectivo) || 0,
+          transferencia: Number(extraData.transferencia) || 0,
+          tarjeta: Number(extraData.tarjeta) || 0,
+          noPago: Number(extraData.noPago) || 0
+        };
+      } else if (finalValue !== 'MIXTO') {
+        delete sales[index].pagoDetalle;
+      }
+    }
     if (property === 'vendedor') finalValue = normalizeVendor(value);
 
     sales[index][property] = finalValue;
@@ -367,6 +388,7 @@ export function updateSaleProperty(saleId, property, value) {
       id: Number(saleId), 
       property, 
       value: finalValue,
+      pagoDetalle: sales[index].pagoDetalle || null,
       sale: sales[index]
     });
 

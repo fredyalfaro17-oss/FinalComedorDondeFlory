@@ -3332,7 +3332,7 @@ async function exportToExcel(sales) {
   const currencyFmt = 'Q#,##0.00';
 
   // Row 1: Title
-  worksheet.mergeCells('A1:H1');
+  worksheet.mergeCells('A1:L1');
   const titleCell = worksheet.getCell('A1');
   titleCell.value = 'INFORME DE VENTAS DEL DÍA';
   titleCell.fill = headerFill;
@@ -3341,7 +3341,11 @@ async function exportToExcel(sales) {
   worksheet.getRow(1).height = 30;
 
   // Row 2: Headers
-  const headers = ["No.", "NOMBRE DEL CLIENTE", "TELEFONO", "HORA", "DETALLE DE PEDIDO", "TOTAL", "FORMA DE PAGO", "VENDEDOR"];
+  const headers = [
+    "No.", "NOMBRE DEL CLIENTE", "TELEFONO", "HORA", "DETALLE DE PEDIDO", 
+    "TOTAL", "FORMA DE PAGO", "VENDEDOR", 
+    "EFECTIVO", "TRANSFERENCIA", "TARJETA", "NO PAGO"
+  ];
   const headerRow = worksheet.getRow(2);
   headerRow.values = headers;
   headerRow.height = 20;
@@ -3362,16 +3366,14 @@ async function exportToExcel(sales) {
     { key: 'total', width: 15 },
     { key: 'pago', width: 18 },
     { key: 'vendedor', width: 18 },
-    { key: 'extra_col', width: 18 }
+    { key: 'efectivo', width: 16 },
+    { key: 'transferencia', width: 18 },
+    { key: 'tarjeta', width: 16 },
+    { key: 'nopago', width: 16 }
   ];
 
   // Set AutoFilter for the header row
-  worksheet.autoFilter = 'A2:H2';
-
-  // Helper breakdown columns (I=Efectivo, J=Transferencia, K=Tarjeta, L=No Pago)
-  ['I', 'J', 'K', 'L'].forEach(col => {
-    worksheet.getColumn(col).hidden = true;
-  });
+  worksheet.autoFilter = 'A2:L2';
 
   // Force Excel to recalculate all formulas when the workbook opens
   workbook.calcProperties.fullCalcOnLoad = true;
@@ -3446,7 +3448,7 @@ async function exportToExcel(sales) {
         ? { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F7FC' } }
         : { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
 
-      ['A','B','C','D','E','F','G','H'].forEach(col => {
+      ['A','B','C','D','E','F','G','H','I','J','K','L'].forEach(col => {
         const c = row.getCell(col);
         c.border = borderThin;
         c.fill = zebraFill;
@@ -3465,14 +3467,25 @@ async function exportToExcel(sales) {
     row.getCell('E').alignment = { horizontal: 'right' };
     if (range.start <= range.end) {
       row.getCell('F').value = { formula: `SUM(F${range.start}:F${range.end})` };
+      row.getCell('I').value = { formula: `SUM(I${range.start}:I${range.end})` };
+      row.getCell('J').value = { formula: `SUM(J${range.start}:J${range.end})` };
+      row.getCell('K').value = { formula: `SUM(K${range.start}:K${range.end})` };
+      row.getCell('L').value = { formula: `SUM(L${range.start}:L${range.end})` };
     } else {
       row.getCell('F').value = 0;
+      row.getCell('I').value = 0;
+      row.getCell('J').value = 0;
+      row.getCell('K').value = 0;
+      row.getCell('L').value = 0;
     }
-    row.getCell('F').numFmt = currencyFmt;
-    row.getCell('F').font = { bold: true };
+    ['F','I','J','K','L'].forEach(c => {
+      const cell = row.getCell(c);
+      cell.numFmt = currencyFmt;
+      cell.font = { bold: true };
+    });
     
-    // Apply gray fill to cells A-G
-    ['A','B','C','D','E','F','G','H'].forEach(col => {
+    // Apply gray fill to cells A-L
+    ['A','B','C','D','E','F','G','H','I','J','K','L'].forEach(col => {
       row.getCell(col).fill = totalRowFill;
       row.getCell(col).border = borderThin;
     });
@@ -3497,11 +3510,19 @@ async function exportToExcel(sales) {
   grandTotalRow.getCell('E').font = { bold: true, size: 12 };
   grandTotalRow.getCell('E').alignment = { horizontal: 'right' };
   grandTotalRow.getCell('F').value = { formula: `F${morningTotalIndex} + F${afternoonTotalIndex}` };
-  grandTotalRow.getCell('F').numFmt = currencyFmt;
-  grandTotalRow.getCell('F').font = { bold: true, size: 12 };
+  grandTotalRow.getCell('I').value = { formula: `I${morningTotalIndex} + I${afternoonTotalIndex}` };
+  grandTotalRow.getCell('J').value = { formula: `J${morningTotalIndex} + J${afternoonTotalIndex}` };
+  grandTotalRow.getCell('K').value = { formula: `K${morningTotalIndex} + K${afternoonTotalIndex}` };
+  grandTotalRow.getCell('L').value = { formula: `L${morningTotalIndex} + L${afternoonTotalIndex}` };
+  
+  ['F','I','J','K','L'].forEach(c => {
+    const cell = grandTotalRow.getCell(c);
+    cell.numFmt = currencyFmt;
+    cell.font = { bold: true, size: 12 };
+  });
   
   // Apply gray fill
-  ['A','B','C','D','E','F','G','H'].forEach(col => {
+  ['A','B','C','D','E','F','G','H','I','J','K','L'].forEach(col => {
     grandTotalRow.getCell(col).fill = totalRowFill;
     grandTotalRow.getCell(col).border = borderThin;
   });
@@ -3511,7 +3532,7 @@ async function exportToExcel(sales) {
   console.log('Adding conditional formatting...');
   // Resaltado de fila activa (Amarillo suave elegante que resalta toda la fila)
   worksheet.addConditionalFormatting({
-    ref: 'A3:H1000',
+    ref: 'A3:L1000',
     rules: [
       {
         type: 'expression',

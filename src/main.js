@@ -3393,7 +3393,6 @@ async function exportToExcel(sales) {
   ['I', 'J', 'K', 'L'].forEach(col => {
     const column = worksheet.getColumn(col);
     column.outlineLevel = 1;
-    column.collapsed = true;
     column.hidden = true;
   });
 

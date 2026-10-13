@@ -3376,7 +3376,7 @@ async function exportToExcel(sales) {
     { key: 'time', width: 10 },
     { key: 'pedido', width: 45 },
     { key: 'total', width: 15 },
-    { key: 'pago', width: 18 },
+    { key: 'pago', width: 28 },
     { key: 'vendedor', width: 18 },
     { key: 'efectivo', width: 14 },
     { key: 'transferencia', width: 14 },
@@ -3427,20 +3427,33 @@ async function exportToExcel(sales) {
       const pagoNorm = normalizePayment(sale.pago);
       const isMixto = (pagoNorm === 'MIXTO');
       const pagoCell = row.getCell('G');
-      pagoCell.value = pagoNorm;
       pagoCell.dataValidation = {
         type: 'list', allowBlank: true, showErrorMessage: false,
         formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA,NO PAGO,MIXTO"']
       };
       if (isMixto) {
-        pagoCell.note = {
-          texts: [
-            {
-              text: formatMixtoNote(sale.pagoDetalle, sale.total),
-              font: { name: 'Arial', size: 9, bold: false }
-            }
-          ]
-        };
+        const parts = [];
+        const d = sale.pagoDetalle || {};
+        const ef = Number(d.efectivo) || 0;
+        const tr = Number(d.transferencia) || 0;
+        const tj = Number(d.tarjeta) || 0;
+        const np = Number(d.noPago) || 0;
+        if (ef > 0) parts.push(`Q${ef.toFixed(2)} Efec`);
+        if (tr > 0) parts.push(`Q${tr.toFixed(2)} Transf`);
+        if (tj > 0) parts.push(`Q${tj.toFixed(2)} Tarj`);
+        if (np > 0) parts.push(`Q${np.toFixed(2)} NoPag`);
+        const breakdown = parts.length > 0 ? parts.join(' + ') : `Q${Number(sale.total || 0).toFixed(2)} Efec`;
+
+        pagoCell.value = `MIXTO\n(${breakdown})`;
+        pagoCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        pagoCell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF7E5109' } };
+        pagoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDEBD0' } };
+        if (!row.height || row.height < 32) {
+          row.height = 32;
+        }
+      } else {
+        pagoCell.value = pagoNorm;
+        pagoCell.alignment = { horizontal: 'center', vertical: 'middle' };
       }
 
       const vendedorCell = row.getCell('H');
@@ -3640,7 +3653,8 @@ async function exportToExcel(sales) {
         }
       },
       {
-        type: 'cellIs', operator: 'equal', formulae: ['"MIXTO"'],
+        type: 'expression',
+        formulae: ['ISNUMBER(SEARCH("MIXTO", G3))'],
         style: { 
           font: { color: { argb: 'FF7E5109' }, bold: true },
           fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFDEBD0' } }
@@ -3753,7 +3767,7 @@ async function exportToExcel(sales) {
     { width: 12 }, // D - Hora
     { width: 45 }, // E - Detalle de Pedido
     { width: 15 }, // F - Total
-    { width: 18 }, // G - Forma de Pago
+    { width: 28 }, // G - Forma de Pago
     { width: 18 }, // H - Vendedor
   ];
 
@@ -3849,7 +3863,7 @@ async function exportToExcel(sales) {
     // 1. Helper column formulas in rows 1000+
     for (let i = DATA_START; i <= DATA_END; i++) {
       searchSheet.getCell(`J${i}`).value = { 
-        formula: `IF(AND(OR($C$4="", H${i}=$C$4), OR($E$4="", G${i}=$E$4)), MAX($J$999:J${i-1})+1, "")` 
+        formula: `IF(AND(OR($C$4="", H${i}=$C$4), OR($E$4="", ISNUMBER(SEARCH($E$4, G${i})))), MAX($J$999:J${i-1})+1, "")` 
       };
     }
 
@@ -3865,7 +3879,11 @@ async function exportToExcel(sales) {
         // Apply styling to results area
         if (col === 'F') cell.numFmt = currencyFmt;
         cell.border = borderThin;
-        if (col !== 'B' && col !== 'E') cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        if (col === 'G') {
+          cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        } else if (col !== 'B' && col !== 'E') {
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        }
       });
     }
   } else {
@@ -3899,6 +3917,14 @@ async function exportToExcel(sales) {
         style: { 
           font: { color: { argb: 'FF922B21' }, bold: true },
           fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FADBD8' } }
+        }
+      },
+      {
+        type: 'expression',
+        formulae: ['ISNUMBER(SEARCH("MIXTO", G7))'],
+        style: { 
+          font: { color: { argb: 'FF7E5109' }, bold: true },
+          fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFDEBD0' } }
         }
       }
     ]

@@ -3387,6 +3387,16 @@ async function exportToExcel(sales) {
   // Set AutoFilter for the header row
   worksheet.autoFilter = 'A2:L2';
 
+  // Agrupar y colapsar las 4 columnas de desglose (I, J, K, L):
+  // Permanecen ocultas automáticamente por defecto para conservar la tabla limpia,
+  // y se despliegan fácilmente con el botón [+] de esquema de Excel o con doble clic en el separador.
+  ['I', 'J', 'K', 'L'].forEach(col => {
+    const column = worksheet.getColumn(col);
+    column.outlineLevel = 1;
+    column.collapsed = true;
+    column.hidden = true;
+  });
+
   // Force Excel to recalculate all formulas when the workbook opens
   workbook.calcProperties.fullCalcOnLoad = true;
 

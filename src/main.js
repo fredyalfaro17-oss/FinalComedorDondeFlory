@@ -3347,8 +3347,8 @@ async function exportToExcel(sales) {
   const borderThin = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
   const currencyFmt = 'Q#,##0.00';
 
-  // Row 1: Title
-  worksheet.mergeCells('A1:H1');
+  // Row 1: Title (Abarca de la columna A a la L para cubrir toda la tabla con sus columnas de pago)
+  worksheet.mergeCells('A1:L1');
   const titleCell = worksheet.getCell('A1');
   titleCell.value = 'INFORME DE VENTAS DEL DÍA';
   titleCell.fill = headerFill;
@@ -3356,8 +3356,8 @@ async function exportToExcel(sales) {
   titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
   worksheet.getRow(1).height = 30;
 
-  // Row 2: Headers (8 columnas principales clásicas)
-  const headers = ["No.", "NOMBRE DEL CLIENTE", "TELEFONO", "HORA", "DETALLE DE PEDIDO", "TOTAL", "FORMA DE PAGO", "VENDEDOR"];
+  // Row 2: Headers (12 columnas completas con desglose visible y editable directamente en Excel)
+  const headers = ["No.", "NOMBRE DEL CLIENTE", "TELEFONO", "HORA", "DETALLE DE PEDIDO", "TOTAL", "FORMA DE PAGO", "VENDEDOR", "EFECTIVO", "TRANSFERENCIA", "TARJETA", "NO PAGO"];
   const headerRow = worksheet.getRow(2);
   headerRow.values = headers;
   headerRow.height = 20;
@@ -3378,19 +3378,14 @@ async function exportToExcel(sales) {
     { key: 'total', width: 15 },
     { key: 'pago', width: 28 },
     { key: 'vendedor', width: 18 },
-    { key: 'efectivo', width: 14 },
-    { key: 'transferencia', width: 14 },
-    { key: 'tarjeta', width: 14 },
-    { key: 'nopago', width: 14 }
+    { key: 'efectivo', width: 15 },
+    { key: 'transferencia', width: 16 },
+    { key: 'tarjeta', width: 15 },
+    { key: 'nopago', width: 15 }
   ];
 
   // Set AutoFilter for the header row
-  worksheet.autoFilter = 'A2:H2';
-
-  // Ocultar las 4 columnas de desglose (I, J, K, L) para que la tabla conserve su formato limpio de 8 columnas
-  ['I', 'J', 'K', 'L'].forEach(col => {
-    worksheet.getColumn(col).hidden = true;
-  });
+  worksheet.autoFilter = 'A2:L2';
 
   // Force Excel to recalculate all formulas when the workbook opens
   workbook.calcProperties.fullCalcOnLoad = true;
@@ -3444,7 +3439,13 @@ async function exportToExcel(sales) {
         if (np > 0) parts.push(`Q${np.toFixed(2)} NoPag`);
         const breakdown = parts.length > 0 ? parts.join(' + ') : `Q${Number(sale.total || 0).toFixed(2)} Efec`;
 
-        pagoCell.value = `MIXTO\n(${breakdown})`;
+        // Fórmula dinámica de Excel que recalcula automáticamente si el usuario edita montos en I, J, K o L
+        const formulaMixto = `IF(AND(I${currentRow}=0,J${currentRow}=0,K${currentRow}=0,L${currentRow}=0),"MIXTO","MIXTO" & CHAR(10) & "(" & MID(IF(I${currentRow}>0," + Q" & TEXT(I${currentRow},"0.00") & " Efec","") & IF(J${currentRow}>0," + Q" & TEXT(J${currentRow},"0.00") & " Transf","") & IF(K${currentRow}>0," + Q" & TEXT(K${currentRow},"0.00") & " Tarj","") & IF(L${currentRow}>0," + Q" & TEXT(L${currentRow},"0.00") & " NoPag",""),4,100) & ")")`;
+
+        pagoCell.value = {
+          formula: formulaMixto,
+          result: `MIXTO\n(${breakdown})`
+        };
         pagoCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
         pagoCell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF7E5109' } };
         pagoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDEBD0' } };
@@ -3465,12 +3466,12 @@ async function exportToExcel(sales) {
       
       row.getCell('F').numFmt = currencyFmt;
 
-      // Helper columns I, J, K, L (Efectivo, Transferencia, Tarjeta, No Pago) para cálculo exacto
+      // Helper columns I, J, K, L (Efectivo, Transferencia, Tarjeta, No Pago) para cálculo exacto y edición en vivo
       if (isMixto) {
-        row.getCell('I').value = Number(sale.pagoDetalle.efectivo) || 0;
-        row.getCell('J').value = Number(sale.pagoDetalle.transferencia) || 0;
-        row.getCell('K').value = Number(sale.pagoDetalle.tarjeta) || 0;
-        row.getCell('L').value = Number(sale.pagoDetalle.noPago) || 0;
+        row.getCell('I').value = Number(sale.pagoDetalle?.efectivo) || 0;
+        row.getCell('J').value = Number(sale.pagoDetalle?.transferencia) || 0;
+        row.getCell('K').value = Number(sale.pagoDetalle?.tarjeta) || 0;
+        row.getCell('L').value = Number(sale.pagoDetalle?.noPago) || 0;
       } else {
         row.getCell('I').value = { formula: `IF(G${currentRow}="EFECTIVO", F${currentRow}, 0)` };
         row.getCell('J').value = { formula: `IF(G${currentRow}="TRANSFERENCIA", F${currentRow}, 0)` };
@@ -3479,16 +3480,18 @@ async function exportToExcel(sales) {
       }
       ['I','J','K','L'].forEach(c => { row.getCell(c).numFmt = currencyFmt; });
 
-      // Color alternado suave (cebra celeste tenue) y bordes definidos para las columnas visibles A-H
+      // Color alternado suave (cebra celeste tenue) y bordes definidos para todas las columnas visibles A-L
       const isEven = (currentRow % 2 === 0);
       const zebraFill = isEven
         ? { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F7FC' } }
         : { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
 
-      ['A','B','C','D','E','F','G','H'].forEach(col => {
+      ['A','B','C','D','E','F','G','H','I','J','K','L'].forEach(col => {
         const c = row.getCell(col);
         c.border = borderThin;
-        c.fill = zebraFill;
+        if (!isMixto || col !== 'G') {
+          c.fill = zebraFill;
+        }
       });
 
       currentRow++;
@@ -3521,8 +3524,8 @@ async function exportToExcel(sales) {
       cell.font = { bold: true };
     });
     
-    // Apply gray fill to visible cells A-H
-    ['A','B','C','D','E','F','G','H'].forEach(col => {
+    // Apply gray fill to visible cells A-L
+    ['A','B','C','D','E','F','G','H','I','J','K','L'].forEach(col => {
       row.getCell(col).fill = totalRowFill;
       row.getCell(col).border = borderThin;
     });
@@ -3558,8 +3561,8 @@ async function exportToExcel(sales) {
     cell.font = { bold: true, size: 12 };
   });
   
-  // Apply gray fill to visible cells A-H
-  ['A','B','C','D','E','F','G','H'].forEach(col => {
+  // Apply gray fill to visible cells A-L
+  ['A','B','C','D','E','F','G','H','I','J','K','L'].forEach(col => {
     grandTotalRow.getCell(col).fill = totalRowFill;
     grandTotalRow.getCell(col).border = borderThin;
   });
@@ -3567,14 +3570,14 @@ async function exportToExcel(sales) {
   currentRow += 3;
 
   console.log('Adding conditional formatting...');
-  // Resaltado de fila activa (Amarillo suave elegante que resalta toda la fila)
+  // Resaltado de fila activa (Amarillo suave elegante que resalta toda la fila A-L)
   worksheet.addConditionalFormatting({
-    ref: 'A3:H1000',
+    ref: 'A3:L1000',
     rules: [
       {
         type: 'expression',
         formulae: ['ROW()=CELL("row")'],
-        style: {
+        style: { 
           fill: { 
             type: 'pattern', 
             pattern: 'solid', 

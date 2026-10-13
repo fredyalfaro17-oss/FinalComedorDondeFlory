@@ -1880,19 +1880,19 @@ function formatMixtoBadge(detalle) {
 }
 
 function formatMixtoNote(detalle, total = 0) {
-  if (!detalle) return `💵 Efectivo: Q${Number(total || 0).toFixed(2)}`;
-  const parts = [];
+  if (!detalle) return `Ef: Q${Number(total || 0).toFixed(2)}`;
+  const lines = [];
   const ef = Number(detalle.efectivo) || 0;
   const tr = Number(detalle.transferencia) || 0;
   const tj = Number(detalle.tarjeta) || 0;
   const np = Number(detalle.noPago) || 0;
 
-  if (ef > 0) parts.push(`💵 Efectivo: Q${ef.toFixed(2)}`);
-  if (tr > 0) parts.push(`📲 Transf: Q${tr.toFixed(2)}`);
-  if (tj > 0) parts.push(`💳 Tarjeta: Q${tj.toFixed(2)}`);
-  if (np > 0) parts.push(`❌ No Pagó: Q${np.toFixed(2)}`);
+  if (ef > 0) lines.push(`Ef: Q${ef.toFixed(2)}`);
+  if (tr > 0) lines.push(`Tr: Q${tr.toFixed(2)}`);
+  if (tj > 0) lines.push(`Tarj: Q${tj.toFixed(2)}`);
+  if (np > 0) lines.push(`NoPag: Q${np.toFixed(2)}`);
 
-  return parts.length > 0 ? parts.join('   |   ') : `💵 Efectivo: Q${Number(total || 0).toFixed(2)}`;
+  return lines.length > 0 ? lines.join('\n') : `Ef: Q${Number(total || 0).toFixed(2)}`;
 }
 
 window.openMixtoModal = function(saleId, targetElement = null) {
@@ -3433,7 +3433,14 @@ async function exportToExcel(sales) {
         formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA,NO PAGO,MIXTO"']
       };
       if (isMixto) {
-        pagoCell.note = formatMixtoNote(sale.pagoDetalle, sale.total);
+        pagoCell.note = {
+          texts: [
+            {
+              text: formatMixtoNote(sale.pagoDetalle, sale.total),
+              font: { name: 'Arial', size: 9, bold: false }
+            }
+          ]
+        };
       }
 
       const vendedorCell = row.getCell('H');

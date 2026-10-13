@@ -2192,6 +2192,118 @@ subscribeSales((sales) => {
   }
 });
 
+function requestPinModal({
+  title = 'Autorización de Seguridad',
+  message = 'Ingrese el PIN de Administrador para continuar:',
+  confirmText = 'Confirmar',
+  icon = '🔐'
+} = {}) {
+  return new Promise((resolve) => {
+    const existing = document.getElementById('flory-pin-modal-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'flory-pin-modal-overlay';
+    overlay.className = 'fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[250] flex items-center justify-center p-4 select-none';
+    
+    overlay.innerHTML = `
+      <div class="bg-slate-900 border border-amber-500/30 rounded-2xl p-5 sm:p-6 w-full max-w-sm shadow-2xl shadow-black/80 flex flex-col gap-4 text-center">
+        <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-2xl mx-auto shadow-inner">
+          ${icon}
+        </div>
+        <div>
+          <h3 class="text-base sm:text-lg font-bold text-white tracking-wide">${title}</h3>
+          <p class="text-xs sm:text-sm text-slate-400 mt-1 whitespace-pre-line leading-relaxed">${message}</p>
+        </div>
+        
+        <form id="flory-pin-modal-form" class="flex flex-col gap-3.5 mt-1">
+          <div class="relative">
+            <input 
+              type="password" 
+              id="flory-pin-modal-input" 
+              inputmode="numeric" 
+              pattern="[0-9]*" 
+              maxlength="10" 
+              autocomplete="off"
+              placeholder="••••"
+              class="w-full bg-slate-950 border border-slate-700 focus:border-amber-500 text-white text-center text-2xl font-mono tracking-widest py-3 px-10 rounded-xl outline-none transition-colors shadow-inner"
+              required
+            />
+            <button 
+              type="button" 
+              id="flory-pin-toggle-btn" 
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1.5 text-base select-none rounded-lg hover:bg-slate-800 transition-colors"
+              title="Mostrar u ocultar PIN"
+            >
+              👁️
+            </button>
+          </div>
+          
+          <div class="flex items-center gap-2 pt-1">
+            <button 
+              type="button" 
+              id="flory-pin-cancel-btn" 
+              class="flex-1 px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white text-xs sm:text-sm font-semibold transition-colors active:scale-95"
+            >
+              Cancelar
+            </button>
+            <button 
+              type="submit" 
+              class="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs sm:text-sm transition-all shadow-lg shadow-amber-500/20 active:scale-95"
+            >
+              ${confirmText}
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const input = overlay.querySelector('#flory-pin-modal-input');
+    const form = overlay.querySelector('#flory-pin-modal-form');
+    const cancelBtn = overlay.querySelector('#flory-pin-cancel-btn');
+    const toggleBtn = overlay.querySelector('#flory-pin-toggle-btn');
+
+    setTimeout(() => {
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 60);
+
+    let isVisible = false;
+    toggleBtn?.addEventListener('click', () => {
+      isVisible = !isVisible;
+      input.type = isVisible ? 'text' : 'password';
+      toggleBtn.textContent = isVisible ? '🙈' : '👁️';
+    });
+
+    const cleanup = (value) => {
+      document.removeEventListener('keydown', handleKey);
+      overlay.remove();
+      resolve(value);
+    };
+
+    const handleKey = (e) => {
+      if (e.key === 'Escape') {
+        cleanup(null);
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+
+    cancelBtn?.addEventListener('click', () => cleanup(null));
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) cleanup(null);
+    });
+
+    form?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      cleanup(input.value.trim());
+    });
+  });
+}
+
 window.renderReportModal = function() {
   const sales = getSales();
   let currentReportView = localStorage.getItem('flory_report_view') || (window.innerWidth < 768 ? 'cards' : 'table');
@@ -2306,7 +2418,7 @@ window.renderReportModal = function() {
               🗑️ Borrar Historial
             </button>
           ` : `
-            <button id="clear-sales-btn" class="text-xs sm:text-sm font-bold text-red-400/80 hover:text-red-300 hover:bg-red-500/10 px-3.5 py-2 rounded-xl transition-colors border border-red-500/20 active:scale-95" title="Borrar historial del día (requiere PIN 5577)">
+            <button id="clear-sales-btn" class="text-xs sm:text-sm font-bold text-red-400/80 hover:text-red-300 hover:bg-red-500/10 px-3.5 py-2 rounded-xl transition-colors border border-red-500/20 active:scale-95" title="Borrar historial del día (requiere PIN de Administrador)">
               🗑️ Borrar Historial
             </button>
           `}
@@ -2474,7 +2586,12 @@ window.renderReportModal = function() {
     if (btn && !btn.disabled) {
       btn.onclick = async () => {
         if (!isCajaDevice()) {
-          const pin = prompt('🔐 Ingrese el PIN de Administrador (5577) para restaurar el historial:');
+          const pin = await requestPinModal({
+            title: 'Restaurar Historial',
+            message: 'Ingrese el PIN de Administrador para autorizar la restauración del historial:',
+            confirmText: 'Autorizar',
+            icon: '🔄'
+          });
           if (pin === null) return;
           if (!unlockCajaWithPin(pin)) {
             alert('❌ PIN incorrecto.');
@@ -2645,8 +2762,13 @@ window.renderReportModal = function() {
 
   const unlockCajaBtn = document.getElementById('unlock-caja-btn');
   if (unlockCajaBtn) {
-    unlockCajaBtn.onclick = () => {
-      const pin = prompt('🔐 Ingrese el PIN de Administrador (4 dígitos) para autorizar este equipo como Caja:');
+    unlockCajaBtn.onclick = async () => {
+      const pin = await requestPinModal({
+        title: 'Desbloquear Caja Principal',
+        message: 'Ingrese el PIN de Administrador para autorizar este equipo como Caja Principal:',
+        confirmText: 'Desbloquear',
+        icon: '🖥️'
+      });
       if (pin === null) return;
       if (unlockCajaWithPin(pin)) {
         alert('✅ ¡Equipo autorizado como Caja Principal!\nYa puedes gestionar y borrar el historial en este dispositivo.');
@@ -2668,21 +2790,21 @@ window.renderReportModal = function() {
 
   const clearSalesBtn = document.getElementById('clear-sales-btn');
   if (clearSalesBtn) {
-    clearSalesBtn.onclick = () => {
-      if (!isCajaDevice()) {
-        const pin = prompt('🔐 Ingrese el PIN de Administrador (5577) para autorizar el borrado:');
-        if (pin === null) return;
-        if (!unlockCajaWithPin(pin)) {
-          alert('❌ PIN incorrecto.');
-          return;
-        }
-      }
-
-      const pinConfirm = prompt('⚠️ ¿Estás seguro de que deseas borrar el historial de ventas del día?\n\nℹ️ Se guardará una copia de seguridad en la papelera.\n\nPara confirmar, escribe el PIN de Administrador (5577):');
+    clearSalesBtn.onclick = async () => {
+      const pinConfirm = await requestPinModal({
+        title: 'Borrar Historial de Ventas',
+        message: '⚠️ ¿Estás seguro de que deseas borrar el historial de ventas del día?\n\nℹ️ Se guardará una copia de seguridad en la papelera.\n\nPara confirmar, ingrese el PIN de Administrador:',
+        confirmText: 'Confirmar y Borrar',
+        icon: '🗑️'
+      });
       if (pinConfirm === null) return;
       if (!verifyAdminPin(pinConfirm)) {
         alert('❌ PIN incorrecto. No se borró el historial.');
         return;
+      }
+
+      if (!isCajaDevice()) {
+        unlockCajaWithPin(pinConfirm);
       }
 
       clearAllSales();

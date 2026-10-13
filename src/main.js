@@ -1879,14 +1879,20 @@ function formatMixtoBadge(detalle) {
   return parts.length > 0 ? parts.join(' + ') : '🔀 Asignar montos';
 }
 
-function formatMixtoNote(detalle) {
-  if (!detalle) return 'Pago Mixto';
-  const lines = ['💰 DESGLOSE PAGO MIXTO:'];
-  if (Number(detalle.efectivo) > 0) lines.push(`• Efectivo: Q${Number(detalle.efectivo).toFixed(2)}`);
-  if (Number(detalle.transferencia) > 0) lines.push(`• Transferencia: Q${Number(detalle.transferencia).toFixed(2)}`);
-  if (Number(detalle.tarjeta) > 0) lines.push(`• Tarjeta: Q${Number(detalle.tarjeta).toFixed(2)}`);
-  if (Number(detalle.noPago) > 0) lines.push(`• No Pagó: Q${Number(detalle.noPago).toFixed(2)}`);
-  return lines.join('\n');
+function formatMixtoNote(detalle, total = 0) {
+  if (!detalle) return `💵 Efectivo: Q${Number(total || 0).toFixed(2)}`;
+  const parts = [];
+  const ef = Number(detalle.efectivo) || 0;
+  const tr = Number(detalle.transferencia) || 0;
+  const tj = Number(detalle.tarjeta) || 0;
+  const np = Number(detalle.noPago) || 0;
+
+  if (ef > 0) parts.push(`💵 Efectivo: Q${ef.toFixed(2)}`);
+  if (tr > 0) parts.push(`📲 Transf: Q${tr.toFixed(2)}`);
+  if (tj > 0) parts.push(`💳 Tarjeta: Q${tj.toFixed(2)}`);
+  if (np > 0) parts.push(`❌ No Pagó: Q${np.toFixed(2)}`);
+
+  return parts.length > 0 ? parts.join('   |   ') : `💵 Efectivo: Q${Number(total || 0).toFixed(2)}`;
 }
 
 window.openMixtoModal = function(saleId, targetElement = null) {
@@ -3419,7 +3425,7 @@ async function exportToExcel(sales) {
       row.getCell('F').value = sale.total;
       
       const pagoNorm = normalizePayment(sale.pago);
-      const isMixto = (pagoNorm === 'MIXTO' && sale.pagoDetalle);
+      const isMixto = (pagoNorm === 'MIXTO');
       const pagoCell = row.getCell('G');
       pagoCell.value = pagoNorm;
       pagoCell.dataValidation = {
@@ -3427,7 +3433,7 @@ async function exportToExcel(sales) {
         formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA,NO PAGO,MIXTO"']
       };
       if (isMixto) {
-        pagoCell.note = formatMixtoNote(sale.pagoDetalle);
+        pagoCell.note = formatMixtoNote(sale.pagoDetalle, sale.total);
       }
 
       const vendedorCell = row.getCell('H');

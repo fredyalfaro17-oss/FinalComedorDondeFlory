@@ -1879,6 +1879,16 @@ function formatMixtoBadge(detalle) {
   return parts.length > 0 ? parts.join(' + ') : '🔀 Asignar montos';
 }
 
+function formatMixtoNote(detalle) {
+  if (!detalle) return 'Pago Mixto';
+  const lines = ['💰 DESGLOSE PAGO MIXTO:'];
+  if (Number(detalle.efectivo) > 0) lines.push(`• Efectivo: Q${Number(detalle.efectivo).toFixed(2)}`);
+  if (Number(detalle.transferencia) > 0) lines.push(`• Transferencia: Q${Number(detalle.transferencia).toFixed(2)}`);
+  if (Number(detalle.tarjeta) > 0) lines.push(`• Tarjeta: Q${Number(detalle.tarjeta).toFixed(2)}`);
+  if (Number(detalle.noPago) > 0) lines.push(`• No Pagó: Q${Number(detalle.noPago).toFixed(2)}`);
+  return lines.join('\n');
+}
+
 window.openMixtoModal = function(saleId, targetElement = null) {
   const sales = getSales();
   const sale = sales.find(s => Number(s.id) === Number(saleId));
@@ -3332,7 +3342,7 @@ async function exportToExcel(sales) {
   const currencyFmt = 'Q#,##0.00';
 
   // Row 1: Title
-  worksheet.mergeCells('A1:L1');
+  worksheet.mergeCells('A1:H1');
   const titleCell = worksheet.getCell('A1');
   titleCell.value = 'INFORME DE VENTAS DEL DÍA';
   titleCell.fill = headerFill;
@@ -3340,12 +3350,8 @@ async function exportToExcel(sales) {
   titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
   worksheet.getRow(1).height = 30;
 
-  // Row 2: Headers
-  const headers = [
-    "No.", "NOMBRE DEL CLIENTE", "TELEFONO", "HORA", "DETALLE DE PEDIDO", 
-    "TOTAL", "FORMA DE PAGO", "VENDEDOR", 
-    "EFECTIVO", "TRANSFERENCIA", "TARJETA", "NO PAGO"
-  ];
+  // Row 2: Headers (8 columnas principales clásicas)
+  const headers = ["No.", "NOMBRE DEL CLIENTE", "TELEFONO", "HORA", "DETALLE DE PEDIDO", "TOTAL", "FORMA DE PAGO", "VENDEDOR"];
   const headerRow = worksheet.getRow(2);
   headerRow.values = headers;
   headerRow.height = 20;
@@ -3366,14 +3372,19 @@ async function exportToExcel(sales) {
     { key: 'total', width: 15 },
     { key: 'pago', width: 18 },
     { key: 'vendedor', width: 18 },
-    { key: 'efectivo', width: 16 },
-    { key: 'transferencia', width: 18 },
-    { key: 'tarjeta', width: 16 },
-    { key: 'nopago', width: 16 }
+    { key: 'efectivo', width: 14 },
+    { key: 'transferencia', width: 14 },
+    { key: 'tarjeta', width: 14 },
+    { key: 'nopago', width: 14 }
   ];
 
   // Set AutoFilter for the header row
-  worksheet.autoFilter = 'A2:L2';
+  worksheet.autoFilter = 'A2:H2';
+
+  // Ocultar las 4 columnas de desglose (I, J, K, L) para que la tabla conserve su formato limpio de 8 columnas
+  ['I', 'J', 'K', 'L'].forEach(col => {
+    worksheet.getColumn(col).hidden = true;
+  });
 
   // Force Excel to recalculate all formulas when the workbook opens
   workbook.calcProperties.fullCalcOnLoad = true;
@@ -3416,7 +3427,7 @@ async function exportToExcel(sales) {
         formulae: ['"EFECTIVO,TRANSFERENCIA,TARJETA,NO PAGO,MIXTO"']
       };
       if (isMixto) {
-        pagoCell.note = formatMixtoBadge(sale.pagoDetalle);
+        pagoCell.note = formatMixtoNote(sale.pagoDetalle);
       }
 
       const vendedorCell = row.getCell('H');
@@ -3442,13 +3453,13 @@ async function exportToExcel(sales) {
       }
       ['I','J','K','L'].forEach(c => { row.getCell(c).numFmt = currencyFmt; });
 
-      // Color alternado suave (cebra celeste tenue) y bordes definidos
+      // Color alternado suave (cebra celeste tenue) y bordes definidos para las columnas visibles A-H
       const isEven = (currentRow % 2 === 0);
       const zebraFill = isEven
         ? { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F7FC' } }
         : { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
 
-      ['A','B','C','D','E','F','G','H','I','J','K','L'].forEach(col => {
+      ['A','B','C','D','E','F','G','H'].forEach(col => {
         const c = row.getCell(col);
         c.border = borderThin;
         c.fill = zebraFill;
@@ -3484,8 +3495,8 @@ async function exportToExcel(sales) {
       cell.font = { bold: true };
     });
     
-    // Apply gray fill to cells A-L
-    ['A','B','C','D','E','F','G','H','I','J','K','L'].forEach(col => {
+    // Apply gray fill to visible cells A-H
+    ['A','B','C','D','E','F','G','H'].forEach(col => {
       row.getCell(col).fill = totalRowFill;
       row.getCell(col).border = borderThin;
     });
@@ -3521,8 +3532,8 @@ async function exportToExcel(sales) {
     cell.font = { bold: true, size: 12 };
   });
   
-  // Apply gray fill
-  ['A','B','C','D','E','F','G','H','I','J','K','L'].forEach(col => {
+  // Apply gray fill to visible cells A-H
+  ['A','B','C','D','E','F','G','H'].forEach(col => {
     grandTotalRow.getCell(col).fill = totalRowFill;
     grandTotalRow.getCell(col).border = borderThin;
   });
@@ -3532,7 +3543,7 @@ async function exportToExcel(sales) {
   console.log('Adding conditional formatting...');
   // Resaltado de fila activa (Amarillo suave elegante que resalta toda la fila)
   worksheet.addConditionalFormatting({
-    ref: 'A3:L1000',
+    ref: 'A3:H1000',
     rules: [
       {
         type: 'expression',

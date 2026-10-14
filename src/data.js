@@ -30,8 +30,9 @@ export const menuData = {
         { name: "Ensalada Latina", price: 30 },
         { name: "Bistec de Res", price: 30 },
         { name: "Filete de Pechuga en Crema", price: 30 },
-        { name: "Chomin Mixto", price: 30 },
-        { name: "Canelones Rellenos", price: 35 }
+        { name: "Chomin Mixto", price: 35 },
+        { name: "Canelones Rellenos", price: 35 },
+        { name: "Revolcado", price: 40 }
       ]
     },
     {
@@ -57,7 +58,6 @@ export const menuData = {
       color: "#b45309", // amber-700
       items: [
         { name: "Pechuga Rellena de Mozzarella", price: 35 },
-        { name: "Tortillas de Harina de Res", price: 30 },
         { name: "Costilla", price: 30 },
         { name: "Caldo de Patas", price: 35 },
         { name: "Hilachas", price: 30 },
@@ -77,7 +77,8 @@ export const menuData = {
         { name: "Pollo Asado", price: 30 },
         { name: "Pechuga Asada", price: 30 },
         { name: "Caldo de Pollo en Amarillo", price: 30 },
-        { name: "Ceviche de Camarón", price: 40 },
+        { name: "Ceviche de Camarón", price: 50 },
+        { name: "Ceviche Mixto", price: 40 },
         { name: "Birria", price: 40 },
         { name: "Filete de Pescado", price: 35 },
         { name: "Aguachile de Camarón", price: 40 },
@@ -142,7 +143,9 @@ export const menuData = {
         { name: "Mineral Preparada", price: 12 },
         { name: "Limonada con Chan Natural", price: 12 },
         { name: "Donas", price: 10 },
-        { name: "Jugo de Naranja Natural", price: 12 }
+        { name: "Jugo de Naranja Natural", price: 12 },
+        { name: "Atol", price: 10 },
+        { name: "Porción", price: 5 }
       ]
     },
     {

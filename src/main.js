@@ -2373,37 +2373,47 @@ window.updateSaleProperty = function(saleId, property, value, targetElement, ext
     // 1. Guardar en base de datos local y sincronizar con la nube
     dbUpdateSaleProperty(saleId, property, value, extraData);
 
-    // 2. Si es cambio de forma de pago y tenemos el elemento select, actualizar estilos en el DOM en tiempo real
-    if (targetElement && property === 'pago') {
-      targetElement.className = targetElement.className
-        .replace(/bg-\S+/g, '')
-        .replace(/text-\S+/g, '')
-        .replace(/border-\S+/g, '')
-        .replace(/shadow-\S+/g, '')
-        .trim() + ` ${getPaymentSelectStyle(value)}`;
-
-      // También sincronizar el otro select (tarjeta <-> tabla) si ambos existen
-      const isCard = targetElement.id && targetElement.id.startsWith('report-card-pago-');
-      const otherId = isCard ? `report-pago-${saleId}` : `report-card-pago-${saleId}`;
-      const otherEl = document.getElementById(otherId);
-      if (otherEl) {
-        otherEl.value = value;
-        otherEl.className = otherEl.className
+    // 2. Si es cambio de forma de pago, sincronizar ambos elementos en el DOM en tiempo real
+    if (property === 'pago') {
+      const pagoVal = normalizePayment(value);
+      const tablePagoEl = document.getElementById(`report-pago-${saleId}`);
+      if (tablePagoEl) {
+        tablePagoEl.value = pagoVal;
+        tablePagoEl.className = tablePagoEl.className
           .replace(/bg-\S+/g, '')
           .replace(/text-\S+/g, '')
           .replace(/border-\S+/g, '')
           .replace(/shadow-\S+/g, '')
-          .trim() + ` ${getPaymentSelectStyle(value)}`;
+          .trim() + ` ${getPaymentSelectStyle(pagoVal)}`;
+      }
+
+      const cardPagoEl = document.getElementById(`report-card-pago-${saleId}`);
+      if (cardPagoEl) {
+        cardPagoEl.value = pagoVal;
+        cardPagoEl.className = cardPagoEl.className
+          .replace(/bg-\S+/g, '')
+          .replace(/text-\S+/g, '')
+          .replace(/border-\S+/g, '')
+          .replace(/shadow-\S+/g, '')
+          .trim() + ` ${getPaymentSelectStyle(pagoVal)}`;
       }
     }
 
-    // 3. Si es cambio de vendedor, sincronizar en ambos lados
-    if (targetElement && property === 'vendedor') {
-      const isCard = targetElement.id && targetElement.id.startsWith('report-card-vendor-');
-      const otherVendorId = isCard ? `report-vendor-${saleId}` : `report-card-vendor-${saleId}`;
-      const otherVendorEl = document.getElementById(otherVendorId);
-      if (otherVendorEl) {
-        otherVendorEl.value = value;
+    // 3. Si es cambio de vendedor, sincronizar ambos selects en el DOM en tiempo real
+    if (property === 'vendedor') {
+      const vendVal = normalizeVendor(value) || '';
+      const tableVendorEl = document.getElementById(`report-vendor-${saleId}`);
+      if (tableVendorEl) {
+        tableVendorEl.value = vendVal;
+        tableVendorEl.className = tableVendorEl.className
+          .replace(/border-\S+/g, '')
+          .replace(/text-\S+/g, '')
+          .trim() + ` ${!vendVal ? 'border-amber-500/80 text-amber-300' : 'border-slate-700 text-blue-300'}`;
+      }
+
+      const cardVendorEl = document.getElementById(`report-card-vendor-${saleId}`);
+      if (cardVendorEl) {
+        cardVendorEl.value = vendVal;
       }
     }
 
@@ -2749,6 +2759,9 @@ window.openQuickAssignModal = function(saleId) {
   // Cierre y navegación
   const close = () => {
     overlay.remove();
+    if (typeof window.__refreshReportModal === 'function') {
+      window.__refreshReportModal();
+    }
   };
 
   overlay.querySelector('#qa-close-top-btn')?.addEventListener('click', close);

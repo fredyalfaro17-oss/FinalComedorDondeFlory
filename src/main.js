@@ -2136,7 +2136,9 @@ window.openMixtoModal = function(saleId, targetElement = null) {
 function renderReportContent(sales, textFilter = '', vendorFilter = '', customerFilter = '') {
   let filteredSales = sales;
   
-  if (vendorFilter) {
+  if (vendorFilter === '__SIN_VENDEDOR__') {
+    filteredSales = filteredSales.filter(s => !s.vendedor || s.vendedor.trim() === '' || s.vendedor === '-- Sin Vendedor --');
+  } else if (vendorFilter) {
     filteredSales = filteredSales.filter(s => normalizeVendor(s.vendedor) === vendorFilter);
   }
   
@@ -2231,7 +2233,7 @@ function renderReportContent(sales, textFilter = '', vendorFilter = '', customer
           <select 
             id="report-vendor-${sale.id}"
             onchange="window.updateSaleProperty(${sale.id}, 'vendedor', this.value, this)" 
-            class="text-xs font-bold py-1.5 px-2 rounded-xl bg-slate-900 border border-slate-700 text-blue-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm max-w-[125px]"
+            class="text-xs font-bold py-1.5 px-2 rounded-xl bg-slate-900 border ${!vendNorm ? 'border-amber-500/80 text-amber-300' : 'border-slate-700 text-blue-300'} cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm max-w-[125px]"
           >
             <option value="" ${!vendNorm ? 'selected' : ''}>-- Sin Vendedor --</option>
             ${VENDEDORES.map(v => `<option value="${v}" ${vendNorm === v ? 'selected' : ''}>🛵 ${v}</option>`).join('')}
@@ -2448,6 +2450,338 @@ window.handleReportTimeBlur = function(el, saleId) {
   window.updateSaleProperty(saleId, 'deliveryTime', el.value, el);
 };
 
+// --- Modal de Asignación Rápida Táctil (Vendedor y Forma de Pago en 1 toque) ---
+function getPaymentBadgeStyle(pago) {
+  const norm = normalizePayment(pago);
+  switch (norm) {
+    case 'EFECTIVO':
+      return 'bg-emerald-950 text-emerald-300 border border-emerald-800';
+    case 'TRANSFERENCIA':
+      return 'bg-sky-950 text-sky-300 border border-sky-800';
+    case 'TARJETA':
+      return 'bg-purple-950 text-purple-300 border border-purple-800';
+    case 'NO PAGO':
+      return 'bg-red-950 text-red-300 border border-red-800';
+    case 'MIXTO':
+      return 'bg-amber-950 text-amber-300 border border-amber-800';
+    default:
+      return 'bg-emerald-950 text-emerald-300 border border-emerald-800';
+  }
+}
+
+window.openQuickAssignModal = function(saleId) {
+  const sales = getSales();
+  const sale = sales.find(s => Number(s.id) === Number(saleId));
+  if (!sale) return;
+
+  const currentVend = normalizeVendor(sale.vendedor) || '';
+  const currentPago = normalizePayment(sale.pago) || 'EFECTIVO';
+  const total = Number(sale.total) || 0;
+
+  // Buscar pedidos anterior y siguiente en la lista visible para navegación rápida
+  const tbody = document.getElementById('report-table-body');
+  const rows = Array.from(tbody?.querySelectorAll('tr[id^="report-row-"]') || []);
+  const currentIndex = rows.findIndex(r => r.id === `report-row-${saleId}`);
+  const nextRow = currentIndex >= 0 && currentIndex < rows.length - 1 ? rows[currentIndex + 1] : null;
+  const prevRow = currentIndex > 0 ? rows[currentIndex - 1] : null;
+  const nextSaleId = nextRow ? parseInt(nextRow.id.replace('report-row-', ''), 10) : null;
+  const prevSaleId = prevRow ? parseInt(prevRow.id.replace('report-row-', ''), 10) : null;
+
+  const existing = document.getElementById('flory-quick-assign-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'flory-quick-assign-overlay';
+  overlay.className = 'fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[9999] flex items-center justify-center p-3 sm:p-4 select-none animate-fade-in';
+
+  overlay.innerHTML = `
+    <div class="bg-slate-900 border border-slate-700/90 rounded-3xl w-full max-w-sm sm:max-w-md shadow-2xl overflow-hidden flex flex-col" style="max-height: 94vh;">
+      
+      <!-- Encabezado compacto del pedido -->
+      <div class="p-3.5 sm:p-4 bg-slate-800/80 border-b border-slate-700/80 flex items-center justify-between gap-3 shrink-0">
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-mono font-black px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40">
+              #${sale.id}
+            </span>
+            <span class="text-xs font-bold text-slate-400">
+              ${sale.deliveryTime ? `🕒 ${sale.deliveryTime}` : (sale.time ? `🕒 ${sale.time}` : '')}
+            </span>
+            ${sale.phone ? `<span class="text-xs text-slate-400 truncate">📞 ${sale.phone}</span>` : ''}
+          </div>
+          <h3 class="text-base font-extrabold text-white truncate mt-1">
+            ${sale.customerName || 'Cliente Mostrador'}
+          </h3>
+          <p class="text-xs text-slate-400 truncate mt-0.5">
+            ${sale.items || 'Sin detalle especificado'}
+          </p>
+        </div>
+
+        <div class="text-right shrink-0 flex flex-col items-end gap-1">
+          <div class="text-xl sm:text-2xl font-black text-amber-400 font-sans tracking-tight">
+            Q${total.toFixed(2)}
+          </div>
+          <button id="qa-close-top-btn" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/80 transition-colors" title="Cerrar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Contenido Táctil -->
+      <div class="p-3.5 sm:p-4 overflow-y-auto space-y-4">
+        
+        <!-- SECCIÓN 1: VENDEDOR -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <span>🛵</span> Asignar Vendedor:
+            </span>
+            <span id="qa-vendor-badge" class="text-xs font-extrabold px-2 py-0.5 rounded-md ${currentVend ? 'bg-blue-950 text-blue-300 border border-blue-800' : 'bg-amber-950 text-amber-300 border border-amber-800'}">
+              ${currentVend ? '🛵 ' + currentVend : '⚠️ Sin Vendedor'}
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            ${VENDEDORES.map(v => {
+              const isSelected = v === currentVend;
+              return `
+                <button 
+                  type="button" 
+                  data-qa-vendor="${v}"
+                  class="qa-vendor-btn py-2 px-2 rounded-xl text-xs font-bold transition-all border text-center flex items-center justify-center gap-1 active:scale-95 ${
+                    isSelected 
+                      ? 'bg-blue-600 text-white border-blue-400 shadow-md shadow-blue-900/50 font-black' 
+                      : 'bg-slate-800/90 text-slate-300 border-slate-700 hover:border-blue-500/50'
+                  }"
+                >
+                  <span class="truncate">${v}</span>
+                </button>
+              `;
+            }).join('')}
+            <button 
+              type="button" 
+              data-qa-vendor=""
+              class="qa-vendor-btn py-2 px-2 rounded-xl text-xs font-bold transition-all border text-center flex items-center justify-center gap-1 active:scale-95 ${
+                !currentVend 
+                  ? 'bg-amber-600 text-white border-amber-400 shadow-md shadow-amber-900/50 font-black' 
+                  : 'bg-slate-800/50 text-slate-400 border-slate-700/60 hover:border-amber-500/50'
+              }"
+            >
+              <span class="truncate">⚠️ Sin Vendedor</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 2: FORMA DE PAGO -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <span>💳</span> Forma de Pago:
+            </span>
+            <span id="qa-pago-badge" class="text-xs font-extrabold px-2 py-0.5 rounded-md ${getPaymentBadgeStyle(currentPago)}">
+              ${currentPago}
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            <button 
+              type="button" 
+              data-qa-pago="EFECTIVO"
+              class="qa-pago-btn py-2.5 px-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1 active:scale-95 ${
+                currentPago === 'EFECTIVO' 
+                  ? 'bg-emerald-600 text-white border-emerald-400 shadow-md shadow-emerald-900/50 font-black' 
+                  : 'bg-emerald-950/30 text-emerald-300 border-emerald-900/60 hover:bg-emerald-900/40'
+              }"
+            >
+              <span>💵</span> EFECTIVO
+            </button>
+
+            <button 
+              type="button" 
+              data-qa-pago="TRANSFERENCIA"
+              class="qa-pago-btn py-2.5 px-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1 active:scale-95 ${
+                currentPago === 'TRANSFERENCIA' 
+                  ? 'bg-sky-600 text-white border-sky-400 shadow-md shadow-sky-900/50 font-black' 
+                  : 'bg-sky-950/30 text-sky-300 border-sky-900/60 hover:bg-sky-900/40'
+              }"
+            >
+              <span>📲</span> TRANSF.
+            </button>
+
+            <button 
+              type="button" 
+              data-qa-pago="TARJETA"
+              class="qa-pago-btn py-2.5 px-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1 active:scale-95 ${
+                currentPago === 'TARJETA' 
+                  ? 'bg-purple-600 text-white border-purple-400 shadow-md shadow-purple-900/50 font-black' 
+                  : 'bg-purple-950/30 text-purple-300 border-purple-900/60 hover:bg-purple-900/40'
+              }"
+            >
+              <span>💳</span> TARJETA
+            </button>
+
+            <button 
+              type="button" 
+              data-qa-pago="NO PAGO"
+              class="qa-pago-btn py-2.5 px-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1 active:scale-95 ${
+                currentPago === 'NO PAGO' 
+                  ? 'bg-red-600 text-white border-red-400 shadow-md shadow-red-900/50 font-black' 
+                  : 'bg-red-950/30 text-red-300 border-red-900/60 hover:bg-red-900/40'
+              }"
+            >
+              <span>❌</span> NO PAGÓ
+            </button>
+
+            <button 
+              type="button" 
+              data-qa-pago="MIXTO"
+              class="qa-pago-btn col-span-2 sm:col-span-2 py-2.5 px-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1 active:scale-95 ${
+                currentPago === 'MIXTO' 
+                  ? 'bg-amber-600 text-white border-amber-400 shadow-md shadow-amber-900/50 font-black' 
+                  : 'bg-amber-950/30 text-amber-300 border-amber-900/60 hover:bg-amber-900/40'
+              }"
+            >
+              <span>🔀</span> MIXTO / DIVIDIDO...
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Pie de navegación y confirmación -->
+      <div class="p-3 bg-slate-800/90 border-t border-slate-700/80 flex items-center justify-between gap-2 shrink-0">
+        <div>
+          ${prevSaleId ? `
+            <button id="qa-prev-btn" class="px-3 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white bg-slate-700/80 hover:bg-slate-700 border border-slate-600/60 active:scale-95 transition-all flex items-center gap-1">
+              ⬅️ Ant.
+            </button>
+          ` : `
+            <span class="w-12"></span>
+          `}
+        </div>
+
+        <button id="qa-done-btn" class="flex-1 max-w-[130px] py-2 px-3 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400 shadow-lg shadow-emerald-900/30 active:scale-95 transition-all text-center">
+          ✓ Listo
+        </button>
+
+        <div>
+          ${nextSaleId ? `
+            <button id="qa-next-btn" class="px-3 py-2 rounded-xl text-xs font-bold text-amber-300 hover:text-white bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 active:scale-95 transition-all flex items-center gap-1">
+              Sig. ➡️
+            </button>
+          ` : `
+            <span class="w-12"></span>
+          `}
+        </div>
+      </div>
+
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Escuchar toques en botones de VENDEDOR
+  overlay.querySelectorAll('.qa-vendor-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const vend = btn.getAttribute('data-qa-vendor');
+      const tableVendorEl = document.getElementById(`report-vendor-${sale.id}`);
+      window.updateSaleProperty(sale.id, 'vendedor', vend, tableVendorEl);
+
+      overlay.querySelectorAll('.qa-vendor-btn').forEach(b => {
+        const isB = b.getAttribute('data-qa-vendor') === vend;
+        if (b.getAttribute('data-qa-vendor') === '') {
+          b.className = `qa-vendor-btn py-2 px-2 rounded-xl text-xs font-bold transition-all border text-center flex items-center justify-center gap-1 active:scale-95 ${
+            isB ? 'bg-amber-600 text-white border-amber-400 shadow-md shadow-amber-900/50 font-black' : 'bg-slate-800/50 text-slate-400 border-slate-700/60 hover:border-amber-500/50'
+          }`;
+        } else {
+          b.className = `qa-vendor-btn py-2 px-2 rounded-xl text-xs font-bold transition-all border text-center flex items-center justify-center gap-1 active:scale-95 ${
+            isB ? 'bg-blue-600 text-white border-blue-400 shadow-md shadow-blue-900/50 font-black' : 'bg-slate-800/90 text-slate-300 border-slate-700 hover:border-blue-500/50'
+          }`;
+        }
+      });
+
+      const badge = overlay.querySelector('#qa-vendor-badge');
+      if (badge) {
+        badge.textContent = vend ? '🛵 ' + vend : '⚠️ Sin Vendedor';
+        badge.className = `text-xs font-extrabold px-2 py-0.5 rounded-md ${vend ? 'bg-blue-950 text-blue-300 border border-blue-800' : 'bg-amber-950 text-amber-300 border border-amber-800'}`;
+      }
+    });
+  });
+
+  // Escuchar toques en botones de FORMA DE PAGO
+  overlay.querySelectorAll('.qa-pago-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const pago = btn.getAttribute('data-qa-pago');
+      const tablePagoEl = document.getElementById(`report-pago-${sale.id}`);
+
+      if (pago === 'MIXTO') {
+        overlay.remove();
+        window.openMixtoModal(sale.id, tablePagoEl);
+        return;
+      }
+
+      window.handlePaymentChange(sale.id, pago, tablePagoEl);
+
+      overlay.querySelectorAll('.qa-pago-btn').forEach(b => {
+        const bp = b.getAttribute('data-qa-pago');
+        const isSelected = bp === pago;
+        if (bp === 'EFECTIVO') {
+          b.className = `qa-pago-btn py-2.5 px-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1 active:scale-95 ${isSelected ? 'bg-emerald-600 text-white border-emerald-400 shadow-md shadow-emerald-900/50 font-black' : 'bg-emerald-950/30 text-emerald-300 border-emerald-900/60 hover:bg-emerald-900/40'}`;
+        } else if (bp === 'TRANSFERENCIA') {
+          b.className = `qa-pago-btn py-2.5 px-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1 active:scale-95 ${isSelected ? 'bg-sky-600 text-white border-sky-400 shadow-md shadow-sky-900/50 font-black' : 'bg-sky-950/30 text-sky-300 border-sky-900/60 hover:bg-sky-900/40'}`;
+        } else if (bp === 'TARJETA') {
+          b.className = `qa-pago-btn py-2.5 px-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1 active:scale-95 ${isSelected ? 'bg-purple-600 text-white border-purple-400 shadow-md shadow-purple-900/50 font-black' : 'bg-purple-950/30 text-purple-300 border-purple-900/60 hover:bg-purple-900/40'}`;
+        } else if (bp === 'NO PAGO') {
+          b.className = `qa-pago-btn py-2.5 px-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1 active:scale-95 ${isSelected ? 'bg-red-600 text-white border-red-400 shadow-md shadow-red-900/50 font-black' : 'bg-red-950/30 text-red-300 border-red-900/60 hover:bg-red-900/40'}`;
+        } else if (bp === 'MIXTO') {
+          b.className = `qa-pago-btn col-span-2 sm:col-span-2 py-2.5 px-2 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1 active:scale-95 ${isSelected ? 'bg-amber-600 text-white border-amber-400 shadow-md shadow-amber-900/50 font-black' : 'bg-amber-950/30 text-amber-300 border-amber-900/60 hover:bg-amber-900/40'}`;
+        }
+      });
+
+      const badge = overlay.querySelector('#qa-pago-badge');
+      if (badge) {
+        badge.textContent = pago;
+        badge.className = `text-xs font-extrabold px-2 py-0.5 rounded-md ${getPaymentBadgeStyle(pago)}`;
+      }
+    });
+  });
+
+  // Cierre y navegación
+  const close = () => {
+    overlay.remove();
+  };
+
+  overlay.querySelector('#qa-close-top-btn')?.addEventListener('click', close);
+  overlay.querySelector('#qa-done-btn')?.addEventListener('click', close);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
+
+  overlay.querySelector('#qa-next-btn')?.addEventListener('click', () => {
+    close();
+    if (nextSaleId) {
+      if (typeof window.setSelectedSale === 'function') window.setSelectedSale(nextSaleId);
+      window.openQuickAssignModal(nextSaleId);
+    }
+  });
+
+  overlay.querySelector('#qa-prev-btn')?.addEventListener('click', () => {
+    close();
+    if (prevSaleId) {
+      if (typeof window.setSelectedSale === 'function') window.setSelectedSale(prevSaleId);
+      window.openQuickAssignModal(prevSaleId);
+    }
+  });
+
+  const handleKey = (e) => {
+    if (e.key === 'Escape') {
+      document.removeEventListener('keydown', handleKey);
+      close();
+    }
+  };
+  document.addEventListener('keydown', handleKey);
+};
+
 // Sincronización en vivo: auto-impresión de nuevos pedidos y refresco del informe
 subscribeSales((sales) => {
   if (Array.isArray(sales) && sales.length === 0) {
@@ -2648,8 +2982,9 @@ window.renderReportModal = function() {
           </div>
 
           <select id="report-vendor-filter" class="bg-slate-950 border border-slate-700 text-white text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-amber-500 transition-all w-full sm:w-36 cursor-pointer font-semibold shrink-0">
-            <option value="">Vendedores</option>
-            ${VENDEDORES.map(v => `<option value="${v}">${v}</option>`).join('')}
+            <option value="">Vendedores (Todos)</option>
+            <option value="__SIN_VENDEDOR__">⚠️ Sin Vendedor</option>
+            ${VENDEDORES.map(v => `<option value="${v}">🛵 ${v}</option>`).join('')}
           </select>
 
           <button id="close-report-btn-desktop" class="hidden md:flex p-1.5 text-slate-400 hover:text-white hover:bg-slate-700/80 rounded-xl transition-colors border border-slate-700/50" title="Cerrar">
@@ -2948,20 +3283,26 @@ window.renderReportModal = function() {
     selectedSaleId = id;
     highlightSelected();
   }
+  window.setSelectedSale = setSelectedSale;
 
   if (tbody) {
     tbody.addEventListener('click', (e) => {
       const row = e.target.closest('tr');
       if (row && row.id && row.id.startsWith('report-row-')) {
-        const id = row.id.replace('report-row-', '');
+        const id = parseInt(row.id.replace('report-row-', ''), 10);
         setSelectedSale(id);
+        if (!e.target.closest('input, select, button, a')) {
+          if (typeof window.openQuickAssignModal === 'function') {
+            window.openQuickAssignModal(id);
+          }
+        }
       }
     });
 
     tbody.addEventListener('focusin', (e) => {
       const row = e.target.closest('tr');
       if (row && row.id && row.id.startsWith('report-row-')) {
-        const id = row.id.replace('report-row-', '');
+        const id = parseInt(row.id.replace('report-row-', ''), 10);
         setSelectedSale(id);
       }
     });
@@ -2971,15 +3312,20 @@ window.renderReportModal = function() {
     cardsContainer.addEventListener('click', (e) => {
       const card = e.target.closest('.report-card-item');
       if (card && card.id && card.id.startsWith('report-card-')) {
-        const id = card.id.replace('report-card-', '');
+        const id = parseInt(card.id.replace('report-card-', ''), 10);
         setSelectedSale(id);
+        if (!e.target.closest('input, select, button, a')) {
+          if (typeof window.openQuickAssignModal === 'function') {
+            window.openQuickAssignModal(id);
+          }
+        }
       }
     });
 
     cardsContainer.addEventListener('focusin', (e) => {
       const card = e.target.closest('.report-card-item');
       if (card && card.id && card.id.startsWith('report-card-')) {
-        const id = card.id.replace('report-card-', '');
+        const id = parseInt(card.id.replace('report-card-', ''), 10);
         setSelectedSale(id);
       }
     });
@@ -2994,7 +3340,11 @@ window.renderReportModal = function() {
     let totalDia = 0, totalEfectivo = 0, totalTransferencia = 0, totalTarjeta = 0, totalNoPago = 0, cantidadFiltrada = 0;
     
     let filteredSales = currentSales;
-    if (vendFilter) filteredSales = filteredSales.filter(s => normalizeVendor(s.vendedor) === vendFilter);
+    if (vendFilter === '__SIN_VENDEDOR__') {
+      filteredSales = filteredSales.filter(s => !s.vendedor || s.vendedor.trim() === '' || s.vendedor === '-- Sin Vendedor --');
+    } else if (vendFilter) {
+      filteredSales = filteredSales.filter(s => normalizeVendor(s.vendedor) === vendFilter);
+    }
     if (textFilter) filteredSales = filteredSales.filter(s => (s.items || '').toLowerCase().includes(textFilter.toLowerCase()));
     if (custFilter) filteredSales = filteredSales.filter(s => (s.customerName || '').toLowerCase().includes(custFilter.toLowerCase()));
 

@@ -77,7 +77,7 @@ export const menuData = {
         { name: "Pollo Asado", price: 30 },
         { name: "Pechuga Asada", price: 30 },
         { name: "Caldo de Pollo en Amarillo", price: 30 },
-        { name: "Ceviche de Camarón", price: 50 },
+        { name: "Ceviche de Camarón", price: 40 },
         { name: "Ceviche Mixto", price: 40 },
         { name: "Birria", price: 40 },
         { name: "Filete de Pescado", price: 35 },

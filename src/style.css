@@ -741,15 +741,18 @@ body {
   background-color: rgba(14, 165, 233, 0.22) !important;
   border-top: 2px solid #38bdf8 !important;
   border-bottom: 2px solid #38bdf8 !important;
+  box-shadow: inset 0 -2px 0 0 #38bdf8, inset 0 2px 0 0 #38bdf8 !important;
   transition: none !important;
 }
 
 .report-row-highlight td:first-child {
   border-left: 3px solid #38bdf8 !important;
+  box-shadow: inset 3px 0 0 0 #38bdf8, inset 0 -2px 0 0 #38bdf8, inset 0 2px 0 0 #38bdf8 !important;
 }
 
 .report-row-highlight td:last-child {
   border-right: 3px solid #38bdf8 !important;
+  box-shadow: inset -3px 0 0 0 #38bdf8, inset 0 -2px 0 0 #38bdf8, inset 0 2px 0 0 #38bdf8 !important;
 }
 
 .report-row-highlight .font-mono {

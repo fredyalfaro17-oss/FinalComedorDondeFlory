@@ -3041,6 +3041,11 @@ window.renderReportModal = function() {
           </table>
         </div>
 
+        <!-- Persistent Horizontal Scroll Indicator (Never disappears on mobile) -->
+        <div id="report-scroll-indicator-wrap" class="w-full bg-slate-900 border border-slate-800 rounded-full h-2.5 mt-2 px-1 flex items-center shadow-inner">
+          <div id="report-scroll-thumb" class="h-1.5 bg-gradient-to-r from-amber-500 to-amber-300 rounded-full shadow-sm shadow-amber-500/50" style="width: 30%; transform: translateX(0px);"></div>
+        </div>
+
         <!-- Cards View (for mobile) -->
         <div id="report-cards-view" class="hidden">
           <div id="report-cards-container" class="grid grid-cols-1 md:grid-cols-2 gap-3 pb-2">
@@ -3125,10 +3130,13 @@ window.renderReportModal = function() {
     const tableBtn = document.getElementById('report-view-table-btn');
     const cardsBtn = document.getElementById('report-view-cards-btn');
 
+    const scrollWrap = document.getElementById('report-scroll-indicator-wrap');
+
     if (view === 'cards') {
       if (tableView) tableView.classList.add('hidden');
       if (cardsView) cardsView.classList.remove('hidden');
       if (tip) tip.classList.add('hidden');
+      if (scrollWrap) scrollWrap.style.display = 'none';
       if (cardsBtn) {
         cardsBtn.className = 'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-amber-500 text-slate-950 shadow';
       }
@@ -3139,6 +3147,9 @@ window.renderReportModal = function() {
       if (tableView) tableView.classList.remove('hidden');
       if (cardsView) cardsView.classList.add('hidden');
       if (tip) tip.classList.remove('hidden');
+      if (typeof window.updateReportScrollThumb === 'function') {
+        setTimeout(window.updateReportScrollThumb, 50);
+      }
       if (tableBtn) {
         tableBtn.className = 'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-amber-500 text-slate-950 shadow';
       }
@@ -3224,6 +3235,9 @@ window.renderReportModal = function() {
     renderSummaryBar(totalDia, totalEfectivo, totalTransferencia, totalTarjeta, totalNoPago, cantidadFiltrada, textFilter, vendFilter, custFilter);
     highlightSelected();
     updateRestoreButton();
+    if (typeof window.updateReportScrollThumb === 'function') {
+      setTimeout(window.updateReportScrollThumb, 40);
+    }
   }
 
   function attachRestoreHandler() {
@@ -3486,7 +3500,37 @@ window.renderReportModal = function() {
   };
 
   const reportTableView = document.getElementById('report-table-view');
+
+  function updateReportScrollThumb() {
+    const tableView = document.getElementById('report-table-view');
+    const thumb = document.getElementById('report-scroll-thumb');
+    const wrap = document.getElementById('report-scroll-indicator-wrap');
+    if (!tableView || !thumb || !wrap) return;
+
+    const scrollWidth = tableView.scrollWidth;
+    const clientWidth = tableView.clientWidth;
+    if (scrollWidth <= clientWidth + 2) {
+      wrap.style.display = 'none';
+      return;
+    }
+    wrap.style.display = 'flex';
+
+    const ratio = clientWidth / scrollWidth;
+    const availableWidth = wrap.clientWidth - 8;
+    const thumbWidth = Math.max(34, availableWidth * ratio);
+    const maxScrollLeft = scrollWidth - clientWidth;
+    const currentScrollLeft = tableView.scrollLeft;
+    const scrollFraction = maxScrollLeft > 0 ? (currentScrollLeft / maxScrollLeft) : 0;
+    const maxTranslate = availableWidth - thumbWidth;
+    const translateX = Math.max(0, Math.min(maxTranslate, scrollFraction * maxTranslate));
+
+    thumb.style.width = `${thumbWidth}px`;
+    thumb.style.transform = `translateX(${translateX}px)`;
+  }
+  window.updateReportScrollThumb = updateReportScrollThumb;
+
   if (reportTableView) {
+    reportTableView.addEventListener('scroll', updateReportScrollThumb, { passive: true });
     reportTableView.addEventListener('wheel', (e) => {
       if (reportTableView.scrollWidth > reportTableView.clientWidth) {
         if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
@@ -3495,6 +3539,8 @@ window.renderReportModal = function() {
         }
       }
     }, { passive: false });
+    setTimeout(updateReportScrollThumb, 60);
+    window.addEventListener('resize', updateReportScrollThumb, { passive: true });
   }
 
   modalOverlay.classList.remove('hidden');

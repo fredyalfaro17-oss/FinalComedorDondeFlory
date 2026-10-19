@@ -225,6 +225,7 @@ function salesSyncPlugin() {
 export default defineConfig({
   plugins: [salesSyncPlugin()],
   server: {
+    host: true,
     allowedHosts: true,
   },
   resolve: {

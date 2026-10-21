@@ -1055,106 +1055,131 @@ export async function initFirebase(config = FIREBASE_CONFIG) {
     const today = getTodayKey();
     const todayDocRef = doc(firebaseDb, 'ventas_diarias', today);
 
-    // Escucha en tiempo real instantánea (WebSocket / HTTP push de Google)
-    onSnapshot(todayDocRef, (docSnap) => {
-      // Ignorar rebotes mientras nosotros mismos estamos escribiendo o pendientes locales
-      if (isWritingToCloud || (Date.now() - lastCloudWriteTimestamp < 1500)) return;
-      if (docSnap.metadata && docSnap.metadata.hasPendingWrites) return;
-
-      if (docSnap.exists()) {
-        const cloudData = docSnap.data();
-        const rawCloudSales = Array.isArray(cloudData.sales) ? cloudData.sales : [];
-        const cloudSales = rawCloudSales.map((s, idx) => sanitizeSale(s, idx));
-
-        // CASO 1: La nube tiene ventas activas (o restauradas)
-        if (cloudSales.length > 0) {
-          // Vaciar papelera porque las ventas ya están activas en el sistema
-          try {
-            localStorage.removeItem(`flory_sales_trash_backup_${today}`);
-          } catch(e) {}
-          memoryTrashBackup = null;
-
-          const currentSales = cachedSales !== null ? cachedSales : getSales();
-          const merged = mergeSalesLists(currentSales, cloudSales);
-          saveSafetyBackup(merged);
-
-          if (!areSalesEqual(merged, currentSales)) {
-            console.log('⚡ Sincronización recibida de Firebase Cloud:', merged.length, 'ventas');
-            cachedSales = merged;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-            if (syncChannel) {
-              syncChannel.postMessage({ type: 'SALES_UPDATED', sales: merged });
-            }
-            notifyListeners(merged);
-            postApiAction({ action: 'SAVE_ALL', sales: merged });
-          }
-
-          // Si el dispositivo local tenía ventas NUEVAS que la nube aún no tiene, subirlas
-          if (merged.length > cloudSales.length) {
-            syncWithCloud(merged, 0, []);
-          }
-          return;
-        }
-
-        // CASO 2: La nube está vacía pero tiene ventas en la papelera (historial borrado centralmente)
-        if (cloudData.trashBackup && Array.isArray(cloudData.trashBackup) && cloudData.trashBackup.length > 0) {
-          memoryTrashBackup = cloudData.trashBackup;
-          try {
-            localStorage.setItem(`flory_sales_trash_backup_${today}`, JSON.stringify(cloudData.trashBackup));
-          } catch (e) {}
-
-          cachedSales = [];
-          localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-          if (syncChannel) {
-            syncChannel.postMessage({ type: 'SALES_UPDATED', sales: [] });
-          }
-          notifyListeners([]);
-          console.log('🧹 Historial purgado en este dispositivo por orden central de Caja.');
-          return;
-        }
-
-        // CASO 3: Nube completamente vacía (día nuevo o sin ventas)
-        const currentSales = cachedSales !== null ? cachedSales : getSales();
-        if (currentSales.length === 0) {
-          cachedSales = [];
-          localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-          notifyListeners([]);
-        }
+    // Escucha en tiempo real instantánea con auto-reconexión si las reglas se renovaron o la red cayó
+    let unsubscribeSales = null;
+    const attachSalesListener = () => {
+      if (unsubscribeSales) {
+        try { unsubscribeSales(); } catch(e) {}
       }
-    }, (error) => {
-      console.warn('Advertencia en conexión con Firestore:', error);
-    });
+      unsubscribeSales = onSnapshot(todayDocRef, (docSnap) => {
+        // Ignorar rebotes mientras nosotros mismos estamos escribiendo o pendientes locales
+        if (isWritingToCloud || (Date.now() - lastCloudWriteTimestamp < 1500)) return;
+        if (docSnap.metadata && docSnap.metadata.hasPendingWrites) return;
 
-    // Escucha en tiempo real del directorio de clientes en la nube
-    const customersDocRef = doc(firebaseDb, 'directorio_clientes', 'clientes_activos');
-    onSnapshot(customersDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (Array.isArray(data.customers)) {
-          const localMap = new Map();
-          const currentCustomers = getCustomers();
-          currentCustomers.forEach(c => localMap.set(normalizeSearchText(c.name), c));
-          data.customers.forEach(c => {
-            if (c && c.name) {
-              const k = normalizeSearchText(c.name);
-              const exist = localMap.get(k);
-              if (!exist) {
-                localMap.set(k, c);
-              } else {
-                if (c.phone && !exist.phone) exist.phone = c.phone;
-                if ((c.ordersCount || 0) > (exist.ordersCount || 0)) exist.ordersCount = c.ordersCount;
+        if (docSnap.exists()) {
+          const cloudData = docSnap.data();
+          const rawCloudSales = Array.isArray(cloudData.sales) ? cloudData.sales : [];
+          const cloudSales = rawCloudSales.map((s, idx) => sanitizeSale(s, idx));
+
+          // CASO 1: La nube tiene ventas activas (o restauradas)
+          if (cloudSales.length > 0) {
+            // Vaciar papelera porque las ventas ya están activas en el sistema
+            try {
+              localStorage.removeItem(`flory_sales_trash_backup_${today}`);
+            } catch(e) {}
+            memoryTrashBackup = null;
+
+            const currentSales = cachedSales !== null ? cachedSales : getSales();
+            const merged = mergeSalesLists(currentSales, cloudSales);
+            saveSafetyBackup(merged);
+
+            if (!areSalesEqual(merged, currentSales)) {
+              console.log('⚡ Sincronización recibida de Firebase Cloud:', merged.length, 'ventas');
+              cachedSales = merged;
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+              if (syncChannel) {
+                syncChannel.postMessage({ type: 'SALES_UPDATED', sales: merged });
               }
+              notifyListeners(merged);
+              postApiAction({ action: 'SAVE_ALL', sales: merged });
             }
-          });
-          const merged = Array.from(localMap.values()).sort((a,b) => (b.ordersCount || 0) - (a.ordersCount || 0));
-          cachedCustomers = merged;
-          localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(merged));
-          notifyCustomerListeners(merged);
+
+            // Si el dispositivo local tenía ventas NUEVAS que la nube aún no tiene, subirlas
+            if (merged.length > cloudSales.length) {
+              syncWithCloud(merged, 0, []);
+            }
+            return;
+          }
+
+          // CASO 2: La nube está vacía pero tiene ventas en la papelera (historial borrado centralmente)
+          if (cloudData.trashBackup && Array.isArray(cloudData.trashBackup) && cloudData.trashBackup.length > 0) {
+            memoryTrashBackup = cloudData.trashBackup;
+            try {
+              localStorage.setItem(`flory_sales_trash_backup_${today}`, JSON.stringify(cloudData.trashBackup));
+            } catch (e) {}
+
+            cachedSales = [];
+            localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+            if (syncChannel) {
+              syncChannel.postMessage({ type: 'SALES_UPDATED', sales: [] });
+            }
+            notifyListeners([]);
+            console.log('🧹 Historial purgado en este dispositivo por orden central de Caja.');
+            return;
+          }
+
+          // CASO 3: Nube completamente vacía (día nuevo o sin ventas en la nube)
+          const currentSales = cachedSales !== null ? cachedSales : getSales();
+          if (currentSales.length === 0) {
+            cachedSales = [];
+            localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+            notifyListeners([]);
+          } else {
+            // Si localmente tenemos ventas y la nube está vacía, sincronizar a la nube de inmediato
+            syncWithCloud(currentSales, 0, []);
+          }
+        } else {
+          // El documento del día aún no existe en Firebase
+          const currentSales = cachedSales !== null ? cachedSales : getSales();
+          if (currentSales.length > 0) {
+            syncWithCloud(currentSales, 0, []);
+          }
         }
+      }, (error) => {
+        console.warn('Advertencia en conexión con Firestore ventas (reintentando en 4s):', error);
+        setTimeout(attachSalesListener, 4000);
+      });
+    };
+    attachSalesListener();
+
+    // Escucha en tiempo real del directorio de clientes en la nube con auto-reconexión
+    let unsubscribeCustomers = null;
+    const attachCustomersListener = () => {
+      if (unsubscribeCustomers) {
+        try { unsubscribeCustomers(); } catch(e) {}
       }
-    }, (err) => {
-      console.warn('Advertencia en conexión de clientes con Firestore:', err);
-    });
+      const customersDocRef = doc(firebaseDb, 'directorio_clientes', 'clientes_activos');
+      unsubscribeCustomers = onSnapshot(customersDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (Array.isArray(data.customers)) {
+            const localMap = new Map();
+            const currentCustomers = getCustomers();
+            currentCustomers.forEach(c => localMap.set(normalizeSearchText(c.name), c));
+            data.customers.forEach(c => {
+              if (c && c.name) {
+                const k = normalizeSearchText(c.name);
+                const exist = localMap.get(k);
+                if (!exist) {
+                  localMap.set(k, c);
+                } else {
+                  if (c.phone && !exist.phone) exist.phone = c.phone;
+                  if ((c.ordersCount || 0) > (exist.ordersCount || 0)) exist.ordersCount = c.ordersCount;
+                }
+              }
+            });
+            const merged = Array.from(localMap.values()).sort((a,b) => (b.ordersCount || 0) - (a.ordersCount || 0));
+            cachedCustomers = merged;
+            localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(merged));
+            notifyCustomerListeners(merged);
+          }
+        }
+      }, (err) => {
+        console.warn('Advertencia en conexión de clientes con Firestore (reintentando en 5s):', err);
+        setTimeout(attachCustomersListener, 5000);
+      });
+    };
+    attachCustomersListener();
 
     console.log('✅ Firebase Firestore conectado y sincronizando en tiempo real con la nube.');
     return true;

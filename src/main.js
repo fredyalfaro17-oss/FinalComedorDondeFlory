@@ -807,7 +807,7 @@ export function generateTicketPreviewHtml(data) {
           ${custName ? `<p class="customer-data"><span class="label">CLIENTE:</span> <span class="value font-black">${custName.toUpperCase()}</span></p>` : ''}
           ${custPhone ? `<p class="customer-data phone-data whitespace-nowrap"><span class="label">Tel.:</span> <span class="value font-black text-2xl">${custPhone}</span></p>` : ''}
           ${deliveryTime ? `<p class="customer-data delivery-data"><span class="label">HORA DE ENTREGA:</span> <span class="value font-black text-2xl">${deliveryTime}</span></p>` : ''}
-          ${vendorName ? `<p class="customer-data"><span class="label">VENDEDOR:</span> <span class="value font-black">${vendorName.toUpperCase()}</span></p>` : ''}
+          ${vendorName ? `<p class="customer-data vendor-data"><span class="label">VENDEDOR:</span> <span class="value font-black">${vendorName.toUpperCase()}</span></p>` : ''}
         </div>
         <div class="border-b-2 border-dashed border-slate-200 mb-4 print-hidden"></div>
       ` : ''}
@@ -816,7 +816,7 @@ export function generateTicketPreviewHtml(data) {
         ${itemsHtml}
       </div>
 
-      <div class="border-t-2 border-black pt-3 mt-4 space-y-2">
+      <div class="border-t-2 border-black pt-3 mt-4 space-y-2 total-container">
         <div class="flex items-end gap-2 total-section">
           <span class="text-sm font-bold uppercase label">TOTAL A PAGAR:</span>
           <span class="text-2xl font-black value">Q${total.toFixed(2)}</span>

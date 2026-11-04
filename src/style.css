@@ -527,33 +527,47 @@ body {
     break-inside: avoid !important;
   }
 
-  .ticket-header h2 {
-    font-size: 13pt !important;
-    font-weight: 900 !important;
-    margin-bottom: 3pt !important;
+  /* Suprimir encabezado superior arriba de la fecha al imprimir */
+  .ticket-header h2,
+  .ticket-header .ticket-info {
+    display: none !important;
   }
 
-  .ticket-info,
+  .ticket-header {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   .ticket-meta {
     font-size: 9.5pt !important;
     font-weight: 800 !important;
     color: #000 !important;
     margin: 0 !important;
     line-height: 1.2 !important;
-  }
-
-  .ticket-meta {
     border-top: 1.5pt solid #000 !important;
     border-bottom: 1.5pt solid #000 !important;
-    padding: 4pt 0 !important;
-    margin-top: 6pt !important;
+    padding: 3pt 0 !important;
+  }
+
+  .ticket-number-container {
+    display: flex !important;
+    justify-content: center !important;
+    margin: 3pt 0 !important;
+  }
+
+  .ticket-number-box {
+    border: 1.2pt solid #000 !important;
+    padding: 1pt 5pt !important;
+    font-size: 9.5pt !important;
+    font-weight: 900 !important;
+    display: inline-block !important;
   }
 
   .customer-section {
     border: 1.5pt solid #000 !important;
     background: #fff !important;
     padding: 4pt !important;
-    margin: 5pt 0 !important;
+    margin: 4pt 0 !important;
   }
 
   .customer-data {
@@ -578,14 +592,19 @@ body {
 
   .customer-data.delivery-data {
     border-top: 1pt dashed #000 !important;
-    border-bottom: 1pt dashed #000 !important;
-    padding: 3pt 0 !important;
-    margin: 4pt 0 !important;
+    border-bottom: none !important;
+    padding: 3pt 0 1pt 0 !important;
+    margin: 4pt 0 0 0 !important;
   }
 
   .customer-data.delivery-data .value {
     font-size: 15pt !important;
     font-weight: 900 !important;
+  }
+
+  /* Suprimir vendedor al imprimir */
+  .customer-data.vendor-data {
+    display: none !important;
   }
 
   .ticket-row {
@@ -606,10 +625,21 @@ body {
     line-height: 1.2 !important;
   }
 
+  /* Eliminar espacio blanco antes de TOTAL A PAGAR */
+  .items-list {
+    margin-bottom: 0 !important;
+  }
+
+  .total-container {
+    border-top: none !important;
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+  }
+
   .total-section {
     border-top: 2pt solid #000 !important;
-    padding-top: 5pt !important;
-    margin-top: 8pt !important;
+    padding-top: 3pt !important;
+    margin-top: 2pt !important;
   }
 
   .total-section .label {
@@ -622,16 +652,10 @@ body {
     font-weight: 900 !important;
   }
 
-  .checkbox-box {
-    width: 3.8mm !important;
-    height: 3.8mm !important;
-    border: 1.5pt solid #000 !important;
-  }
-
   .payment-checkboxes {
     border-top: 1.5pt solid #000 !important;
-    padding: 6pt 0 !important;
-    margin-top: 6pt !important;
+    padding: 5pt 0 !important;
+    margin-top: 5pt !important;
   }
 
   .payment-col {
@@ -649,6 +673,12 @@ body {
     margin-bottom: 1pt !important;
   }
 
+  .checkbox-box {
+    width: 3.8mm !important;
+    height: 3.8mm !important;
+    border: 1.5pt solid #000 !important;
+  }
+
   .payment-line {
     flex-grow: 1 !important;
     border-bottom: 1.2pt solid #000 !important;
@@ -661,35 +691,9 @@ body {
     margin-top: 1pt !important;
   }
 
-  .ticket-number-container {
-    display: flex !important;
-    justify-content: center !important;
-    margin: 4pt 0 !important;
-  }
-
-  .ticket-number-box {
-    border: 1.2pt solid #000 !important;
-    padding: 1pt 5pt !important;
-    font-size: 9.5pt !important;
-    font-weight: 900 !important;
-    display: inline-block !important;
-  }
-
+  /* Suprimir pie de página (línea punteada y textos de despedida) */
   .ticket-footer {
-    border-top: 1.5pt dashed #000 !important;
-    padding-top: 5pt !important;
-    margin-top: 10pt !important;
-    text-align: center !important;
-  }
-
-  .ticket-footer p:first-child {
-    font-size: 11pt !important;
-    font-weight: 900 !important;
-  }
-
-  .ticket-footer p:last-child {
-    font-size: 9pt !important;
-    margin-top: 3pt !important;
+    display: none !important;
   }
 }
 

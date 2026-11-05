@@ -13,11 +13,18 @@ If fso.FileExists("C:\Program Files\Google\Chrome\Application\chrome.exe") Then
     chromeBin = """C:\Program Files\Google\Chrome\Application\chrome.exe"""
 ElseIf fso.FileExists("C:\Program Files (x86)\Google\Chrome\Application\chrome.exe") Then
     chromeBin = """C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"""
+ElseIf fso.FileExists(WshShell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Google\Chrome\Application\chrome.exe") Then
+    chromeBin = """" & WshShell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Google\Chrome\Application\chrome.exe"""
 ElseIf fso.FileExists("C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe") Then
     chromeBin = """C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"""
+ElseIf fso.FileExists("C:\Program Files\Microsoft\Edge\Application\msedge.exe") Then
+    chromeBin = """C:\Program Files\Microsoft\Edge\Application\msedge.exe"""
 Else
     chromeBin = "msedge.exe"
 End If
 
+' Perfil aislado para que siempre respete --kiosk-printing aunque haya otro navegador abierto
+kioskProfile = " --user-data-dir=""" & WshShell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\Google\Chrome\FloryCajaProfile"""
+
 ' Abrir en modo aplicación de escritorio con auto-impresión
-WshShell.Run chromeBin & " --kiosk-printing --app=" & appUrl, 1, False
+WshShell.Run chromeBin & " --kiosk-printing" & kioskProfile & " --app=" & appUrl, 1, False

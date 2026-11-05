@@ -857,6 +857,9 @@ export function generateTicketPreviewHtml(data) {
 
 // Imprimir un ticket específico en la impresora Xprinter
 export function printTicketForSale(sale, isAuto = false) {
+  if (isAuto && localStorage.getItem('flory_autoprint_enabled') === 'false') {
+    return;
+  }
   const container = document.getElementById('silent-print-container');
   if (!container) return;
 
@@ -1006,7 +1009,7 @@ function checkAutoPrintQueue(sales) {
       const token = getPrintRequestToken(sale);
       if (!handledPrintRequestTokens.has(token)) {
         handledPrintRequestTokens.add(token);
-        if (isRecentReq) {
+        if (isEnabled && isRecentReq) {
           // Imprimir en la computadora con Xprinter de inmediato
           enqueueSalePrint(sale, true);
         } else {
@@ -1067,6 +1070,11 @@ export function initAutoPrintToggle() {
       const current = localStorage.getItem('flory_autoprint_enabled') === 'true';
       const next = !current;
       localStorage.setItem('flory_autoprint_enabled', next ? 'true' : 'false');
+      if (!next) {
+        printQueue.length = 0;
+        const toast = document.getElementById('flory-autoprint-toast');
+        if (toast) toast.remove();
+      }
       updateUI();
       // Desbloquear audio con el primer click
       playNotificationChime();

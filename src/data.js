@@ -170,17 +170,17 @@ export const menuData = {
       name: "Panes",
       color: "#ea580c", // orange-600
       items: [
-        { name: "Pan con Adobado", price: 10 },
-        { name: "Pan con Chile Relleno", price: 10 },
-        { name: "Pan con Chuleta", price: 10 },
+        { name: "Pan con Adobado", price: 12 },
+        { name: "Pan con Chile Relleno", price: 12 },
+        { name: "Pan con Chuleta", price: 12 },
         { name: "Pan con Ensalada de Pollo", price: 10 },
         { name: "Pan con Frijol", price: 10 },
         { name: "Pan con Huevo", price: 10 },
         { name: "Pan con Jamón", price: 10 },
-        { name: "Pan con Milanesa", price: 10 },
+        { name: "Pan con Milanesa", price: 12 },
         { name: "Pan con Omelette", price: 10 },
         { name: "Pan con Salchicha", price: 10 },
-        { name: "Pan con Torta de Carne", price: 10 },
+        { name: "Pan con Torta de Carne", price: 12 },
         { name: "Pan con Chaomein", price: 10 },
         { name: "Pan con Huevo y Frijol", price: 10 }
       ]
@@ -190,16 +190,16 @@ export const menuData = {
       name: "Tortillas",
       color: "#ca8a04", // yellow-600
       items: [
-        { name: "Tortilla con Adobado", price: 10 },
-        { name: "Tortilla con Chile Relleno", price: 10 },
-        { name: "Tortilla con Chuleta", price: 10 },
+        { name: "Tortilla con Adobado", price: 12 },
+        { name: "Tortilla con Chile Relleno", price: 12 },
+        { name: "Tortilla con Chuleta", price: 12 },
         { name: "Tortilla con Frijol", price: 10 },
         { name: "Tortilla con Huevo", price: 10 },
         { name: "Tortilla con Jamón", price: 10 },
-        { name: "Tortilla con Milanesa", price: 10 },
+        { name: "Tortilla con Milanesa", price: 12 },
         { name: "Tortilla con Omelette", price: 10 },
         { name: "Tortilla con Salchicha", price: 10 },
-        { name: "Tortilla con Torta de Carne", price: 10 }
+        { name: "Tortilla con Torta de Carne", price: 12 }
       ]
     },
     {
@@ -211,7 +211,7 @@ export const menuData = {
         { name: "Licuado de Melón Con Agua", price: 10 },
         { name: "Licuado de Piña Con Agua", price: 10 },
         { name: "Licuado de Banano Con Agua", price: 10 },
-        { name: "Licuado de Fresa Con Agua", price: 10 },
+        { name: "Licuado de Fresa Con Agua", price: 12 },
         { name: "Licuado de Mora Con Agua", price: 10 },
         { name: "Licuado de Oreo Con Agua", price: 10 },
         { name: "Licuado de Café Con Agua", price: 10 },
@@ -219,7 +219,7 @@ export const menuData = {
         { name: "Licuado de Melón Con Leche", price: 12 },
         { name: "Licuado de Piña Con Leche", price: 12 },
         { name: "Licuado de Banano Con Leche", price: 12 },
-        { name: "Licuado de Fresa Con Leche", price: 12 },
+        { name: "Licuado de Fresa Con Leche", price: 15 },
         { name: "Licuado de Mora Con Leche", price: 12 },
         { name: "Licuado de Oreo Con Leche", price: 12 },
         { name: "Licuado de Café Con Leche", price: 12 },

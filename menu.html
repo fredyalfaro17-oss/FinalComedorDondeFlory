@@ -188,9 +188,12 @@
         <!-- Manual Input & Actions -->
         <div class="bg-slate-900 border-t border-slate-800 p-4 shrink-0">
           <div class="flex gap-4 items-center max-w-2xl mx-auto">
-            <div class="flex-1">
+            <div class="flex-1 relative flex items-center">
               <input type="text" id="manual-name" placeholder="Artículo manual..."
-                class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 text-sm outline-none focus:border-slate-500 transition-all">
+                class="w-full bg-slate-800/50 border border-slate-700 rounded-lg pl-4 pr-10 py-2 text-sm outline-none focus:border-slate-500 transition-all">
+              <button type="button" id="manual-mic-btn" class="absolute right-2 text-slate-400 hover:text-white p-1 rounded-md transition-all active:scale-90" title="Dictar artículo manual">
+                <span id="manual-mic-icon" class="text-sm">🎙️</span>
+              </button>
             </div>
             <div class="w-32 relative">
               <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">Q</span>

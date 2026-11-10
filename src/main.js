@@ -277,8 +277,14 @@ function openItemModal(item) {
           </div>
         </div>
         
-        <div class="flex flex-col gap-4">
-          <label class="text-xs uppercase tracking-widest text-slate-500 font-bold">Detalles Adicionales (Opcional)</label>
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <label class="text-xs uppercase tracking-widest text-slate-500 font-bold">Detalles Adicionales (Opcional)</label>
+            <button type="button" id="mic-btn" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all active:scale-95 select-none shadow-sm cursor-pointer" title="Dictar por voz">
+              <span id="mic-icon" class="text-sm">🎙️</span>
+              <span id="mic-text">Dictar</span>
+            </button>
+          </div>
           <textarea id="custom-details" maxlength="150" rows="2" 
             class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-base focus:outline-none focus:border-red-500 transition-colors placeholder:text-slate-600"
             placeholder="Ej: Solo verduras, sin arroz..."></textarea>
@@ -301,8 +307,88 @@ function openItemModal(item) {
 
   document.getElementById('qty-plus').onclick = () => updateQty(qty + 1);
   document.getElementById('qty-minus').onclick = () => updateQty(qty - 1);
-  document.getElementById('close-modal-btn').onclick = () => modalOverlay.classList.add('hidden');
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  let isListening = false;
+  const micBtn = document.getElementById('mic-btn');
+  const micIcon = document.getElementById('mic-icon');
+  const micText = document.getElementById('mic-text');
+  const textarea = document.getElementById('custom-details');
+
+  const stopListening = () => {
+    isListening = false;
+    if (micBtn) {
+      micBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all active:scale-95 select-none shadow-sm cursor-pointer';
+      if (micIcon) micIcon.textContent = '🎙️';
+      if (micText) micText.textContent = 'Dictar';
+    }
+  };
+
+  if (SpeechRecognition && micBtn) {
+    try {
+      recognition = new SpeechRecognition();
+      recognition.lang = 'es-GT';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        isListening = true;
+        micBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-red-600 text-white border border-red-400 transition-all active:scale-95 select-none shadow-lg shadow-red-950 animate-pulse cursor-pointer';
+        if (micIcon) micIcon.textContent = '🔴';
+        if (micText) micText.textContent = 'Escuchando...';
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results?.[0]?.[0]?.transcript;
+        if (transcript && textarea) {
+          const currentText = textarea.value.trim();
+          textarea.value = currentText ? `${currentText}, ${transcript}` : transcript;
+          textarea.focus();
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('Speech recognition error:', event.error);
+        stopListening();
+      };
+
+      recognition.onend = () => {
+        stopListening();
+      };
+
+      micBtn.onclick = () => {
+        if (isListening) {
+          recognition.stop();
+        } else {
+          try {
+            recognition.start();
+          } catch (e) {
+            console.warn('Recognition start error:', e);
+            stopListening();
+          }
+        }
+      };
+    } catch (err) {
+      console.warn('SpeechRecognition init error:', err);
+      if (micBtn) micBtn.style.display = 'none';
+    }
+  } else if (micBtn) {
+    micBtn.style.display = 'none';
+  }
+
+  const closeModal = () => {
+    if (recognition && isListening) {
+      try { recognition.stop(); } catch {}
+    }
+    modalOverlay.classList.add('hidden');
+  };
+
+  document.getElementById('close-modal-btn').onclick = closeModal;
   document.getElementById('add-to-cart-btn').onclick = () => {
+    if (recognition && isListening) {
+      try { recognition.stop(); } catch {}
+    }
     const customDescription = document.getElementById('custom-details').value.trim();
     addItemToCart(item, qty, customDescription);
     modalOverlay.classList.add('hidden');
@@ -1764,6 +1850,79 @@ function setupEventListeners() {
   document.getElementById('manual-price').onkeydown = (e) => {
     if (e.key === 'Enter') addManual();
   };
+
+  // Micrófono para dictar Artículo Manual
+  const manualMicBtn = document.getElementById('manual-mic-btn');
+  const manualMicIcon = document.getElementById('manual-mic-icon');
+  const manualNameInput = document.getElementById('manual-name');
+  const manualPriceInput = document.getElementById('manual-price');
+  const GlobalSpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (GlobalSpeechRecognition && manualMicBtn) {
+    try {
+      const manualRecognition = new GlobalSpeechRecognition();
+      manualRecognition.lang = 'es-GT';
+      manualRecognition.continuous = false;
+      manualRecognition.interimResults = false;
+      let isManualListening = false;
+
+      const stopManualListening = () => {
+        isManualListening = false;
+        if (manualMicBtn) {
+          manualMicBtn.className = 'absolute right-2 text-slate-400 hover:text-white p-1 rounded-md transition-all active:scale-90';
+          if (manualMicIcon) manualMicIcon.textContent = '🎙️';
+        }
+      };
+
+      manualRecognition.onstart = () => {
+        isManualListening = true;
+        if (manualMicBtn) {
+          manualMicBtn.className = 'absolute right-2 text-red-400 p-1 rounded-md transition-all active:scale-90 animate-pulse';
+          if (manualMicIcon) manualMicIcon.textContent = '🔴';
+        }
+      };
+
+      manualRecognition.onresult = (event) => {
+        const transcript = event.results?.[0]?.[0]?.transcript?.trim();
+        if (transcript) {
+          // Si el usuario dijo nombre y precio (ej: "Chuchito de carne 10" o "Gaseosa 15 quetzales")
+          const matchPrice = transcript.match(/^(.*?)(?:\s+(?:de\s+)?(?:q(?:uetzales)?\.?\s*)?(\d+(?:\.\d{1,2})?)(?:\s*q(?:uetzales)?)?)?$/i);
+          if (matchPrice && matchPrice[2]) {
+            const parsedName = matchPrice[1].trim();
+            const parsedPrice = matchPrice[2];
+            if (parsedName) {
+              manualNameInput.value = parsedName;
+              manualPriceInput.value = parsedPrice;
+              manualPriceInput.focus();
+              return;
+            }
+          }
+          manualNameInput.value = transcript;
+          manualPriceInput.focus();
+        }
+      };
+
+      manualRecognition.onerror = () => stopManualListening();
+      manualRecognition.onend = () => stopManualListening();
+
+      manualMicBtn.onclick = () => {
+        if (isManualListening) {
+          manualRecognition.stop();
+        } else {
+          try {
+            manualRecognition.start();
+          } catch {
+            stopManualListening();
+          }
+        }
+      };
+    } catch (e) {
+      console.warn('Manual speech recognition init error:', e);
+      if (manualMicBtn) manualMicBtn.style.display = 'none';
+    }
+  } else if (manualMicBtn) {
+    manualMicBtn.style.display = 'none';
+  }
 
   // Cart Actions
   clearCartBtn.onclick = () => {

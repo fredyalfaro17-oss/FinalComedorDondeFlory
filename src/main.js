@@ -1909,7 +1909,21 @@ function setupEventListeners() {
     // 1. Limpiar espacios y puntuación al final (ej: punto "." que agrega Siri al pausar)
     let text = rawText.trim().replace(/[\.\,\;\:\!\?]+$/, '').trim();
 
-    // 2. Coincide con [Nombre del producto] + [conector opcional: de, a, de a, -, :] + [Q opcional] + [Precio numérico] + [quetzales opcional]
+    // 2. Si Siri duplicó la frase completa por error de dictado, deduplicar
+    const len = text.length;
+    const half = Math.floor(len / 2);
+    for (let i = half - 5; i <= half + 5; i++) {
+      if (i > 0 && i < len) {
+        const first = text.substring(0, i).trim();
+        const second = text.substring(i).trim();
+        if (first.toLowerCase() === second.toLowerCase()) {
+          text = first;
+          break;
+        }
+      }
+    }
+
+    // 3. Coincide con [Nombre del producto] + [conector opcional: de, a, de a, -, :] + [Q opcional] + [Precio numérico] + [quetzales opcional]
     const regex = /^(.*?)(?:[\s,]+(?:de\s+a|de|a|\-|\:)?\s*(?:q(?:uetzales)?\.?\s*)?(\d+(?:\.\d{1,2})?)(?:\s*q(?:uetzales)?)?)$/i;
     const match = text.match(regex);
     if (match && match[1] && match[2]) {
@@ -1920,7 +1934,7 @@ function setupEventListeners() {
       }
     }
 
-    // 3. Fallback: buscar el último número al final del texto
+    // 4. Fallback: buscar el último número al final del texto
     const fallbackRegex = /^(.*?)[\s,]+(?:q\.?\s*)?(\d+(?:\.\d{1,2})?)$/i;
     const fallbackMatch = text.match(fallbackRegex);
     if (fallbackMatch && fallbackMatch[1] && fallbackMatch[2]) {
@@ -1936,11 +1950,10 @@ function setupEventListeners() {
 
   const manualNameInput = document.getElementById('manual-name');
   const manualPriceInput = document.getElementById('manual-price');
-  let manualSplitTimer = null;
 
   // Mientras se escribe o dicta:
-  // 1. Pone el precio en la casilla de precio de inmediato (destello verde)
-  // 2. Tras una breve pausa (500ms al terminar de hablar), limpia el nombre para quitarle el número
+  // NUNCA tocamos manualNameInput.value para que Siri no duplique el texto en iPhone
+  // Solo actualizamos la casilla de precio para que el usuario vea que se detectó
   const handleManualNameInput = () => {
     if (!manualNameInput || !manualPriceInput) return;
     const raw = manualNameInput.value;
@@ -1949,23 +1962,11 @@ function setupEventListeners() {
       manualPriceInput.value = extracted.price;
       manualPriceInput.classList.add('ring-2', 'ring-emerald-500');
       setTimeout(() => manualPriceInput.classList.remove('ring-2', 'ring-emerald-500'), 800);
-
-      // Esperar a que el usuario termine de dictar para limpiar el nombre sin interrumpir a Siri
-      if (manualSplitTimer) clearTimeout(manualSplitTimer);
-      manualSplitTimer = setTimeout(() => {
-        const currentRaw = manualNameInput.value;
-        const currentExtracted = extractNameAndPrice(currentRaw);
-        if (currentExtracted) {
-          manualNameInput.value = currentExtracted.name;
-          manualPriceInput.value = currentExtracted.price;
-        }
-      }, 500);
     }
   };
 
-  // Al terminar (desenfocar, cambio o Enter): limpia el nombre de inmediato
+  // Solo al salir del campo (blur): limpiar el nombre si ya terminó
   const handleManualNameFinish = () => {
-    if (manualSplitTimer) clearTimeout(manualSplitTimer);
     if (!manualNameInput || !manualPriceInput) return;
     const raw = manualNameInput.value;
     const extracted = extractNameAndPrice(raw);
@@ -1977,7 +1978,6 @@ function setupEventListeners() {
 
   if (manualNameInput) {
     manualNameInput.addEventListener('input', handleManualNameInput);
-    manualNameInput.addEventListener('change', handleManualNameFinish);
     manualNameInput.addEventListener('blur', handleManualNameFinish);
     manualNameInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {

@@ -189,20 +189,17 @@
         <div class="bg-slate-900 border-t border-slate-800 p-3 sm:p-4 shrink-0">
           <div class="flex gap-2 sm:gap-4 items-center max-w-2xl mx-auto">
             <div class="flex-1">
-              <input type="text" id="manual-name" placeholder="Artículo manual..."
+              <input type="text" id="manual-name" placeholder="Artículo y precio (ej: Caldo de gallina 35)..."
                 class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3.5 py-2 text-sm outline-none focus:border-slate-500 transition-all text-white placeholder:text-slate-500">
             </div>
-            <button type="button" id="manual-mic-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 p-2 sm:px-3 sm:py-2 rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1 shrink-0 cursor-pointer shadow-sm select-none" title="Dictar artículo manual">
-              <span id="manual-mic-icon" class="text-base select-none">🎙️</span>
-              <span id="manual-mic-text" class="hidden sm:inline text-xs font-bold">Dictar</span>
-            </button>
             <div class="w-24 sm:w-32 relative shrink-0">
               <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">Q</span>
               <input type="number" id="manual-price" placeholder="0.00"
                 class="w-full bg-slate-800/50 border border-slate-700 rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:border-slate-500 transition-all text-white placeholder:text-slate-500">
             </div>
             <button id="add-manual-btn"
-              class="bg-emerald-600 hover:bg-emerald-500 text-white p-2.5 rounded-lg transition-colors ring-offset-2 ring-offset-slate-900 focus:ring-2 focus:ring-emerald-500 shrink-0 cursor-pointer">
+              class="bg-emerald-600 hover:bg-emerald-500 text-white p-2.5 rounded-lg transition-colors ring-offset-2 ring-offset-slate-900 focus:ring-2 focus:ring-emerald-500 shrink-0 cursor-pointer"
+              title="Añadir artículo manual">
               <span class="sr-only">Añadir manual</span>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

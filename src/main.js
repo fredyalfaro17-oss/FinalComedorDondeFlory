@@ -1903,197 +1903,85 @@ function setupEventListeners() {
     elPago.oninput = (e) => customerInfo.pago = e.target.value;
   }
 
-  // Manual Add
-  const addManual = () => {
-    stopManualListening();
-    const nameInput = document.getElementById('manual-name');
-    const priceInput = document.getElementById('manual-price');
-    let name = nameInput.value.trim();
-    let price = parseFloat(priceInput.value);
-
-    // Si el usuario puso el precio en el nombre (ej: "Chuchito de carne 10" o usando el microfono del teclado)
-    if (isNaN(price)) {
-      const matchPrice = name.match(/^(.*?)(?:\s+(?:de|a)?\s*(?:q(?:uetzales)?\.?\s*)?(\d+(?:\.\d{1,2})?)(?:\s*q(?:uetzales)?)?)?$/i);
-      if (matchPrice && matchPrice[2]) {
-        name = matchPrice[1].trim();
-        price = parseFloat(matchPrice[2]);
+  // Separador inteligente de nombre y precio
+  function extractNameAndPrice(rawText) {
+    if (!rawText) return null;
+    const text = rawText.trim();
+    // Coincide con: [Nombre del producto] + [opcional: de / a / - / :] + [opcional: Q / quetzales / Q.] + [Precio numérico] + [opcional: quetzales]
+    const regex = /^(.*?)(?:\s+(?:de|a|\-|\:)?\s*(?:q(?:uetzales)?\.?\s*)?(\d+(?:\.\d{1,2})?)(?:\s*q(?:uetzales)?)?)$/i;
+    const match = text.match(regex);
+    if (match && match[1] && match[2]) {
+      const name = match[1].trim();
+      const price = match[2].trim();
+      if (name.length > 0 && !isNaN(parseFloat(price))) {
+        return { name, price };
       }
     }
+    return null;
+  }
 
-    if (name && !isNaN(price)) {
+  const manualNameInput = document.getElementById('manual-name');
+  const manualPriceInput = document.getElementById('manual-price');
+
+  // Separación automática en tiempo real mientras el usuario escribe o dicta con el teclado
+  const handleManualNameInput = () => {
+    if (!manualNameInput || !manualPriceInput) return;
+    const raw = manualNameInput.value;
+    const extracted = extractNameAndPrice(raw);
+    if (extracted) {
+      manualNameInput.value = extracted.name;
+      manualPriceInput.value = extracted.price;
+      manualPriceInput.classList.add('ring-2', 'ring-emerald-500');
+      setTimeout(() => manualPriceInput.classList.remove('ring-2', 'ring-emerald-500'), 800);
+    }
+  };
+
+  if (manualNameInput) {
+    manualNameInput.addEventListener('input', handleManualNameInput);
+    manualNameInput.addEventListener('change', handleManualNameInput);
+    manualNameInput.addEventListener('blur', handleManualNameInput);
+    manualNameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        handleManualNameInput();
+        addManual();
+      }
+    });
+  }
+
+  // Manual Add
+  const addManual = () => {
+    if (!manualNameInput || !manualPriceInput) return;
+    let name = manualNameInput.value.trim();
+    let price = parseFloat(manualPriceInput.value);
+
+    // Si el usuario aún no había separado el precio del nombre
+    const extracted = extractNameAndPrice(name);
+    if (extracted) {
+      name = extracted.name;
+      price = parseFloat(extracted.price);
+      manualNameInput.value = name;
+      manualPriceInput.value = extracted.price;
+    }
+
+    if (name && !isNaN(price) && price > 0) {
       addItemToCart({ name, price }, 1);
-      nameInput.value = '';
-      priceInput.value = '';
+      manualNameInput.value = '';
+      manualPriceInput.value = '';
+      showReportToast(`✅ Añadido: ${name} — Q${price.toFixed(2)}`);
+      manualNameInput.focus();
     } else if (!name) {
-      showReportToast('⚠️ Ingresa el nombre del artículo');
-    } else if (isNaN(price)) {
+      showReportToast('⚠️ Ingresa o dicta el nombre del artículo');
+    } else if (isNaN(price) || price <= 0) {
       showReportToast('⚠️ Ingresa o dicta el precio (ej: 10)');
     }
   };
 
-  document.getElementById('add-manual-btn').onclick = addManual;
-  document.getElementById('manual-price').onkeydown = (e) => {
-    if (e.key === 'Enter') addManual();
-  };
-
-  // Micrófono para dictar Artículo Manual
-  const manualMicBtn = document.getElementById('manual-mic-btn');
-  const manualMicIcon = document.getElementById('manual-mic-icon');
-  const manualMicText = document.getElementById('manual-mic-text');
-  const manualNameInput = document.getElementById('manual-name');
-  const manualPriceInput = document.getElementById('manual-price');
-  const GlobalSpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  let activeManualRecognition = null;
-  let isManualListening = false;
-  let lastManualTap = 0;
-
-  let manualWatchdog = null;
-
-  const stopManualListening = () => {
-    isManualListening = false;
-    if (manualWatchdog) {
-      clearTimeout(manualWatchdog);
-      manualWatchdog = null;
-    }
-    if (manualMicBtn) {
-      manualMicBtn.className = 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 p-2 sm:px-3 sm:py-2 rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1 shrink-0 cursor-pointer shadow-sm select-none';
-      if (manualMicIcon) manualMicIcon.textContent = '🎙️';
-      if (manualMicText) manualMicText.textContent = 'Dictar';
-    }
-    const rec = activeManualRecognition || window._floryManualRec;
-    activeManualRecognition = null;
-    window._floryManualRec = null;
-    if (rec) {
-      try {
-        rec.onstart = null;
-        rec.onspeechstart = null;
-        rec.onresult = null;
-        rec.onerror = null;
-        rec.onend = null;
-        rec.abort();
-      } catch {}
-    }
-  };
-
-  const startManualListening = () => {
-    if (!GlobalSpeechRecognition) {
-      showReportToast('⚠️ Tu navegador no soporta dictado por voz');
-      return;
-    }
-    stopManualListening();
-
-    try {
-      const rec = new GlobalSpeechRecognition();
-      activeManualRecognition = rec;
-      window._floryManualRec = rec;
-
-      rec.lang = 'es-MX';
-      rec.continuous = false;
-      rec.interimResults = true;
-      rec.maxAlternatives = 1;
-
-      rec.onstart = () => {
-        isManualListening = true;
-        if (manualMicBtn) {
-          manualMicBtn.className = 'bg-red-600 text-white border border-red-400 p-2 sm:px-3 sm:py-2 rounded-lg transition-all active:scale-95 animate-pulse flex items-center justify-center gap-1 shrink-0 cursor-pointer shadow-lg shadow-red-950 select-none';
-          if (manualMicIcon) manualMicIcon.textContent = '🔴';
-          if (manualMicText) manualMicText.textContent = 'Escuchando...';
-        }
-        showReportToast('🎙️ Escuchando... Habla ahora');
-
-        if (manualWatchdog) clearTimeout(manualWatchdog);
-        manualWatchdog = setTimeout(() => {
-          stopManualListening();
-        }, 10000);
-      };
-
-      rec.onspeechstart = () => {
-        showReportToast('🔊 Voz detectada, procesando...');
-      };
-
-      rec.onresult = (event) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          transcript += event.results[i][0].transcript;
-        }
-        transcript = transcript.trim();
-        if (transcript && manualNameInput) {
-          showReportToast('✍️ ' + transcript);
-          // Si el usuario dijo nombre y precio (ej: "Chuchito de carne 10" o "Gaseosa a 15 quetzales")
-          const matchPrice = transcript.match(/^(.*?)(?:\s+(?:de|a)?\s*(?:q(?:uetzales)?\.?\s*)?(\d+(?:\.\d{1,2})?)(?:\s*q(?:uetzales)?)?)?$/i);
-          if (matchPrice && matchPrice[2]) {
-            const parsedName = matchPrice[1].trim();
-            const parsedPrice = matchPrice[2];
-            if (parsedName) {
-              manualNameInput.value = parsedName;
-              if (manualPriceInput) manualPriceInput.value = parsedPrice;
-              manualNameInput.dispatchEvent(new Event('input', { bubbles: true }));
-              if (manualPriceInput) manualPriceInput.dispatchEvent(new Event('input', { bubbles: true }));
-              return;
-            }
-          }
-          manualNameInput.value = transcript;
-          manualNameInput.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-      };
-
-      rec.onerror = (event) => {
-        console.warn('Manual speech recognition error:', event.error);
-        if (event.error === 'aborted') {
-          stopManualListening();
-          return;
-        }
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          showReportToast('⚠️ Permiso denegado: Revisa Ajustes > Safari > Micrófono y Teclado > Dictado');
-        } else if (event.error === 'no-speech') {
-          showReportToast('⚠️ No se escuchó voz. Habla claro cerca del teléfono');
-        } else if (event.error === 'audio-capture') {
-          showReportToast('⚠️ Micrófono ocupado por otra app');
-        } else if (event.error === 'network') {
-          showReportToast('⚠️ Error de conexión con el dictado');
-        } else {
-          showReportToast('⚠️ Error micrófono: ' + event.error);
-        }
-        stopManualListening();
-      };
-
-      rec.onend = () => {
-        stopManualListening();
-      };
-
-      try {
-        rec.start();
-      } catch (err) {
-        console.warn('Manual recognition start error:', err);
-        showReportToast('⚠️ Error al encender micrófono: ' + (err.message || err));
-        stopManualListening();
-      }
-    } catch (e) {
-      console.warn('Manual recognition init error:', e);
-      showReportToast('⚠️ Error al crear micrófono: ' + (e.message || e));
-      stopManualListening();
-    }
-  };
-
-  if (manualMicBtn) {
-    if (GlobalSpeechRecognition) {
-      manualMicBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const now = Date.now();
-        if (now - lastManualTap < 500) return;
-        lastManualTap = now;
-
-        if (isManualListening) {
-          stopManualListening();
-        } else {
-          startManualListening();
-        }
-      };
-    } else {
-      manualMicBtn.style.display = 'none';
-    }
+  const addManualBtn = document.getElementById('add-manual-btn');
+  if (addManualBtn) addManualBtn.onclick = addManual;
+  if (manualPriceInput) {
+    manualPriceInput.onkeydown = (e) => {
+      if (e.key === 'Enter') addManual();
+    };
   }
 
   // Cart Actions

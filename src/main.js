@@ -1906,25 +1906,51 @@ function setupEventListeners() {
   // Separador inteligente de nombre y precio
   function extractNameAndPrice(rawText) {
     if (!rawText) return null;
-    const text = rawText.trim();
-    // Coincide con: [Nombre del producto] + [opcional: de / a / - / :] + [opcional: Q / quetzales / Q.] + [Precio numérico] + [opcional: quetzales]
-    const regex = /^(.*?)(?:\s+(?:de|a|\-|\:)?\s*(?:q(?:uetzales)?\.?\s*)?(\d+(?:\.\d{1,2})?)(?:\s*q(?:uetzales)?)?)$/i;
+    // 1. Limpiar espacios y puntuación al final (ej: punto "." que agrega Siri al pausar)
+    let text = rawText.trim().replace(/[\.\,\;\:\!\?]+$/, '').trim();
+
+    // 2. Coincide con [Nombre del producto] + [conector opcional: de, a, de a, -, :] + [Q opcional] + [Precio numérico] + [quetzales opcional]
+    const regex = /^(.*?)(?:[\s,]+(?:de\s+a|de|a|\-|\:)?\s*(?:q(?:uetzales)?\.?\s*)?(\d+(?:\.\d{1,2})?)(?:\s*q(?:uetzales)?)?)$/i;
     const match = text.match(regex);
     if (match && match[1] && match[2]) {
-      const name = match[1].trim();
+      const name = match[1].replace(/[\,\.\-\:\;\s]+$/, '').trim();
       const price = match[2].trim();
       if (name.length > 0 && !isNaN(parseFloat(price))) {
         return { name, price };
       }
     }
+
+    // 3. Fallback: buscar el último número al final del texto
+    const fallbackRegex = /^(.*?)[\s,]+(?:q\.?\s*)?(\d+(?:\.\d{1,2})?)$/i;
+    const fallbackMatch = text.match(fallbackRegex);
+    if (fallbackMatch && fallbackMatch[1] && fallbackMatch[2]) {
+      const name = fallbackMatch[1].replace(/[\,\.\-\:\;\s]+$/, '').trim();
+      const price = fallbackMatch[2].trim();
+      if (name.length > 0 && !isNaN(parseFloat(price))) {
+        return { name, price };
+      }
+    }
+
     return null;
   }
 
   const manualNameInput = document.getElementById('manual-name');
   const manualPriceInput = document.getElementById('manual-price');
 
-  // Separación al terminar de escribir/dictar (blur, change) o al presionar Enter
-  // NOTA: NO escuchar el evento 'input' para no interrumpir el cursor ni el buffer de dictado de Siri en iPhone
+  // Mientras se escribe o dicta: detecta el precio y lo muestra en la casilla de precio de inmediato
+  // (sin alterar el nombre aún para no interrumpir el cursor de Siri en iPhone)
+  const handleManualNameInput = () => {
+    if (!manualNameInput || !manualPriceInput) return;
+    const raw = manualNameInput.value;
+    const extracted = extractNameAndPrice(raw);
+    if (extracted) {
+      manualPriceInput.value = extracted.price;
+      manualPriceInput.classList.add('ring-2', 'ring-emerald-500');
+      setTimeout(() => manualPriceInput.classList.remove('ring-2', 'ring-emerald-500'), 800);
+    }
+  };
+
+  // Al terminar (desenfocar, cambio o Enter): limpia el nombre quitándole el precio
   const handleManualNameFinish = () => {
     if (!manualNameInput || !manualPriceInput) return;
     const raw = manualNameInput.value;
@@ -1932,12 +1958,11 @@ function setupEventListeners() {
     if (extracted) {
       manualNameInput.value = extracted.name;
       manualPriceInput.value = extracted.price;
-      manualPriceInput.classList.add('ring-2', 'ring-emerald-500');
-      setTimeout(() => manualPriceInput.classList.remove('ring-2', 'ring-emerald-500'), 800);
     }
   };
 
   if (manualNameInput) {
+    manualNameInput.addEventListener('input', handleManualNameInput);
     manualNameInput.addEventListener('change', handleManualNameFinish);
     manualNameInput.addEventListener('blur', handleManualNameFinish);
     manualNameInput.addEventListener('keydown', (e) => {

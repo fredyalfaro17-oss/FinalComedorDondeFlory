@@ -324,21 +324,28 @@ function openItemModal(item) {
       if (micIcon) micIcon.textContent = '🎙️';
       if (micText) micText.textContent = 'Dictar';
     }
-    if (activeModalRec) {
-      const rec = activeModalRec;
-      activeModalRec = null;
+    const rec = activeModalRec || window._floryModalRec;
+    activeModalRec = null;
+    window._floryModalRec = null;
+    if (rec) {
       try { rec.stop(); } catch {}
     }
   };
 
   const startModalListening = () => {
-    if (!SpeechRecognition) return;
+    if (!SpeechRecognition) {
+      showReportToast('⚠️ Tu navegador no soporta dictado por voz');
+      return;
+    }
     stopModalListening();
 
     try {
       const rec = new SpeechRecognition();
       activeModalRec = rec;
-      rec.lang = 'es-MX';
+      window._floryModalRec = rec;
+
+      const systemLang = navigator.language || 'es-MX';
+      rec.lang = systemLang.toLowerCase().startsWith('es') ? systemLang : 'es-MX';
       rec.continuous = false;
       rec.interimResults = true;
       rec.maxAlternatives = 1;
@@ -361,11 +368,17 @@ function openItemModal(item) {
       };
 
       rec.onresult = (event) => {
-        let transcript = '';
+        let interimText = '';
+        let finalText = '';
         for (let i = 0; i < event.results.length; ++i) {
-          transcript += event.results[i][0].transcript;
+          const item = event.results[i];
+          if (item.isFinal) {
+            finalText += item[0].transcript;
+          } else {
+            interimText += item[0].transcript;
+          }
         }
-        transcript = transcript.trim();
+        const transcript = (finalText || interimText).trim();
         if (transcript && textarea) {
           showReportToast('✍️ ' + transcript);
           textarea.value = baseText ? `${baseText}, ${transcript}` : transcript;
@@ -376,7 +389,7 @@ function openItemModal(item) {
       rec.onerror = (event) => {
         console.warn('Speech recognition modal error:', event.error);
         if (event.error === 'aborted') {
-          // El usuario canceló o detuvo el dictado; comportamiento normal, no mostrar error
+          // El usuario canceló o detuvo el dictado; no mostrar error
           stopModalListening();
           return;
         }
@@ -395,12 +408,26 @@ function openItemModal(item) {
       };
 
       rec.onend = () => {
-        stopModalListening();
+        isListening = false;
+        activeModalRec = null;
+        window._floryModalRec = null;
+        if (micBtn) {
+          micBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all active:scale-95 select-none shadow-sm cursor-pointer';
+          if (micIcon) micIcon.textContent = '🎙️';
+          if (micText) micText.textContent = 'Dictar';
+        }
       };
 
-      rec.start();
+      try {
+        rec.start();
+      } catch (err) {
+        console.warn('SpeechRecognition start() error:', err);
+        showReportToast('⚠️ Error al encender micrófono: ' + (err.message || err));
+        stopModalListening();
+      }
     } catch (err) {
-      console.warn('SpeechRecognition init/start error:', err);
+      console.warn('SpeechRecognition init error:', err);
+      showReportToast('⚠️ Error al crear micrófono: ' + (err.message || err));
       stopModalListening();
     }
   };
@@ -1913,9 +1940,10 @@ function setupEventListeners() {
       if (manualMicIcon) manualMicIcon.textContent = '🎙️';
       if (manualMicText) manualMicText.textContent = 'Dictar';
     }
-    if (activeManualRecognition) {
-      const rec = activeManualRecognition;
-      activeManualRecognition = null;
+    const rec = activeManualRecognition || window._floryManualRec;
+    activeManualRecognition = null;
+    window._floryManualRec = null;
+    if (rec) {
       try { rec.stop(); } catch {}
     }
   };
@@ -1930,7 +1958,10 @@ function setupEventListeners() {
     try {
       const rec = new GlobalSpeechRecognition();
       activeManualRecognition = rec;
-      rec.lang = 'es-MX';
+      window._floryManualRec = rec;
+
+      const systemLang = navigator.language || 'es-MX';
+      rec.lang = systemLang.toLowerCase().startsWith('es') ? systemLang : 'es-MX';
       rec.continuous = false;
       rec.interimResults = true;
       rec.maxAlternatives = 1;
@@ -1950,11 +1981,17 @@ function setupEventListeners() {
       };
 
       rec.onresult = (event) => {
-        let transcript = '';
+        let interimText = '';
+        let finalText = '';
         for (let i = 0; i < event.results.length; ++i) {
-          transcript += event.results[i][0].transcript;
+          const item = event.results[i];
+          if (item.isFinal) {
+            finalText += item[0].transcript;
+          } else {
+            interimText += item[0].transcript;
+          }
         }
-        transcript = transcript.trim();
+        const transcript = (finalText || interimText).trim();
         if (transcript && manualNameInput) {
           showReportToast('✍️ ' + transcript);
           // Si el usuario dijo nombre y precio (ej: "Chuchito de carne 10" o "Gaseosa a 15 quetzales")
@@ -1978,7 +2015,7 @@ function setupEventListeners() {
       rec.onerror = (event) => {
         console.warn('Manual speech recognition error:', event.error);
         if (event.error === 'aborted') {
-          // El usuario canceló o detuvo el dictado; comportamiento normal, no mostrar error
+          // El usuario canceló o detuvo el dictado; no mostrar error
           stopManualListening();
           return;
         }
@@ -1997,12 +2034,26 @@ function setupEventListeners() {
       };
 
       rec.onend = () => {
-        stopManualListening();
+        isManualListening = false;
+        activeManualRecognition = null;
+        window._floryManualRec = null;
+        if (manualMicBtn) {
+          manualMicBtn.className = 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 p-2 sm:px-3 sm:py-2 rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1 shrink-0 cursor-pointer shadow-sm select-none';
+          if (manualMicIcon) manualMicIcon.textContent = '🎙️';
+          if (manualMicText) manualMicText.textContent = 'Dictar';
+        }
       };
 
-      rec.start();
+      try {
+        rec.start();
+      } catch (err) {
+        console.warn('Manual recognition start error:', err);
+        showReportToast('⚠️ Error al encender micrófono: ' + (err.message || err));
+        stopManualListening();
+      }
     } catch (e) {
-      console.warn('Manual recognition start error:', e);
+      console.warn('Manual recognition init error:', e);
+      showReportToast('⚠️ Error al crear micrófono: ' + (e.message || e));
       stopManualListening();
     }
   };

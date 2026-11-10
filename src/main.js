@@ -309,47 +309,58 @@ function openItemModal(item) {
   document.getElementById('qty-minus').onclick = () => updateQty(qty - 1);
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recognition = null;
+  let activeModalRec = null;
   let isListening = false;
+  let lastModalTap = 0;
   const micBtn = document.getElementById('mic-btn');
   const micIcon = document.getElementById('mic-icon');
   const micText = document.getElementById('mic-text');
   const textarea = document.getElementById('custom-details');
 
-  const stopListening = () => {
+  const stopModalListening = () => {
     isListening = false;
     if (micBtn) {
       micBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all active:scale-95 select-none shadow-sm cursor-pointer';
       if (micIcon) micIcon.textContent = '🎙️';
       if (micText) micText.textContent = 'Dictar';
     }
+    if (activeModalRec) {
+      const rec = activeModalRec;
+      activeModalRec = null;
+      try { rec.stop(); } catch {}
+    }
   };
 
-  if (SpeechRecognition && micBtn) {
+  const startModalListening = () => {
+    if (!SpeechRecognition) return;
+    stopModalListening();
+
     try {
-      recognition = new SpeechRecognition();
-      // 'es-MX' es el dialecto latino soportado 100% por iOS Safari (Siri), Chrome y Edge
-      recognition.lang = 'es-MX';
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.maxAlternatives = 1;
+      const rec = new SpeechRecognition();
+      activeModalRec = rec;
+      rec.lang = 'es-MX';
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
 
-      let baseText = '';
+      let baseText = textarea ? textarea.value.trim() : '';
 
-      recognition.onstart = () => {
+      rec.onstart = () => {
         isListening = true;
         baseText = textarea ? textarea.value.trim() : '';
-        micBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-red-600 text-white border border-red-400 transition-all active:scale-95 select-none shadow-lg shadow-red-950 animate-pulse cursor-pointer';
-        if (micIcon) micIcon.textContent = '🔴';
-        if (micText) micText.textContent = 'Escuchando...';
+        if (micBtn) {
+          micBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-red-600 text-white border border-red-400 transition-all active:scale-95 select-none shadow-lg shadow-red-950 animate-pulse cursor-pointer';
+          if (micIcon) micIcon.textContent = '🔴';
+          if (micText) micText.textContent = 'Escuchando...';
+        }
         showReportToast('🎙️ Escuchando... Habla ahora');
       };
 
-      recognition.onspeechstart = () => {
+      rec.onspeechstart = () => {
         showReportToast('🔊 Voz detectada, procesando...');
       };
 
-      recognition.onresult = (event) => {
+      rec.onresult = (event) => {
         let transcript = '';
         for (let i = 0; i < event.results.length; ++i) {
           transcript += event.results[i][0].transcript;
@@ -362,12 +373,17 @@ function openItemModal(item) {
         }
       };
 
-      recognition.onerror = (event) => {
-        console.warn('Speech recognition error:', event.error);
-        if (event.error === 'not-allowed') {
-          showReportToast('⚠️ Permiso denegado: Ve a Ajustes > Safari > Micrófono');
+      rec.onerror = (event) => {
+        console.warn('Speech recognition modal error:', event.error);
+        if (event.error === 'aborted') {
+          // El usuario canceló o detuvo el dictado; comportamiento normal, no mostrar error
+          stopModalListening();
+          return;
+        }
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          showReportToast('⚠️ Permiso denegado: Revisa Ajustes > Safari > Micrófono y Teclado > Dictado');
         } else if (event.error === 'no-speech') {
-          showReportToast('⚠️ No se escuchó voz. Habla de inmediato al tocar el botón');
+          showReportToast('⚠️ No se escuchó voz. Habla claro cerca del teléfono');
         } else if (event.error === 'audio-capture') {
           showReportToast('⚠️ Micrófono ocupado por otra app');
         } else if (event.error === 'network') {
@@ -375,47 +391,46 @@ function openItemModal(item) {
         } else {
           showReportToast('⚠️ Error micrófono: ' + event.error);
         }
-        stopListening();
+        stopModalListening();
       };
 
-      recognition.onend = () => {
-        stopListening();
+      rec.onend = () => {
+        stopModalListening();
       };
 
-      micBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (isListening) {
-          recognition.stop();
-        } else {
-          try {
-            recognition.start();
-          } catch (e) {
-            console.warn('Recognition start error:', e);
-            stopListening();
-          }
-        }
-      };
+      rec.start();
     } catch (err) {
-      console.warn('SpeechRecognition init error:', err);
-      if (micBtn) micBtn.style.display = 'none';
+      console.warn('SpeechRecognition init/start error:', err);
+      stopModalListening();
     }
+  };
+
+  if (SpeechRecognition && micBtn) {
+    micBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const now = Date.now();
+      if (now - lastModalTap < 500) return;
+      lastModalTap = now;
+
+      if (isListening) {
+        stopModalListening();
+      } else {
+        startModalListening();
+      }
+    };
   } else if (micBtn) {
     micBtn.style.display = 'none';
   }
 
   const closeModal = () => {
-    if (recognition && isListening) {
-      try { recognition.stop(); } catch {}
-    }
+    stopModalListening();
     modalOverlay.classList.add('hidden');
   };
 
   document.getElementById('close-modal-btn').onclick = closeModal;
   document.getElementById('add-to-cart-btn').onclick = () => {
-    if (recognition && isListening) {
-      try { recognition.stop(); } catch {}
-    }
+    stopModalListening();
     const customDescription = document.getElementById('custom-details').value.trim();
     addItemToCart(item, qty, customDescription);
     modalOverlay.classList.add('hidden');
@@ -1861,6 +1876,7 @@ function setupEventListeners() {
 
   // Manual Add
   const addManual = () => {
+    stopManualListening();
     const nameInput = document.getElementById('manual-name');
     const priceInput = document.getElementById('manual-price');
     const name = nameInput.value.trim();
@@ -1888,6 +1904,7 @@ function setupEventListeners() {
 
   let activeManualRecognition = null;
   let isManualListening = false;
+  let lastManualTap = 0;
 
   const stopManualListening = () => {
     isManualListening = false;
@@ -1897,8 +1914,9 @@ function setupEventListeners() {
       if (manualMicText) manualMicText.textContent = 'Dictar';
     }
     if (activeManualRecognition) {
-      try { activeManualRecognition.abort(); } catch {}
+      const rec = activeManualRecognition;
       activeManualRecognition = null;
+      try { rec.stop(); } catch {}
     }
   };
 
@@ -1907,17 +1925,17 @@ function setupEventListeners() {
       showReportToast('⚠️ Tu navegador no soporta dictado por voz');
       return;
     }
-    try {
-      if (activeManualRecognition) {
-        try { activeManualRecognition.abort(); } catch {}
-      }
-      activeManualRecognition = new GlobalSpeechRecognition();
-      activeManualRecognition.lang = 'es-MX';
-      activeManualRecognition.continuous = false;
-      activeManualRecognition.interimResults = true;
-      activeManualRecognition.maxAlternatives = 1;
+    stopManualListening();
 
-      activeManualRecognition.onstart = () => {
+    try {
+      const rec = new GlobalSpeechRecognition();
+      activeManualRecognition = rec;
+      rec.lang = 'es-MX';
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
+
+      rec.onstart = () => {
         isManualListening = true;
         if (manualMicBtn) {
           manualMicBtn.className = 'bg-red-600 text-white border border-red-400 p-2 sm:px-3 sm:py-2 rounded-lg transition-all active:scale-95 animate-pulse flex items-center justify-center gap-1 shrink-0 cursor-pointer shadow-lg shadow-red-950 select-none';
@@ -1927,11 +1945,11 @@ function setupEventListeners() {
         showReportToast('🎙️ Escuchando... Habla ahora');
       };
 
-      activeManualRecognition.onspeechstart = () => {
+      rec.onspeechstart = () => {
         showReportToast('🔊 Voz detectada, procesando...');
       };
 
-      activeManualRecognition.onresult = (event) => {
+      rec.onresult = (event) => {
         let transcript = '';
         for (let i = 0; i < event.results.length; ++i) {
           transcript += event.results[i][0].transcript;
@@ -1939,8 +1957,8 @@ function setupEventListeners() {
         transcript = transcript.trim();
         if (transcript && manualNameInput) {
           showReportToast('✍️ ' + transcript);
-          // Si el usuario dijo nombre y precio (ej: "Chuchito de carne 10" o "Gaseosa 15 quetzales")
-          const matchPrice = transcript.match(/^(.*?)(?:\s+(?:de\s+)?(?:q(?:uetzales)?\.?\s*)?(\d+(?:\.\d{1,2})?)(?:\s*q(?:uetzales)?)?)?$/i);
+          // Si el usuario dijo nombre y precio (ej: "Chuchito de carne 10" o "Gaseosa a 15 quetzales")
+          const matchPrice = transcript.match(/^(.*?)(?:\s+(?:de|a)?\s*(?:q(?:uetzales)?\.?\s*)?(\d+(?:\.\d{1,2})?)(?:\s*q(?:uetzales)?)?)?$/i);
           if (matchPrice && matchPrice[2]) {
             const parsedName = matchPrice[1].trim();
             const parsedPrice = matchPrice[2];
@@ -1957,12 +1975,17 @@ function setupEventListeners() {
         }
       };
 
-      activeManualRecognition.onerror = (event) => {
+      rec.onerror = (event) => {
         console.warn('Manual speech recognition error:', event.error);
-        if (event.error === 'not-allowed') {
-          showReportToast('⚠️ Permiso denegado: Ve a Ajustes > Safari > Micrófono');
+        if (event.error === 'aborted') {
+          // El usuario canceló o detuvo el dictado; comportamiento normal, no mostrar error
+          stopManualListening();
+          return;
+        }
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          showReportToast('⚠️ Permiso denegado: Revisa Ajustes > Safari > Micrófono y Teclado > Dictado');
         } else if (event.error === 'no-speech') {
-          showReportToast('⚠️ No se escuchó voz. Habla de inmediato al tocar el botón');
+          showReportToast('⚠️ No se escuchó voz. Habla claro cerca del teléfono');
         } else if (event.error === 'audio-capture') {
           showReportToast('⚠️ Micrófono ocupado por otra app');
         } else if (event.error === 'network') {
@@ -1973,11 +1996,11 @@ function setupEventListeners() {
         stopManualListening();
       };
 
-      activeManualRecognition.onend = () => {
+      rec.onend = () => {
         stopManualListening();
       };
 
-      activeManualRecognition.start();
+      rec.start();
     } catch (e) {
       console.warn('Manual recognition start error:', e);
       stopManualListening();
@@ -1989,6 +2012,10 @@ function setupEventListeners() {
       manualMicBtn.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
+        const now = Date.now();
+        if (now - lastManualTap < 500) return;
+        lastManualTap = now;
+
         if (isManualListening) {
           stopManualListening();
         } else {

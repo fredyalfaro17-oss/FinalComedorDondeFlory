@@ -23,7 +23,7 @@ if not exist %CHROME_BIN% set CHROME_BIN="C:\Program Files\Microsoft\Edge\Applic
 
 set KIOSK_PROFILE=--user-data-dir="%LOCALAPPDATA%\Google\Chrome\FloryCajaProfile"
 
-start "" %CHROME_BIN% --kiosk-printing %KIOSK_PROFILE% --app=http://localhost:5173/menu.html
+start "" %CHROME_BIN% --kiosk-printing %KIOSK_PROFILE% --app=http://localhost:5173/menu.html?caja=true
 
 echo ✅ ¡Sistema de Caja listo e imprimiendo automáticamente!
 timeout /t 4 > nul

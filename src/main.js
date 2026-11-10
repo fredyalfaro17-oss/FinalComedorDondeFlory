@@ -1190,9 +1190,16 @@ function checkAutoPrintQueue(sales) {
 }
 
 export function initAutoPrintToggle() {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('caja') === 'true') {
+    localStorage.setItem('flory_autoprint_enabled', 'true');
+  }
+
   let isAutoPrintEnabled = localStorage.getItem('flory_autoprint_enabled');
   if (isAutoPrintEnabled === null) {
-    isAutoPrintEnabled = 'true';
+    // Los teléfonos y tablets no tienen impresora física conectada por USB; desactivar por defecto para no estorbar
+    const isMobile = window.innerWidth < 768 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    isAutoPrintEnabled = isMobile ? 'false' : 'true';
     localStorage.setItem('flory_autoprint_enabled', isAutoPrintEnabled);
   }
 

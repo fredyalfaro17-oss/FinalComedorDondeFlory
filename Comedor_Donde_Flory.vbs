@@ -2,7 +2,7 @@ Set WshShell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 
 appDir = "c:\Users\alfar\Downloads\Test_OpenCode"
-appUrl = "http://localhost:5173/menu.html"
+appUrl = "http://localhost:5173/menu.html?caja=true"
 
 ' Iniciar el servidor Vite en segundo plano de manera 100% invisible si aún no está activo
 WshShell.Run "powershell -WindowStyle Hidden -Command ""if (!(Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue)) { Start-Process cmd -ArgumentList '/c npm run dev' -WorkingDirectory '" & appDir & "' -WindowStyle Hidden; Start-Sleep -Seconds 2 }""", 0, True

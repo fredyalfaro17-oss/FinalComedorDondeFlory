@@ -1950,6 +1950,7 @@ function setupEventListeners() {
 
   // Manual Add
   const addManual = () => {
+    stopManualListening();
     if (!manualNameInput || !manualPriceInput) return;
     let name = manualNameInput.value.trim();
     let price = parseFloat(manualPriceInput.value);
@@ -1979,6 +1980,159 @@ function setupEventListeners() {
     manualPriceInput.onkeydown = (e) => {
       if (e.key === 'Enter') addManual();
     };
+  }
+
+  // Micrófono para dictar Artículo Manual (PC / Escritorio y Navegadores compatibles)
+  const manualMicBtn = document.getElementById('manual-mic-btn');
+  const manualMicIcon = document.getElementById('manual-mic-icon');
+  const manualMicText = document.getElementById('manual-mic-text');
+  const GlobalSpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  let activeManualRecognition = null;
+  let isManualListening = false;
+  let lastManualTap = 0;
+  let manualWatchdog = null;
+
+  const stopManualListening = () => {
+    isManualListening = false;
+    if (manualWatchdog) {
+      clearTimeout(manualWatchdog);
+      manualWatchdog = null;
+    }
+    if (manualMicBtn) {
+      manualMicBtn.className = 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 p-2 sm:px-3 sm:py-2 rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1 shrink-0 cursor-pointer shadow-sm select-none';
+      if (manualMicIcon) manualMicIcon.textContent = '🎙️';
+      if (manualMicText) manualMicText.textContent = 'Dictar';
+    }
+    const rec = activeManualRecognition || window._floryManualRec;
+    activeManualRecognition = null;
+    window._floryManualRec = null;
+    if (rec) {
+      try {
+        rec.onstart = null;
+        rec.onspeechstart = null;
+        rec.onresult = null;
+        rec.onerror = null;
+        rec.onend = null;
+        rec.stop();
+      } catch {}
+    }
+  };
+
+  const startManualListening = () => {
+    if (!GlobalSpeechRecognition) {
+      showReportToast('⚠️ Tu navegador no soporta dictado por voz');
+      return;
+    }
+    stopManualListening();
+
+    try {
+      const rec = new GlobalSpeechRecognition();
+      activeManualRecognition = rec;
+      window._floryManualRec = rec;
+
+      rec.lang = 'es-MX';
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
+
+      rec.onstart = () => {
+        isManualListening = true;
+        if (manualMicBtn) {
+          manualMicBtn.className = 'bg-red-600 text-white border border-red-400 p-2 sm:px-3 sm:py-2 rounded-lg transition-all active:scale-95 animate-pulse flex items-center justify-center gap-1 shrink-0 cursor-pointer shadow-lg shadow-red-950 select-none';
+          if (manualMicIcon) manualMicIcon.textContent = '🔴';
+          if (manualMicText) manualMicText.textContent = 'Escuchando...';
+        }
+        showReportToast('🎙️ Escuchando... Habla ahora');
+
+        if (manualWatchdog) clearTimeout(manualWatchdog);
+        manualWatchdog = setTimeout(() => {
+          stopManualListening();
+        }, 10000);
+      };
+
+      rec.onspeechstart = () => {
+        showReportToast('🔊 Voz detectada, procesando...');
+      };
+
+      rec.onresult = (event) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          transcript += event.results[i][0].transcript;
+        }
+        transcript = transcript.trim();
+        if (transcript && manualNameInput) {
+          showReportToast('✍️ ' + transcript);
+          const extracted = extractNameAndPrice(transcript);
+          if (extracted) {
+            manualNameInput.value = extracted.name;
+            if (manualPriceInput) {
+              manualPriceInput.value = extracted.price;
+              manualPriceInput.classList.add('ring-2', 'ring-emerald-500');
+              setTimeout(() => manualPriceInput.classList.remove('ring-2', 'ring-emerald-500'), 800);
+            }
+          } else {
+            manualNameInput.value = transcript;
+          }
+        }
+      };
+
+      rec.onerror = (event) => {
+        console.warn('Manual speech recognition error:', event.error);
+        if (event.error === 'aborted') {
+          stopManualListening();
+          return;
+        }
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          showReportToast('⚠️ Permiso de micrófono denegado');
+        } else if (event.error === 'no-speech') {
+          showReportToast('⚠️ No se escuchó voz. Habla claro');
+        } else if (event.error === 'audio-capture') {
+          showReportToast('⚠️ Micrófono ocupado');
+        } else if (event.error === 'network') {
+          showReportToast('⚠️ Error de conexión');
+        } else {
+          showReportToast('⚠️ Error micrófono: ' + event.error);
+        }
+        stopManualListening();
+      };
+
+      rec.onend = () => {
+        stopManualListening();
+      };
+
+      try {
+        rec.start();
+      } catch (err) {
+        console.warn('Manual recognition start error:', err);
+        showReportToast('⚠️ Error al encender micrófono: ' + (err.message || err));
+        stopManualListening();
+      }
+    } catch (e) {
+      console.warn('Manual recognition init error:', e);
+      showReportToast('⚠️ Error al crear micrófono: ' + (e.message || e));
+      stopManualListening();
+    }
+  };
+
+  if (manualMicBtn) {
+    if (GlobalSpeechRecognition) {
+      manualMicBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const now = Date.now();
+        if (now - lastManualTap < 500) return;
+        lastManualTap = now;
+
+        if (isManualListening) {
+          stopManualListening();
+        } else {
+          startManualListening();
+        }
+      };
+    } else {
+      manualMicBtn.style.display = 'none';
+    }
   }
 
   // Cart Actions

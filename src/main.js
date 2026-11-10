@@ -342,6 +342,11 @@ function openItemModal(item) {
         micBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-red-600 text-white border border-red-400 transition-all active:scale-95 select-none shadow-lg shadow-red-950 animate-pulse cursor-pointer';
         if (micIcon) micIcon.textContent = '🔴';
         if (micText) micText.textContent = 'Escuchando...';
+        showReportToast('🎙️ Escuchando... Habla ahora');
+      };
+
+      recognition.onspeechstart = () => {
+        showReportToast('🔊 Voz detectada, procesando...');
       };
 
       recognition.onresult = (event) => {
@@ -351,14 +356,24 @@ function openItemModal(item) {
         }
         transcript = transcript.trim();
         if (transcript && textarea) {
+          showReportToast('✍️ ' + transcript);
           textarea.value = baseText ? `${baseText}, ${transcript}` : transcript;
+          textarea.dispatchEvent(new Event('input', { bubbles: true }));
         }
       };
 
       recognition.onerror = (event) => {
         console.warn('Speech recognition error:', event.error);
         if (event.error === 'not-allowed') {
-          showReportToast('⚠️ Permite el acceso al micrófono en Ajustes de Safari/iPhone');
+          showReportToast('⚠️ Permiso denegado: Ve a Ajustes > Safari > Micrófono');
+        } else if (event.error === 'no-speech') {
+          showReportToast('⚠️ No se escuchó voz. Habla de inmediato al tocar el botón');
+        } else if (event.error === 'audio-capture') {
+          showReportToast('⚠️ Micrófono ocupado por otra app');
+        } else if (event.error === 'network') {
+          showReportToast('⚠️ Error de conexión con el dictado');
+        } else {
+          showReportToast('⚠️ Error micrófono: ' + event.error);
         }
         stopListening();
       };
@@ -1909,7 +1924,11 @@ function setupEventListeners() {
           if (manualMicIcon) manualMicIcon.textContent = '🔴';
           if (manualMicText) manualMicText.textContent = 'Escuchando...';
         }
-        showReportToast('🎙️ Escuchando... Di el nombre del artículo');
+        showReportToast('🎙️ Escuchando... Habla ahora');
+      };
+
+      activeManualRecognition.onspeechstart = () => {
+        showReportToast('🔊 Voz detectada, procesando...');
       };
 
       activeManualRecognition.onresult = (event) => {
@@ -1919,6 +1938,7 @@ function setupEventListeners() {
         }
         transcript = transcript.trim();
         if (transcript && manualNameInput) {
+          showReportToast('✍️ ' + transcript);
           // Si el usuario dijo nombre y precio (ej: "Chuchito de carne 10" o "Gaseosa 15 quetzales")
           const matchPrice = transcript.match(/^(.*?)(?:\s+(?:de\s+)?(?:q(?:uetzales)?\.?\s*)?(\d+(?:\.\d{1,2})?)(?:\s*q(?:uetzales)?)?)?$/i);
           if (matchPrice && matchPrice[2]) {
@@ -1940,7 +1960,15 @@ function setupEventListeners() {
       activeManualRecognition.onerror = (event) => {
         console.warn('Manual speech recognition error:', event.error);
         if (event.error === 'not-allowed') {
-          showReportToast('⚠️ Permite el acceso al micrófono en Ajustes de Safari/iPhone');
+          showReportToast('⚠️ Permiso denegado: Ve a Ajustes > Safari > Micrófono');
+        } else if (event.error === 'no-speech') {
+          showReportToast('⚠️ No se escuchó voz. Habla de inmediato al tocar el botón');
+        } else if (event.error === 'audio-capture') {
+          showReportToast('⚠️ Micrófono ocupado por otra app');
+        } else if (event.error === 'network') {
+          showReportToast('⚠️ Error de conexión con el dictado');
+        } else {
+          showReportToast('⚠️ Error micrófono: ' + event.error);
         }
         stopManualListening();
       };

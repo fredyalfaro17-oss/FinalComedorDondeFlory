@@ -1936,9 +1936,11 @@ function setupEventListeners() {
 
   const manualNameInput = document.getElementById('manual-name');
   const manualPriceInput = document.getElementById('manual-price');
+  let manualSplitTimer = null;
 
-  // Mientras se escribe o dicta: detecta el precio y lo muestra en la casilla de precio de inmediato
-  // (sin alterar el nombre aún para no interrumpir el cursor de Siri en iPhone)
+  // Mientras se escribe o dicta:
+  // 1. Pone el precio en la casilla de precio de inmediato (destello verde)
+  // 2. Tras una breve pausa (500ms al terminar de hablar), limpia el nombre para quitarle el número
   const handleManualNameInput = () => {
     if (!manualNameInput || !manualPriceInput) return;
     const raw = manualNameInput.value;
@@ -1947,11 +1949,23 @@ function setupEventListeners() {
       manualPriceInput.value = extracted.price;
       manualPriceInput.classList.add('ring-2', 'ring-emerald-500');
       setTimeout(() => manualPriceInput.classList.remove('ring-2', 'ring-emerald-500'), 800);
+
+      // Esperar a que el usuario termine de dictar para limpiar el nombre sin interrumpir a Siri
+      if (manualSplitTimer) clearTimeout(manualSplitTimer);
+      manualSplitTimer = setTimeout(() => {
+        const currentRaw = manualNameInput.value;
+        const currentExtracted = extractNameAndPrice(currentRaw);
+        if (currentExtracted) {
+          manualNameInput.value = currentExtracted.name;
+          manualPriceInput.value = currentExtracted.price;
+        }
+      }, 500);
     }
   };
 
-  // Al terminar (desenfocar, cambio o Enter): limpia el nombre quitándole el precio
+  // Al terminar (desenfocar, cambio o Enter): limpia el nombre de inmediato
   const handleManualNameFinish = () => {
+    if (manualSplitTimer) clearTimeout(manualSplitTimer);
     if (!manualNameInput || !manualPriceInput) return;
     const raw = manualNameInput.value;
     const extracted = extractNameAndPrice(raw);

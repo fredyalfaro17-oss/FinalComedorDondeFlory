@@ -1870,39 +1870,48 @@ function setupEventListeners() {
   const manualPriceInput = document.getElementById('manual-price');
   const GlobalSpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  if (GlobalSpeechRecognition && manualMicBtn) {
+  let activeManualRecognition = null;
+  let isManualListening = false;
+
+  const stopManualListening = () => {
+    isManualListening = false;
+    if (manualMicBtn) {
+      manualMicBtn.className = 'absolute right-1.5 p-2 text-slate-400 hover:text-white rounded-lg transition-all active:scale-90 flex items-center justify-center cursor-pointer z-10';
+      if (manualMicIcon) manualMicIcon.textContent = '🎙️';
+    }
+    if (activeManualRecognition) {
+      try { activeManualRecognition.abort(); } catch {}
+      activeManualRecognition = null;
+    }
+  };
+
+  const startManualListening = () => {
+    if (!GlobalSpeechRecognition) return;
     try {
-      const manualRecognition = new GlobalSpeechRecognition();
-      // 'es-MX' compatible con iOS Safari en iPhone, Android y PC
-      manualRecognition.lang = 'es-MX';
-      manualRecognition.continuous = false;
-      manualRecognition.interimResults = true;
-      manualRecognition.maxAlternatives = 1;
-      let isManualListening = false;
+      if (activeManualRecognition) {
+        try { activeManualRecognition.abort(); } catch {}
+      }
+      activeManualRecognition = new GlobalSpeechRecognition();
+      activeManualRecognition.lang = 'es-MX';
+      activeManualRecognition.continuous = false;
+      activeManualRecognition.interimResults = true;
+      activeManualRecognition.maxAlternatives = 1;
 
-      const stopManualListening = () => {
-        isManualListening = false;
-        if (manualMicBtn) {
-          manualMicBtn.className = 'absolute right-2 text-slate-400 hover:text-white p-1 rounded-md transition-all active:scale-90';
-          if (manualMicIcon) manualMicIcon.textContent = '🎙️';
-        }
-      };
-
-      manualRecognition.onstart = () => {
+      activeManualRecognition.onstart = () => {
         isManualListening = true;
         if (manualMicBtn) {
-          manualMicBtn.className = 'absolute right-2 text-red-400 p-1 rounded-md transition-all active:scale-90 animate-pulse';
+          manualMicBtn.className = 'absolute right-1.5 p-2 text-red-400 rounded-lg transition-all active:scale-90 animate-pulse flex items-center justify-center cursor-pointer z-10';
           if (manualMicIcon) manualMicIcon.textContent = '🔴';
         }
       };
 
-      manualRecognition.onresult = (event) => {
+      activeManualRecognition.onresult = (event) => {
         let transcript = '';
         for (let i = 0; i < event.results.length; ++i) {
           transcript += event.results[i][0].transcript;
         }
         transcript = transcript.trim();
-        if (transcript) {
+        if (transcript && manualNameInput) {
           // Si el usuario dijo nombre y precio (ej: "Chuchito de carne 10" o "Gaseosa 15 quetzales")
           const matchPrice = transcript.match(/^(.*?)(?:\s+(?:de\s+)?(?:q(?:uetzales)?\.?\s*)?(\d+(?:\.\d{1,2})?)(?:\s*q(?:uetzales)?)?)?$/i);
           if (matchPrice && matchPrice[2]) {
@@ -1911,40 +1920,49 @@ function setupEventListeners() {
             if (parsedName) {
               manualNameInput.value = parsedName;
               manualPriceInput.value = parsedPrice;
+              manualNameInput.dispatchEvent(new Event('input', { bubbles: true }));
+              manualPriceInput.dispatchEvent(new Event('input', { bubbles: true }));
               return;
             }
           }
           manualNameInput.value = transcript;
+          manualNameInput.dispatchEvent(new Event('input', { bubbles: true }));
         }
       };
 
-      manualRecognition.onerror = (event) => {
+      activeManualRecognition.onerror = (event) => {
+        console.warn('Manual speech recognition error:', event.error);
         if (event.error === 'not-allowed') {
           showReportToast('⚠️ Permite el acceso al micrófono en Ajustes de Safari/iPhone');
         }
         stopManualListening();
       };
-      manualRecognition.onend = () => stopManualListening();
 
+      activeManualRecognition.onend = () => {
+        stopManualListening();
+      };
+
+      activeManualRecognition.start();
+    } catch (e) {
+      console.warn('Manual recognition start error:', e);
+      stopManualListening();
+    }
+  };
+
+  if (manualMicBtn) {
+    if (GlobalSpeechRecognition) {
       manualMicBtn.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
         if (isManualListening) {
-          manualRecognition.stop();
+          stopManualListening();
         } else {
-          try {
-            manualRecognition.start();
-          } catch {
-            stopManualListening();
-          }
+          startManualListening();
         }
       };
-    } catch (e) {
-      console.warn('Manual speech recognition init error:', e);
-      if (manualMicBtn) manualMicBtn.style.display = 'none';
+    } else {
+      manualMicBtn.style.display = 'none';
     }
-  } else if (manualMicBtn) {
-    manualMicBtn.style.display = 'none';
   }
 
   // Cart Actions

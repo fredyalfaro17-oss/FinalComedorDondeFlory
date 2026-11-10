@@ -1866,6 +1866,7 @@ function setupEventListeners() {
   // Micrófono para dictar Artículo Manual
   const manualMicBtn = document.getElementById('manual-mic-btn');
   const manualMicIcon = document.getElementById('manual-mic-icon');
+  const manualMicText = document.getElementById('manual-mic-text');
   const manualNameInput = document.getElementById('manual-name');
   const manualPriceInput = document.getElementById('manual-price');
   const GlobalSpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1876,8 +1877,9 @@ function setupEventListeners() {
   const stopManualListening = () => {
     isManualListening = false;
     if (manualMicBtn) {
-      manualMicBtn.className = 'absolute right-1.5 p-2 text-slate-400 hover:text-white rounded-lg transition-all active:scale-90 flex items-center justify-center cursor-pointer z-10';
+      manualMicBtn.className = 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 p-2 sm:px-3 sm:py-2 rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1 shrink-0 cursor-pointer shadow-sm select-none';
       if (manualMicIcon) manualMicIcon.textContent = '🎙️';
+      if (manualMicText) manualMicText.textContent = 'Dictar';
     }
     if (activeManualRecognition) {
       try { activeManualRecognition.abort(); } catch {}
@@ -1886,7 +1888,10 @@ function setupEventListeners() {
   };
 
   const startManualListening = () => {
-    if (!GlobalSpeechRecognition) return;
+    if (!GlobalSpeechRecognition) {
+      showReportToast('⚠️ Tu navegador no soporta dictado por voz');
+      return;
+    }
     try {
       if (activeManualRecognition) {
         try { activeManualRecognition.abort(); } catch {}
@@ -1900,9 +1905,11 @@ function setupEventListeners() {
       activeManualRecognition.onstart = () => {
         isManualListening = true;
         if (manualMicBtn) {
-          manualMicBtn.className = 'absolute right-1.5 p-2 text-red-400 rounded-lg transition-all active:scale-90 animate-pulse flex items-center justify-center cursor-pointer z-10';
+          manualMicBtn.className = 'bg-red-600 text-white border border-red-400 p-2 sm:px-3 sm:py-2 rounded-lg transition-all active:scale-95 animate-pulse flex items-center justify-center gap-1 shrink-0 cursor-pointer shadow-lg shadow-red-950 select-none';
           if (manualMicIcon) manualMicIcon.textContent = '🔴';
+          if (manualMicText) manualMicText.textContent = 'Escuchando...';
         }
+        showReportToast('🎙️ Escuchando... Di el nombre del artículo');
       };
 
       activeManualRecognition.onresult = (event) => {
@@ -1919,9 +1926,9 @@ function setupEventListeners() {
             const parsedPrice = matchPrice[2];
             if (parsedName) {
               manualNameInput.value = parsedName;
-              manualPriceInput.value = parsedPrice;
+              if (manualPriceInput) manualPriceInput.value = parsedPrice;
               manualNameInput.dispatchEvent(new Event('input', { bubbles: true }));
-              manualPriceInput.dispatchEvent(new Event('input', { bubbles: true }));
+              if (manualPriceInput) manualPriceInput.dispatchEvent(new Event('input', { bubbles: true }));
               return;
             }
           }

@@ -1923,8 +1923,9 @@ function setupEventListeners() {
   const manualNameInput = document.getElementById('manual-name');
   const manualPriceInput = document.getElementById('manual-price');
 
-  // Separación automática en tiempo real mientras el usuario escribe o dicta con el teclado
-  const handleManualNameInput = () => {
+  // Separación al terminar de escribir/dictar (blur, change) o al presionar Enter
+  // NOTA: NO escuchar el evento 'input' para no interrumpir el cursor ni el buffer de dictado de Siri en iPhone
+  const handleManualNameFinish = () => {
     if (!manualNameInput || !manualPriceInput) return;
     const raw = manualNameInput.value;
     const extracted = extractNameAndPrice(raw);
@@ -1937,12 +1938,11 @@ function setupEventListeners() {
   };
 
   if (manualNameInput) {
-    manualNameInput.addEventListener('input', handleManualNameInput);
-    manualNameInput.addEventListener('change', handleManualNameInput);
-    manualNameInput.addEventListener('blur', handleManualNameInput);
+    manualNameInput.addEventListener('change', handleManualNameFinish);
+    manualNameInput.addEventListener('blur', handleManualNameFinish);
     manualNameInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        handleManualNameInput();
+        handleManualNameFinish();
         addManual();
       }
     });
@@ -1954,13 +1954,11 @@ function setupEventListeners() {
     let name = manualNameInput.value.trim();
     let price = parseFloat(manualPriceInput.value);
 
-    // Si el usuario aún no había separado el precio del nombre
+    // Si el usuario aún no había salido del campo (blur) y presionó directamente el botón [+]
     const extracted = extractNameAndPrice(name);
     if (extracted) {
       name = extracted.name;
       price = parseFloat(extracted.price);
-      manualNameInput.value = name;
-      manualPriceInput.value = extracted.price;
     }
 
     if (name && !isNaN(price) && price > 0) {
@@ -1968,7 +1966,6 @@ function setupEventListeners() {
       manualNameInput.value = '';
       manualPriceInput.value = '';
       showReportToast(`✅ Añadido: ${name} — Q${price.toFixed(2)}`);
-      manualNameInput.focus();
     } else if (!name) {
       showReportToast('⚠️ Ingresa o dicta el nombre del artículo');
     } else if (isNaN(price) || price <= 0) {

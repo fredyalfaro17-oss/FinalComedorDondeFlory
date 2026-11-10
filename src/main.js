@@ -339,7 +339,7 @@ function openItemModal(item) {
         rec.onresult = null;
         rec.onerror = null;
         rec.onend = null;
-        rec.stop();
+        rec.abort();
       } catch {}
     }
   };
@@ -356,10 +356,9 @@ function openItemModal(item) {
       activeModalRec = rec;
       window._floryModalRec = rec;
 
-      const systemLang = navigator.language || 'es-MX';
-      rec.lang = systemLang.toLowerCase().startsWith('es') ? systemLang : 'es-MX';
+      rec.lang = 'es-MX';
       rec.continuous = false;
-      rec.interimResults = false;
+      rec.interimResults = true;
       rec.maxAlternatives = 1;
 
       let baseText = textarea ? textarea.value.trim() : '';
@@ -376,8 +375,8 @@ function openItemModal(item) {
 
         if (modalWatchdog) clearTimeout(modalWatchdog);
         modalWatchdog = setTimeout(() => {
-          try { rec.stop(); } catch {}
-        }, 8000);
+          stopModalListening();
+        }, 10000);
       };
 
       rec.onspeechstart = () => {
@@ -385,11 +384,11 @@ function openItemModal(item) {
       };
 
       rec.onresult = (event) => {
-        if (modalWatchdog) clearTimeout(modalWatchdog);
         let transcript = '';
-        if (event.results && event.results[0] && event.results[0][0]) {
-          transcript = event.results[0][0].transcript.trim();
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          transcript += event.results[i][0].transcript;
         }
+        transcript = transcript.trim();
         if (transcript && textarea) {
           showReportToast('✍️ ' + transcript);
           textarea.value = baseText ? `${baseText}, ${transcript}` : transcript;
@@ -398,7 +397,6 @@ function openItemModal(item) {
       };
 
       rec.onerror = (event) => {
-        if (modalWatchdog) clearTimeout(modalWatchdog);
         console.warn('Speech recognition modal error:', event.error);
         if (event.error === 'aborted') {
           stopModalListening();
@@ -419,7 +417,6 @@ function openItemModal(item) {
       };
 
       rec.onend = () => {
-        if (modalWatchdog) clearTimeout(modalWatchdog);
         stopModalListening();
       };
 
@@ -1911,13 +1908,26 @@ function setupEventListeners() {
     stopManualListening();
     const nameInput = document.getElementById('manual-name');
     const priceInput = document.getElementById('manual-price');
-    const name = nameInput.value.trim();
-    const price = parseFloat(priceInput.value);
+    let name = nameInput.value.trim();
+    let price = parseFloat(priceInput.value);
+
+    // Si el usuario puso el precio en el nombre (ej: "Chuchito de carne 10" o usando el microfono del teclado)
+    if (isNaN(price)) {
+      const matchPrice = name.match(/^(.*?)(?:\s+(?:de|a)?\s*(?:q(?:uetzales)?\.?\s*)?(\d+(?:\.\d{1,2})?)(?:\s*q(?:uetzales)?)?)?$/i);
+      if (matchPrice && matchPrice[2]) {
+        name = matchPrice[1].trim();
+        price = parseFloat(matchPrice[2]);
+      }
+    }
 
     if (name && !isNaN(price)) {
       addItemToCart({ name, price }, 1);
       nameInput.value = '';
       priceInput.value = '';
+    } else if (!name) {
+      showReportToast('⚠️ Ingresa el nombre del artículo');
+    } else if (isNaN(price)) {
+      showReportToast('⚠️ Ingresa o dicta el precio (ej: 10)');
     }
   };
 
@@ -1961,7 +1971,7 @@ function setupEventListeners() {
         rec.onresult = null;
         rec.onerror = null;
         rec.onend = null;
-        rec.stop();
+        rec.abort();
       } catch {}
     }
   };
@@ -1978,10 +1988,9 @@ function setupEventListeners() {
       activeManualRecognition = rec;
       window._floryManualRec = rec;
 
-      const systemLang = navigator.language || 'es-MX';
-      rec.lang = systemLang.toLowerCase().startsWith('es') ? systemLang : 'es-MX';
+      rec.lang = 'es-MX';
       rec.continuous = false;
-      rec.interimResults = false;
+      rec.interimResults = true;
       rec.maxAlternatives = 1;
 
       rec.onstart = () => {
@@ -1995,8 +2004,8 @@ function setupEventListeners() {
 
         if (manualWatchdog) clearTimeout(manualWatchdog);
         manualWatchdog = setTimeout(() => {
-          try { rec.stop(); } catch {}
-        }, 8000);
+          stopManualListening();
+        }, 10000);
       };
 
       rec.onspeechstart = () => {
@@ -2004,11 +2013,11 @@ function setupEventListeners() {
       };
 
       rec.onresult = (event) => {
-        if (manualWatchdog) clearTimeout(manualWatchdog);
         let transcript = '';
-        if (event.results && event.results[0] && event.results[0][0]) {
-          transcript = event.results[0][0].transcript.trim();
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          transcript += event.results[i][0].transcript;
         }
+        transcript = transcript.trim();
         if (transcript && manualNameInput) {
           showReportToast('✍️ ' + transcript);
           // Si el usuario dijo nombre y precio (ej: "Chuchito de carne 10" o "Gaseosa a 15 quetzales")
@@ -2030,7 +2039,6 @@ function setupEventListeners() {
       };
 
       rec.onerror = (event) => {
-        if (manualWatchdog) clearTimeout(manualWatchdog);
         console.warn('Manual speech recognition error:', event.error);
         if (event.error === 'aborted') {
           stopManualListening();
@@ -2051,7 +2059,6 @@ function setupEventListeners() {
       };
 
       rec.onend = () => {
-        if (manualWatchdog) clearTimeout(manualWatchdog);
         stopManualListening();
       };
 

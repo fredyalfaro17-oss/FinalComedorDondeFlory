@@ -312,6 +312,7 @@ function openItemModal(item) {
   let activeModalRec = null;
   let isListening = false;
   let lastModalTap = 0;
+  let modalWatchdog = null;
   const micBtn = document.getElementById('mic-btn');
   const micIcon = document.getElementById('mic-icon');
   const micText = document.getElementById('mic-text');
@@ -319,6 +320,10 @@ function openItemModal(item) {
 
   const stopModalListening = () => {
     isListening = false;
+    if (modalWatchdog) {
+      clearTimeout(modalWatchdog);
+      modalWatchdog = null;
+    }
     if (micBtn) {
       micBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all active:scale-95 select-none shadow-sm cursor-pointer';
       if (micIcon) micIcon.textContent = '🎙️';
@@ -328,7 +333,14 @@ function openItemModal(item) {
     activeModalRec = null;
     window._floryModalRec = null;
     if (rec) {
-      try { rec.stop(); } catch {}
+      try {
+        rec.onstart = null;
+        rec.onspeechstart = null;
+        rec.onresult = null;
+        rec.onerror = null;
+        rec.onend = null;
+        rec.stop();
+      } catch {}
     }
   };
 
@@ -347,7 +359,7 @@ function openItemModal(item) {
       const systemLang = navigator.language || 'es-MX';
       rec.lang = systemLang.toLowerCase().startsWith('es') ? systemLang : 'es-MX';
       rec.continuous = false;
-      rec.interimResults = true;
+      rec.interimResults = false;
       rec.maxAlternatives = 1;
 
       let baseText = textarea ? textarea.value.trim() : '';
@@ -361,6 +373,11 @@ function openItemModal(item) {
           if (micText) micText.textContent = 'Escuchando...';
         }
         showReportToast('🎙️ Escuchando... Habla ahora');
+
+        if (modalWatchdog) clearTimeout(modalWatchdog);
+        modalWatchdog = setTimeout(() => {
+          try { rec.stop(); } catch {}
+        }, 8000);
       };
 
       rec.onspeechstart = () => {
@@ -368,17 +385,11 @@ function openItemModal(item) {
       };
 
       rec.onresult = (event) => {
-        let interimText = '';
-        let finalText = '';
-        for (let i = 0; i < event.results.length; ++i) {
-          const item = event.results[i];
-          if (item.isFinal) {
-            finalText += item[0].transcript;
-          } else {
-            interimText += item[0].transcript;
-          }
+        if (modalWatchdog) clearTimeout(modalWatchdog);
+        let transcript = '';
+        if (event.results && event.results[0] && event.results[0][0]) {
+          transcript = event.results[0][0].transcript.trim();
         }
-        const transcript = (finalText || interimText).trim();
         if (transcript && textarea) {
           showReportToast('✍️ ' + transcript);
           textarea.value = baseText ? `${baseText}, ${transcript}` : transcript;
@@ -387,9 +398,9 @@ function openItemModal(item) {
       };
 
       rec.onerror = (event) => {
+        if (modalWatchdog) clearTimeout(modalWatchdog);
         console.warn('Speech recognition modal error:', event.error);
         if (event.error === 'aborted') {
-          // El usuario canceló o detuvo el dictado; no mostrar error
           stopModalListening();
           return;
         }
@@ -408,14 +419,8 @@ function openItemModal(item) {
       };
 
       rec.onend = () => {
-        isListening = false;
-        activeModalRec = null;
-        window._floryModalRec = null;
-        if (micBtn) {
-          micBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all active:scale-95 select-none shadow-sm cursor-pointer';
-          if (micIcon) micIcon.textContent = '🎙️';
-          if (micText) micText.textContent = 'Dictar';
-        }
+        if (modalWatchdog) clearTimeout(modalWatchdog);
+        stopModalListening();
       };
 
       try {
@@ -1933,8 +1938,14 @@ function setupEventListeners() {
   let isManualListening = false;
   let lastManualTap = 0;
 
+  let manualWatchdog = null;
+
   const stopManualListening = () => {
     isManualListening = false;
+    if (manualWatchdog) {
+      clearTimeout(manualWatchdog);
+      manualWatchdog = null;
+    }
     if (manualMicBtn) {
       manualMicBtn.className = 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 p-2 sm:px-3 sm:py-2 rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1 shrink-0 cursor-pointer shadow-sm select-none';
       if (manualMicIcon) manualMicIcon.textContent = '🎙️';
@@ -1944,7 +1955,14 @@ function setupEventListeners() {
     activeManualRecognition = null;
     window._floryManualRec = null;
     if (rec) {
-      try { rec.stop(); } catch {}
+      try {
+        rec.onstart = null;
+        rec.onspeechstart = null;
+        rec.onresult = null;
+        rec.onerror = null;
+        rec.onend = null;
+        rec.stop();
+      } catch {}
     }
   };
 
@@ -1963,7 +1981,7 @@ function setupEventListeners() {
       const systemLang = navigator.language || 'es-MX';
       rec.lang = systemLang.toLowerCase().startsWith('es') ? systemLang : 'es-MX';
       rec.continuous = false;
-      rec.interimResults = true;
+      rec.interimResults = false;
       rec.maxAlternatives = 1;
 
       rec.onstart = () => {
@@ -1974,6 +1992,11 @@ function setupEventListeners() {
           if (manualMicText) manualMicText.textContent = 'Escuchando...';
         }
         showReportToast('🎙️ Escuchando... Habla ahora');
+
+        if (manualWatchdog) clearTimeout(manualWatchdog);
+        manualWatchdog = setTimeout(() => {
+          try { rec.stop(); } catch {}
+        }, 8000);
       };
 
       rec.onspeechstart = () => {
@@ -1981,17 +2004,11 @@ function setupEventListeners() {
       };
 
       rec.onresult = (event) => {
-        let interimText = '';
-        let finalText = '';
-        for (let i = 0; i < event.results.length; ++i) {
-          const item = event.results[i];
-          if (item.isFinal) {
-            finalText += item[0].transcript;
-          } else {
-            interimText += item[0].transcript;
-          }
+        if (manualWatchdog) clearTimeout(manualWatchdog);
+        let transcript = '';
+        if (event.results && event.results[0] && event.results[0][0]) {
+          transcript = event.results[0][0].transcript.trim();
         }
-        const transcript = (finalText || interimText).trim();
         if (transcript && manualNameInput) {
           showReportToast('✍️ ' + transcript);
           // Si el usuario dijo nombre y precio (ej: "Chuchito de carne 10" o "Gaseosa a 15 quetzales")
@@ -2013,9 +2030,9 @@ function setupEventListeners() {
       };
 
       rec.onerror = (event) => {
+        if (manualWatchdog) clearTimeout(manualWatchdog);
         console.warn('Manual speech recognition error:', event.error);
         if (event.error === 'aborted') {
-          // El usuario canceló o detuvo el dictado; no mostrar error
           stopManualListening();
           return;
         }
@@ -2034,14 +2051,8 @@ function setupEventListeners() {
       };
 
       rec.onend = () => {
-        isManualListening = false;
-        activeManualRecognition = null;
-        window._floryManualRec = null;
-        if (manualMicBtn) {
-          manualMicBtn.className = 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 p-2 sm:px-3 sm:py-2 rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1 shrink-0 cursor-pointer shadow-sm select-none';
-          if (manualMicIcon) manualMicIcon.textContent = '🎙️';
-          if (manualMicText) manualMicText.textContent = 'Dictar';
-        }
+        if (manualWatchdog) clearTimeout(manualWatchdog);
+        stopManualListening();
       };
 
       try {

@@ -249,35 +249,168 @@ function getItemImage(item) {
   return '/comida-general.png';
 }
 
+// --- Historial Predictivo para Detalles de Platillos ---
+const DETAILS_HISTORY_KEY = 'flory_custom_details_history';
+
+const DEFAULT_DETAILS_PRESETS = [
+  'Sin arroz',
+  'Solo verduras',
+  'Poco picante',
+  'Sin picante',
+  'Para llevar',
+  'Pechuga',
+  'Pierna',
+  'Cuadril',
+  'Bien cocido',
+  'Tortilla extra',
+  'Sin ensalada'
+];
+
+function getDetailsHistory() {
+  try {
+    const raw = localStorage.getItem(DETAILS_HISTORY_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Error al leer historial de detalles:', e);
+  }
+
+  // Pre-popular desde lista por defecto y ventas anteriores
+  const historyMap = new Map();
+
+  DEFAULT_DETAILS_PRESETS.forEach(text => {
+    historyMap.set(text.toLowerCase(), { text, count: 1, lastUsed: Date.now() });
+  });
+
+  try {
+    const sales = getSales();
+    if (Array.isArray(sales)) {
+      sales.forEach(sale => {
+        if (Array.isArray(sale.items)) {
+          sale.items.forEach(it => {
+            if (it && it.description && typeof it.description === 'string') {
+              const trimmed = it.description.trim();
+              if (trimmed.length > 1) {
+                const key = trimmed.toLowerCase();
+                const existing = historyMap.get(key);
+                if (existing) {
+                  existing.count = (existing.count || 1) + 1;
+                } else {
+                  historyMap.set(key, { text: trimmed, count: 2, lastUsed: Date.now() });
+                }
+              }
+            }
+          });
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Error al pre-popular detalles desde ventas:', e);
+  }
+
+  const initialList = Array.from(historyMap.values());
+  try {
+    localStorage.setItem(DETAILS_HISTORY_KEY, JSON.stringify(initialList));
+  } catch {}
+  return initialList;
+}
+
+function saveDetailToHistory(text) {
+  if (!text || typeof text !== 'string') return;
+  const clean = text.trim();
+  if (clean.length < 2) return;
+
+  try {
+    const history = getDetailsHistory();
+    const key = clean.toLowerCase();
+    const idx = history.findIndex(it => it.text.trim().toLowerCase() === key);
+
+    if (idx >= 0) {
+      history[idx].count = (history[idx].count || 1) + 1;
+      history[idx].lastUsed = Date.now();
+      history[idx].text = clean;
+    } else {
+      history.push({
+        text: clean,
+        count: 1,
+        lastUsed: Date.now()
+      });
+    }
+
+    localStorage.setItem(DETAILS_HISTORY_KEY, JSON.stringify(history));
+  } catch (e) {
+    console.warn('Error al guardar detalle en historial:', e);
+  }
+}
+
+function deleteDetailFromHistory(text) {
+  if (!text) return;
+  try {
+    const history = getDetailsHistory();
+    const key = text.trim().toLowerCase();
+    const filtered = history.filter(it => it.text.trim().toLowerCase() !== key);
+    localStorage.setItem(DETAILS_HISTORY_KEY, JSON.stringify(filtered));
+  } catch (e) {
+    console.warn('Error al eliminar detalle de historial:', e);
+  }
+}
+
+function searchDetailsHistory(query) {
+  const history = getDetailsHistory();
+  if (!history || history.length === 0) return [];
+
+  const q = (query || '').toLowerCase().trim();
+  if (!q) {
+    return [...history]
+      .sort((a, b) => (b.count || 0) - (a.count || 0) || (b.lastUsed || 0) - (a.lastUsed || 0))
+      .slice(0, 6);
+  }
+
+  return history
+    .filter(it => it.text.toLowerCase().includes(q))
+    .sort((a, b) => {
+      const aStarts = a.text.toLowerCase().startsWith(q);
+      const bStarts = b.text.toLowerCase().startsWith(q);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      return (b.count || 0) - (a.count || 0);
+    })
+    .slice(0, 6);
+}
+
 function openItemModal(item) {
   let qty = 1;
   const itemImage = getItemImage(item);
 
   modalOverlay.innerHTML = `
-    <div id="modal-content" class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm overflow-hidden animate-scale-in mx-auto my-12 ${itemImage ? 'special-bg' : ''}" ${itemImage ? `style="--modal-bg-image: url('${itemImage}')"` : ''}>
-      <div class="bg-gradient-to-br from-red-600 to-red-900 p-8 text-white relative">
-        <button id="close-modal-btn" class="absolute top-4 right-4 text-white/50 hover:text-white transition-colors">
+    <div id="modal-content" class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm animate-scale-in mx-auto my-12 relative shadow-2xl ${itemImage ? 'special-bg' : ''}" ${itemImage ? `style="--modal-bg-image: url('${itemImage}')"` : ''}>
+      <div class="bg-gradient-to-br from-red-600 to-red-900 p-8 text-white relative rounded-t-3xl">
+        <button id="close-modal-btn" type="button" class="absolute top-4 right-4 text-white/50 hover:text-white transition-colors cursor-pointer" title="Cerrar ventana">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
         </button>
         <h3 class="text-2xl font-bold font-playfair pr-6">${item.name}</h3>
         <p class="text-sm text-white/70 mt-2">Precio: Q${item.price.toFixed(2)}</p>
       </div>
       
-      <div class="p-8 space-y-8">
-        <div class="flex flex-col items-center gap-4">
+      <div class="p-6 sm:p-8 space-y-6">
+        <div class="flex flex-col items-center gap-3">
           <label class="text-xs uppercase tracking-widest text-slate-500 font-bold">Cantidad</label>
           <div class="flex items-center gap-8">
-            <button class="qty-btn" id="qty-minus">
+            <button class="qty-btn" id="qty-minus" type="button">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path></svg>
             </button>
             <span class="text-5xl font-bold text-white tabular-nums w-16 text-center" id="qty-display">1</span>
-            <button class="qty-btn" id="qty-plus">
+            <button class="qty-btn" id="qty-plus" type="button">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
             </button>
           </div>
         </div>
         
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-col gap-2 relative">
           <div class="flex items-center justify-between">
             <label class="text-xs uppercase tracking-widest text-slate-500 font-bold">Detalles Adicionales (Opcional)</label>
             <button type="button" id="mic-btn" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all active:scale-95 select-none shadow-sm cursor-pointer" title="Dictar por voz">
@@ -285,12 +418,27 @@ function openItemModal(item) {
               <span id="mic-text">Dictar</span>
             </button>
           </div>
-          <textarea id="custom-details" maxlength="150" rows="2" 
-            class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white text-base focus:outline-none focus:border-red-500 transition-colors placeholder:text-slate-600"
-            placeholder="Ej: Solo verduras, sin arroz..."></textarea>
+          <div class="relative">
+            <input type="text" id="custom-details" maxlength="150" autocomplete="off"
+              class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white text-sm focus:outline-none focus:border-red-500 transition-colors placeholder:text-slate-500"
+              placeholder="Ej: Solo verduras, sin arroz, pechuga...">
+            
+            <!-- Floating Suggestions Container for Custom Details -->
+            <div id="details-suggestions" class="hidden absolute bottom-full mb-2 left-0 right-0 max-h-56 overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-[120] divide-y divide-slate-800/90 backdrop-blur-md">
+            </div>
+          </div>
+          
+          <!-- Quick Preset Chips -->
+          <div class="flex flex-wrap gap-1.5 pt-1" id="details-quick-chips">
+            ${['Sin arroz', 'Solo verduras', 'Para llevar', 'Poco picante'].map(chip => `
+              <button type="button" class="quick-chip-btn text-[11px] font-semibold text-slate-300 bg-slate-800/80 hover:bg-slate-700 hover:text-white border border-slate-700/80 px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer" data-chip="${chip}">
+                + ${chip}
+              </button>
+            `).join('')}
+          </div>
         </div>
         
-        <button id="add-to-cart-btn" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-4 rounded-2xl shadow-xl shadow-red-900/30 transition-all active:scale-[0.98]">
+        <button id="add-to-cart-btn" type="button" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-4 rounded-2xl shadow-xl shadow-red-900/30 transition-all active:scale-[0.98] cursor-pointer">
           Añadir al Carrito — Q<span id="subtotal-display">${item.price.toFixed(2)}</span>
         </button>
       </div>
@@ -308,6 +456,218 @@ function openItemModal(item) {
   document.getElementById('qty-plus').onclick = () => updateQty(qty + 1);
   document.getElementById('qty-minus').onclick = () => updateQty(qty - 1);
 
+  const detailsInput = document.getElementById('custom-details');
+  const detailsSuggestionsBox = document.getElementById('details-suggestions');
+  const addToCartBtn = document.getElementById('add-to-cart-btn');
+
+  let highlightedDetailIndex = -1;
+  let currentDetailMatches = [];
+
+  const hideDetailsSuggestions = () => {
+    if (!detailsSuggestionsBox) return;
+    detailsSuggestionsBox.classList.add('hidden');
+    detailsSuggestionsBox.innerHTML = '';
+    highlightedDetailIndex = -1;
+    currentDetailMatches = [];
+  };
+
+  const selectDetail = (detailText) => {
+    if (!detailText || !detailsInput) return;
+    const current = detailsInput.value.trim();
+    if (current && !current.toLowerCase().includes(detailText.toLowerCase())) {
+      detailsInput.value = `${current}, ${detailText}`;
+    } else {
+      detailsInput.value = detailText;
+    }
+    detailsInput.classList.add('ring-2', 'ring-emerald-500');
+    setTimeout(() => detailsInput.classList.remove('ring-2', 'ring-emerald-500'), 800);
+    hideDetailsSuggestions();
+    if (addToCartBtn) {
+      addToCartBtn.focus();
+    }
+  };
+
+  const renderDetailsSuggestions = (matches, query) => {
+    if (!detailsSuggestionsBox) return;
+    currentDetailMatches = matches;
+    highlightedDetailIndex = -1;
+
+    if (!matches || matches.length === 0) {
+      hideDetailsSuggestions();
+      return;
+    }
+
+    const qLower = (query || '').toLowerCase().trim();
+
+    detailsSuggestionsBox.innerHTML = `
+      <div class="p-2 border-b border-slate-800 bg-slate-950/95 flex items-center justify-between text-[11px] text-slate-400">
+        <span class="font-bold flex items-center gap-1.5 text-amber-400">
+          <span>💡</span> Sugerencias guardadas (${matches.length}):
+        </span>
+        <span class="text-[10px] text-slate-500">Toca para elegir</span>
+      </div>
+      <div class="divide-y divide-slate-800/80">
+        ${matches.map((it, idx) => {
+          let displayName = it.text;
+          const matchPos = it.text.toLowerCase().indexOf(qLower);
+          if (matchPos !== -1 && qLower.length > 0) {
+            const before = it.text.slice(0, matchPos);
+            const match = it.text.slice(matchPos, matchPos + qLower.length);
+            const after = it.text.slice(matchPos + qLower.length);
+            displayName = `${before}<span class="text-amber-400 underline font-black decoration-amber-400/80">${match}</span>${after}`;
+          }
+
+          const countInfo = it.count > 1 ? `<span class="text-slate-500 text-[10px]">• Usado ${it.count} veces</span>` : '';
+
+          return `
+            <div 
+              class="detail-suggestion-item px-3 py-2 hover:bg-slate-800/90 active:bg-slate-800 cursor-pointer transition-colors flex items-center justify-between gap-2 group"
+              data-index="${idx}"
+            >
+              <div class="min-w-0 flex-1">
+                <div class="text-xs sm:text-sm font-semibold text-white group-hover:text-amber-300 truncate">
+                  📝 ${displayName}
+                </div>
+                ${countInfo ? `<div class="text-xs text-slate-400 mt-0.5">${countInfo}</div>` : ''}
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button 
+                  type="button" 
+                  class="detail-select-btn text-[11px] font-bold text-emerald-400 bg-emerald-950/60 hover:bg-emerald-600 hover:text-white border border-emerald-700/70 px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer"
+                  data-index="${idx}"
+                >
+                  Elegir
+                </button>
+                <button 
+                  type="button" 
+                  class="detail-delete-btn text-[11px] font-bold text-rose-400 bg-rose-950/50 hover:bg-rose-600 hover:text-white border border-rose-800/70 px-2 py-1 rounded-lg transition-all active:scale-95 cursor-pointer"
+                  data-text="${encodeURIComponent(it.text)}"
+                  title="Eliminar de sugerencias"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    detailsSuggestionsBox.classList.remove('hidden');
+
+    detailsSuggestionsBox.querySelectorAll('.detail-suggestion-item').forEach(el => {
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('.detail-delete-btn')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const idx = parseInt(el.dataset.index, 10);
+        selectDetail(currentDetailMatches[idx].text);
+      });
+    });
+
+    detailsSuggestionsBox.querySelectorAll('.detail-delete-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const targetText = decodeURIComponent(btn.dataset.text);
+        deleteDetailFromHistory(targetText);
+        showReportToast(`Sugerencia "${targetText}" eliminada`);
+        const queryText = detailsInput ? detailsInput.value.trim() : '';
+        const updated = searchDetailsHistory(queryText);
+        renderDetailsSuggestions(updated, queryText);
+      });
+    });
+  };
+
+  // Quick Chips
+  document.querySelectorAll('.quick-chip-btn').forEach(chipBtn => {
+    chipBtn.onclick = (e) => {
+      e.preventDefault();
+      const chipVal = chipBtn.dataset.chip;
+      selectDetail(chipVal);
+    };
+  });
+
+  // Input & Keyboard
+  if (detailsInput) {
+    detailsInput.addEventListener('input', () => {
+      const q = detailsInput.value.trim();
+      const matches = searchDetailsHistory(q);
+      renderDetailsSuggestions(matches, q);
+    });
+
+    detailsInput.addEventListener('focus', () => {
+      const q = detailsInput.value.trim();
+      const matches = searchDetailsHistory(q);
+      renderDetailsSuggestions(matches, q);
+    });
+
+    detailsInput.addEventListener('keydown', (e) => {
+      const hasSuggestions = detailsSuggestionsBox && !detailsSuggestionsBox.classList.contains('hidden') && currentDetailMatches.length > 0;
+
+      if (e.key === 'ArrowDown' && hasSuggestions) {
+        e.preventDefault();
+        const items = detailsSuggestionsBox.querySelectorAll('.detail-suggestion-item');
+        highlightedDetailIndex = (highlightedDetailIndex + 1) % items.length;
+        items.forEach((it, idx) => {
+          if (idx === highlightedDetailIndex) {
+            it.classList.add('bg-slate-800', 'border-l-4', 'border-amber-400');
+            it.scrollIntoView({ block: 'nearest' });
+          } else {
+            it.classList.remove('bg-slate-800', 'border-l-4', 'border-amber-400');
+          }
+        });
+        return;
+      }
+
+      if (e.key === 'ArrowUp' && hasSuggestions) {
+        e.preventDefault();
+        const items = detailsSuggestionsBox.querySelectorAll('.detail-suggestion-item');
+        highlightedDetailIndex = (highlightedDetailIndex - 1 + items.length) % items.length;
+        items.forEach((it, idx) => {
+          if (idx === highlightedDetailIndex) {
+            it.classList.add('bg-slate-800', 'border-l-4', 'border-amber-400');
+            it.scrollIntoView({ block: 'nearest' });
+          } else {
+            it.classList.remove('bg-slate-800', 'border-l-4', 'border-amber-400');
+          }
+        });
+        return;
+      }
+
+      if (e.key === 'Escape' && hasSuggestions) {
+        hideDetailsSuggestions();
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        if (!e.shiftKey) {
+          e.preventDefault();
+          if (hasSuggestions && highlightedDetailIndex >= 0 && highlightedDetailIndex < currentDetailMatches.length) {
+            selectDetail(currentDetailMatches[highlightedDetailIndex].text);
+          } else {
+            hideDetailsSuggestions();
+            if (addToCartBtn) addToCartBtn.focus();
+          }
+        } else {
+          hideDetailsSuggestions();
+        }
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (hasSuggestions && highlightedDetailIndex >= 0 && highlightedDetailIndex < currentDetailMatches.length) {
+          selectDetail(currentDetailMatches[highlightedDetailIndex].text);
+          return;
+        }
+        hideDetailsSuggestions();
+        if (addToCartBtn) addToCartBtn.click();
+      }
+    });
+  }
+
+  // Voice Dictation
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let activeModalRec = null;
   let isListening = false;
@@ -316,7 +676,7 @@ function openItemModal(item) {
   const micBtn = document.getElementById('mic-btn');
   const micIcon = document.getElementById('mic-icon');
   const micText = document.getElementById('mic-text');
-  const textarea = document.getElementById('custom-details');
+  const textarea = detailsInput;
 
   const stopModalListening = () => {
     isListening = false;
@@ -454,13 +814,18 @@ function openItemModal(item) {
 
   const closeModal = () => {
     stopModalListening();
+    hideDetailsSuggestions();
     modalOverlay.classList.add('hidden');
   };
 
   document.getElementById('close-modal-btn').onclick = closeModal;
   document.getElementById('add-to-cart-btn').onclick = () => {
     stopModalListening();
+    hideDetailsSuggestions();
     const customDescription = document.getElementById('custom-details').value.trim();
+    if (customDescription) {
+      saveDetailToHistory(customDescription);
+    }
     addItemToCart(item, qty, customDescription);
     modalOverlay.classList.add('hidden');
   };

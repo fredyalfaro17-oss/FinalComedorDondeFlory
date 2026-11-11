@@ -2312,39 +2312,48 @@ function setupCustomerAutocomplete() {
 const MANUAL_HISTORY_KEY = 'flory_manual_items_history';
 
 function getManualItemsHistory() {
+  let stored = [];
   try {
     const raw = localStorage.getItem(MANUAL_HISTORY_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+      if (Array.isArray(parsed)) {
+        stored = parsed;
       }
     }
   } catch (e) {
     console.warn('Error al leer historial de artículos manuales:', e);
   }
 
-  // Pre-popular desde ventas anteriores si el historial local aún está vacío
   const historyMap = new Map();
+
+  // 1. Escanear ventas para capturar combinaciones reales de nombre + precio distinto
   try {
     const sales = getSales();
     if (Array.isArray(sales)) {
       sales.forEach(sale => {
+        const saleTime = sale.date ? new Date(sale.date).getTime() : 0;
         if (Array.isArray(sale.items)) {
           sale.items.forEach(it => {
             if (it && it.name && !isNaN(parseFloat(it.price))) {
-              const key = it.name.trim().toLowerCase();
-              const existing = historyMap.get(key);
-              if (existing) {
-                existing.count = (existing.count || 1) + 1;
-                existing.price = parseFloat(it.price);
-              } else {
-                historyMap.set(key, {
-                  name: it.name.trim(),
-                  price: parseFloat(it.price),
-                  count: 1,
-                  lastUsed: sale.date ? new Date(sale.date).getTime() : Date.now()
-                });
+              const cleanName = it.name.trim();
+              const numPrice = parseFloat(it.price);
+              if (cleanName.length > 0 && numPrice > 0) {
+                const itemKey = `${cleanName.toLowerCase()}__q${numPrice.toFixed(2)}`;
+                const existing = historyMap.get(itemKey);
+                if (existing) {
+                  existing.count = (existing.count || 1) + 1;
+                  if (saleTime > (existing.lastUsed || 0)) {
+                    existing.lastUsed = saleTime;
+                  }
+                } else {
+                  historyMap.set(itemKey, {
+                    name: cleanName,
+                    price: numPrice,
+                    count: 1,
+                    lastUsed: saleTime || Date.now()
+                  });
+                }
               }
             }
           });
@@ -2355,13 +2364,42 @@ function getManualItemsHistory() {
     console.warn('Error al pre-popular artículos desde ventas:', e);
   }
 
-  const initialList = Array.from(historyMap.values());
-  if (initialList.length > 0) {
-    try {
-      localStorage.setItem(MANUAL_HISTORY_KEY, JSON.stringify(initialList));
-    } catch {}
-  }
-  return initialList;
+  // 2. Fusionar con lo almacenado en localStorage respetando combinaciones de nombre y precio
+  stored.forEach(it => {
+    if (it && it.name && !isNaN(parseFloat(it.price))) {
+      const cleanName = it.name.trim();
+      const numPrice = parseFloat(it.price);
+      if (cleanName.length > 0 && numPrice > 0) {
+        const itemKey = `${cleanName.toLowerCase()}__q${numPrice.toFixed(2)}`;
+        const existing = historyMap.get(itemKey);
+        if (existing) {
+          existing.count = Math.max(existing.count || 1, it.count || 1);
+          existing.lastUsed = Math.max(existing.lastUsed || 0, it.lastUsed || 0);
+          if (cleanName !== cleanName.toLowerCase()) existing.name = cleanName;
+        } else {
+          historyMap.set(itemKey, {
+            name: cleanName,
+            price: numPrice,
+            count: it.count || 1,
+            lastUsed: it.lastUsed || Date.now()
+          });
+        }
+      }
+    }
+  });
+
+  const list = Array.from(historyMap.values());
+  // Ordenar por más comunes (count) y más recientes (lastUsed)
+  list.sort((a, b) => {
+    if ((b.count || 0) !== (a.count || 0)) return (b.count || 0) - (a.count || 0);
+    return (b.lastUsed || 0) - (a.lastUsed || 0);
+  });
+
+  try {
+    localStorage.setItem(MANUAL_HISTORY_KEY, JSON.stringify(list));
+  } catch {}
+
+  return list;
 }
 
 function saveManualItemToHistory(name, price) {
@@ -2372,16 +2410,16 @@ function saveManualItemToHistory(name, price) {
 
   try {
     const history = getManualItemsHistory();
-    const key = cleanName.toLowerCase();
-    const idx = history.findIndex(it => it.name.trim().toLowerCase() === key);
+    const itemKey = `${cleanName.toLowerCase()}__q${numPrice.toFixed(2)}`;
+    const idx = history.findIndex(it => `${it.name.trim().toLowerCase()}__q${parseFloat(it.price).toFixed(2)}` === itemKey);
 
     if (idx >= 0) {
-      history[idx].price = numPrice;
       history[idx].count = (history[idx].count || 1) + 1;
       history[idx].lastUsed = Date.now();
       history[idx].name = cleanName;
+      history[idx].price = numPrice;
     } else {
-      history.push({
+      history.unshift({
         name: cleanName,
         price: numPrice,
         count: 1,
@@ -2395,12 +2433,20 @@ function saveManualItemToHistory(name, price) {
   }
 }
 
-function deleteManualItemFromHistory(name) {
+function deleteManualItemFromHistory(name, price) {
   if (!name) return;
   try {
     const history = getManualItemsHistory();
-    const key = name.trim().toLowerCase();
-    const filtered = history.filter(it => it.name.trim().toLowerCase() !== key);
+    const cleanName = name.trim().toLowerCase();
+    const numPrice = parseFloat(price);
+    const filtered = history.filter(it => {
+      const itName = it.name.trim().toLowerCase();
+      if (itName !== cleanName) return true;
+      if (!isNaN(numPrice)) {
+        return Math.abs(parseFloat(it.price) - numPrice) >= 0.01;
+      }
+      return false;
+    });
     localStorage.setItem(MANUAL_HISTORY_KEY, JSON.stringify(filtered));
   } catch (e) {
     console.warn('Error al eliminar artículo manual de historial:', e);
@@ -2418,7 +2464,7 @@ function searchManualHistory(query) {
         if ((b.count || 0) !== (a.count || 0)) return (b.count || 0) - (a.count || 0);
         return (b.lastUsed || 0) - (a.lastUsed || 0);
       })
-      .slice(0, 6);
+      .slice(0, 8);
   }
 
   return history
@@ -2431,7 +2477,7 @@ function searchManualHistory(query) {
       if ((b.count || 0) !== (a.count || 0)) return (b.count || 0) - (a.count || 0);
       return (b.lastUsed || 0) - (a.lastUsed || 0);
     })
-    .slice(0, 6);
+    .slice(0, 8);
 }
 
 // --- Event Listeners ---
@@ -2594,8 +2640,9 @@ function setupEventListeners() {
                 </button>
                 <button 
                   type="button" 
-                  class="manual-delete-btn text-[11px] font-bold text-rose-400 bg-rose-950/50 hover:bg-rose-600 hover:text-white border border-rose-800/70 px-2 py-1 rounded-lg transition-all active:scale-95"
+                  class="manual-delete-btn text-[11px] font-bold text-rose-400 bg-rose-950/50 hover:bg-rose-600 hover:text-white border border-rose-800/70 px-2 py-1 rounded-lg transition-all active:scale-95 cursor-pointer"
                   data-name="${encodeURIComponent(item.name)}"
+                  data-price="${item.price}"
                   title="Eliminar de sugerencias"
                 >
                   ✕
@@ -2624,8 +2671,10 @@ function setupEventListeners() {
         e.preventDefault();
         e.stopPropagation();
         const targetName = decodeURIComponent(btn.dataset.name);
-        deleteManualItemFromHistory(targetName);
-        showReportToast(`Sugerencia "${targetName}" eliminada`);
+        const targetPrice = btn.dataset.price;
+        deleteManualItemFromHistory(targetName, targetPrice);
+        const priceLabel = !isNaN(parseFloat(targetPrice)) ? ` (Q${parseFloat(targetPrice).toFixed(2)})` : '';
+        showReportToast(`Sugerencia "${targetName}${priceLabel}" eliminada`);
         const queryText = manualNameInput ? manualNameInput.value.trim() : '';
         const updated = searchManualHistory(queryText);
         renderManualSuggestions(updated, queryText);
@@ -2647,12 +2696,8 @@ function setupEventListeners() {
     }
 
     const searchQuery = extracted ? extracted.name : raw;
-    if (searchQuery.trim().length >= 1) {
-      const matches = searchManualHistory(searchQuery.trim());
-      renderManualSuggestions(matches, searchQuery.trim());
-    } else {
-      hideManualSuggestions();
-    }
+    const matches = searchManualHistory(searchQuery.trim());
+    renderManualSuggestions(matches, searchQuery.trim());
   };
 
   // Solo al salir del campo (blur): limpiar el nombre si ya terminó
@@ -2676,12 +2721,10 @@ function setupEventListeners() {
 
     manualNameInput.addEventListener('focus', () => {
       const raw = manualNameInput.value.trim();
-      if (raw.length >= 1) {
-        const extracted = extractNameAndPrice(raw);
-        const searchQuery = extracted ? extracted.name : raw;
-        const matches = searchManualHistory(searchQuery.trim());
-        renderManualSuggestions(matches, searchQuery.trim());
-      }
+      const extracted = extractNameAndPrice(raw);
+      const searchQuery = extracted ? extracted.name : raw;
+      const matches = searchManualHistory(searchQuery.trim());
+      renderManualSuggestions(matches, searchQuery.trim());
     });
 
     manualNameInput.addEventListener('keydown', (e) => {

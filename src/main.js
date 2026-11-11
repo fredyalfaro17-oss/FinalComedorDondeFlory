@@ -590,7 +590,7 @@ function openItemModal(item) {
               data-index="${idx}"
             >
               <div class="min-w-0 flex-1">
-                <div class="text-xs sm:text-sm font-semibold text-white group-hover:text-amber-300 truncate">
+                <div class="text-xs sm:text-sm font-semibold text-white group-hover:text-amber-300 break-words leading-snug">
                   📝 ${displayName}
                 </div>
                 <div class="text-xs text-slate-400 mt-0.5">${countInfo}</div>
@@ -2622,7 +2622,7 @@ function setupEventListeners() {
               data-index="${idx}"
             >
               <div class="min-w-0 flex-1">
-                <div class="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 truncate">
+                <div class="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 break-words leading-snug">
                   ✨ ${displayName}
                 </div>
                 <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5">

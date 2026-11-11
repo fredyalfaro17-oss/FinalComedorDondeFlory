@@ -2099,6 +2099,8 @@ function setupEventListeners() {
     manualPriceInput.classList.add('ring-2', 'ring-emerald-500');
     setTimeout(() => manualPriceInput.classList.remove('ring-2', 'ring-emerald-500'), 800);
     hideManualSuggestions();
+    manualPriceInput.focus();
+    manualPriceInput.select();
   };
 
   const renderManualSuggestions = (matches, query) => {
@@ -2286,15 +2288,38 @@ function setupEventListeners() {
         return;
       }
 
-      if (e.key === 'Enter') {
-        if (hasSuggestions && highlightedManualIndex >= 0 && highlightedManualIndex < currentManualMatches.length) {
+      if (e.key === 'Tab') {
+        if (!e.shiftKey) {
           e.preventDefault();
+          if (hasSuggestions && highlightedManualIndex >= 0 && highlightedManualIndex < currentManualMatches.length) {
+            selectManualItem(currentManualMatches[highlightedManualIndex]);
+          } else {
+            handleManualNameFinish();
+            hideManualSuggestions();
+            if (manualPriceInput) {
+              manualPriceInput.focus();
+              manualPriceInput.select();
+            }
+          }
+        } else {
+          hideManualSuggestions();
+        }
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (hasSuggestions && highlightedManualIndex >= 0 && highlightedManualIndex < currentManualMatches.length) {
           selectManualItem(currentManualMatches[highlightedManualIndex]);
           return;
         }
-        hideManualSuggestions();
         handleManualNameFinish();
-        addManual();
+        hideManualSuggestions();
+        if (manualPriceInput) {
+          manualPriceInput.focus();
+          manualPriceInput.select();
+        }
+        return;
       }
     });
   }
@@ -2328,11 +2353,18 @@ function setupEventListeners() {
       saveManualItemToHistory(name, price);
       manualNameInput.value = '';
       manualPriceInput.value = '';
+      hideManualSuggestions();
       showReportToast(`✅ Añadido: ${name} — Q${price.toFixed(2)}`);
+      if (manualNameInput) manualNameInput.focus();
     } else if (!name) {
       showReportToast('⚠️ Ingresa o dicta el nombre del artículo');
+      if (manualNameInput) manualNameInput.focus();
     } else if (isNaN(price) || price <= 0) {
       showReportToast('⚠️ Ingresa o dicta el precio (ej: 10)');
+      if (manualPriceInput) {
+        manualPriceInput.focus();
+        manualPriceInput.select();
+      }
     }
   };
 
@@ -2340,7 +2372,10 @@ function setupEventListeners() {
   if (addManualBtn) addManualBtn.onclick = addManual;
   if (manualPriceInput) {
     manualPriceInput.onkeydown = (e) => {
-      if (e.key === 'Enter') addManual();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addManual();
+      }
     };
   }
 

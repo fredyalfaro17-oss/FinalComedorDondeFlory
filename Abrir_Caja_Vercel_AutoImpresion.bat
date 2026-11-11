@@ -26,3 +26,4 @@ start "" %CHROME_BIN% --kiosk-printing %KIOSK_PROFILE% --app=https://comedor-don
 echo ✅ ¡Caja conectada e imprimiendo automáticamente!
 timeout /t 3 > nul
 exit
+

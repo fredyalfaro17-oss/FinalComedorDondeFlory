@@ -586,26 +586,22 @@ function openItemModal(item) {
 
           return `
             <div 
-              class="detail-suggestion-item px-3 py-2 hover:bg-slate-800/90 active:bg-slate-800 cursor-pointer transition-colors flex items-center justify-between gap-2 group"
+              class="detail-suggestion-item px-3 py-2 hover:bg-slate-800/90 active:bg-slate-800 cursor-pointer transition-colors flex items-center justify-between gap-2.5 group"
               data-index="${idx}"
             >
-              <div class="min-w-0 flex-1">
-                <div class="text-xs sm:text-sm font-semibold text-white group-hover:text-amber-300 break-words leading-snug">
+              <div class="min-w-0 flex-1 pr-1">
+                <div class="text-xs sm:text-sm font-semibold text-white group-hover:text-amber-300 break-words whitespace-normal leading-snug">
                   📝 ${displayName}
                 </div>
-                <div class="text-xs text-slate-400 mt-0.5">${countInfo}</div>
+                <div class="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
+                  ${countInfo}
+                  <span class="text-slate-500 text-[10px]">Toca para elegir</span>
+                </div>
               </div>
-              <div class="flex items-center gap-1.5 shrink-0">
+              <div class="flex items-center gap-1 shrink-0">
                 <button 
                   type="button" 
-                  class="detail-select-btn text-[11px] font-bold text-emerald-400 bg-emerald-950/60 hover:bg-emerald-600 hover:text-white border border-emerald-700/70 px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer"
-                  data-index="${idx}"
-                >
-                  Elegir
-                </button>
-                <button 
-                  type="button" 
-                  class="detail-delete-btn text-[11px] font-bold text-rose-400 bg-rose-950/50 hover:bg-rose-600 hover:text-white border border-rose-800/70 px-2 py-1 rounded-lg transition-all active:scale-95 cursor-pointer"
+                  class="detail-delete-btn text-xs font-bold text-rose-400 hover:text-white bg-rose-950/50 hover:bg-rose-600 border border-rose-800/70 w-7 h-7 rounded-lg transition-all active:scale-95 flex items-center justify-center cursor-pointer"
                   data-text="${encodeURIComponent(it.text)}"
                   title="Eliminar de sugerencias"
                 >
@@ -2572,6 +2568,31 @@ function setupEventListeners() {
   let highlightedManualIndex = -1;
   let currentManualMatches = [];
 
+  const updateManualSuggestionsPosition = () => {
+    if (!manualSuggestionsBox || manualSuggestionsBox.classList.contains('hidden') || !manualNameInput) return;
+    const rect = manualNameInput.getBoundingClientRect();
+    const isMobile = window.innerWidth < 640;
+    
+    // En pantallas de teléfono ocupa prácticamente el ancho completo con márgenes cómodos
+    const width = isMobile ? (window.innerWidth - 16) : Math.min(window.innerWidth - 32, 540);
+    const left = isMobile ? 8 : Math.max(8, Math.min(rect.left - 40, window.innerWidth - width - 16));
+    
+    // Posicionarse exactamente arriba de la barra de ingreso manual
+    const bottom = Math.max(8, window.innerHeight - rect.top + 8);
+    const maxHeight = Math.max(140, Math.min(320, rect.top - 16));
+
+    manualSuggestionsBox.style.position = 'fixed';
+    manualSuggestionsBox.style.zIndex = '9999';
+    manualSuggestionsBox.style.left = `${left}px`;
+    manualSuggestionsBox.style.width = `${width}px`;
+    manualSuggestionsBox.style.bottom = `${bottom}px`;
+    manualSuggestionsBox.style.top = 'auto';
+    manualSuggestionsBox.style.maxHeight = `${maxHeight}px`;
+  };
+
+  window.addEventListener('resize', updateManualSuggestionsPosition);
+  window.addEventListener('scroll', updateManualSuggestionsPosition, true);
+
   const hideManualSuggestions = () => {
     if (!manualSuggestionsBox) return;
     manualSuggestionsBox.classList.add('hidden');
@@ -2583,6 +2604,7 @@ function setupEventListeners() {
   const selectManualItem = (item) => {
     if (!item || !manualNameInput || !manualPriceInput) return;
     manualNameInput.value = item.name;
+    try { manualNameInput.scrollLeft = 0; } catch {}
     manualPriceInput.value = parseFloat(item.price).toFixed(2);
     manualPriceInput.classList.add('ring-2', 'ring-emerald-500');
     setTimeout(() => manualPriceInput.classList.remove('ring-2', 'ring-emerald-500'), 800);
@@ -2606,7 +2628,7 @@ function setupEventListeners() {
     manualSuggestionsBox.innerHTML = `
       <div class="p-2.5 border-b border-slate-800 bg-slate-950/95 flex items-center justify-between text-[11px] text-slate-400">
         <span class="font-bold flex items-center gap-1.5 text-amber-400">
-          <span>⭐</span> Más comunes y recientes (${matches.length}):
+          <span>⭐</span> Coincidencias guardadas (${matches.length}):
         </span>
         <span class="text-[10px] text-slate-500">Toca para autocompletar</span>
       </div>
@@ -2626,29 +2648,25 @@ function setupEventListeners() {
 
           return `
             <div 
-              class="manual-suggestion-item px-3.5 py-2.5 hover:bg-slate-800/90 active:bg-slate-800 cursor-pointer transition-colors flex items-center justify-between gap-3 group"
+              class="manual-suggestion-item px-3.5 py-2.5 hover:bg-slate-800/95 active:bg-slate-700/90 cursor-pointer transition-colors flex items-center justify-between gap-3 group"
               data-index="${idx}"
             >
-              <div class="min-w-0 flex-1">
-                <div class="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 break-words leading-snug">
+              <div class="min-w-0 flex-1 pr-1">
+                <div class="text-sm font-bold text-white group-hover:text-amber-300 break-words whitespace-normal leading-snug">
                   ✨ ${displayName}
                 </div>
-                <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                  <span class="text-emerald-400 font-bold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/60 text-[11px]">Q ${priceFormatted}</span>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="text-emerald-400 font-black bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-700/60 text-xs">
+                    Q ${priceFormatted}
+                  </span>
+                  <span class="text-slate-400 text-[11px]">Toca para elegir</span>
                   ${countInfo}
                 </div>
               </div>
               <div class="flex items-center gap-1.5 shrink-0">
                 <button 
                   type="button" 
-                  class="manual-select-btn text-[11px] font-bold text-emerald-400 bg-emerald-950/60 hover:bg-emerald-600 hover:text-white border border-emerald-700/70 px-2.5 py-1 rounded-lg transition-all active:scale-95"
-                  data-index="${idx}"
-                >
-                  Elegir
-                </button>
-                <button 
-                  type="button" 
-                  class="manual-delete-btn text-[11px] font-bold text-rose-400 bg-rose-950/50 hover:bg-rose-600 hover:text-white border border-rose-800/70 px-2 py-1 rounded-lg transition-all active:scale-95 cursor-pointer"
+                  class="manual-delete-btn text-xs font-bold text-rose-400 hover:text-white bg-rose-950/50 hover:bg-rose-600 border border-rose-800/60 w-7 h-7 rounded-lg transition-all active:scale-95 flex items-center justify-center cursor-pointer"
                   data-name="${encodeURIComponent(item.name)}"
                   data-price="${item.price}"
                   title="Eliminar de sugerencias"
@@ -2663,6 +2681,7 @@ function setupEventListeners() {
     `;
 
     manualSuggestionsBox.classList.remove('hidden');
+    updateManualSuggestionsPosition();
 
     manualSuggestionsBox.querySelectorAll('.manual-suggestion-item').forEach(el => {
       el.addEventListener('click', (e) => {

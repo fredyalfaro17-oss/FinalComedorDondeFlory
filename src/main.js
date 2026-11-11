@@ -657,14 +657,22 @@ function openItemModal(item) {
   if (detailsInput) {
     detailsInput.addEventListener('input', () => {
       const q = detailsInput.value.trim();
-      const matches = searchDetailsHistory(q);
-      renderDetailsSuggestions(matches, q);
+      if (q.length >= 1) {
+        const matches = searchDetailsHistory(q);
+        renderDetailsSuggestions(matches, q);
+      } else {
+        hideDetailsSuggestions();
+      }
     });
 
     detailsInput.addEventListener('focus', () => {
       const q = detailsInput.value.trim();
-      const matches = searchDetailsHistory(q);
-      renderDetailsSuggestions(matches, q);
+      if (q.length >= 1) {
+        const matches = searchDetailsHistory(q);
+        renderDetailsSuggestions(matches, q);
+      } else {
+        hideDetailsSuggestions();
+      }
     });
 
     detailsInput.addEventListener('keydown', (e) => {
@@ -2696,8 +2704,12 @@ function setupEventListeners() {
     }
 
     const searchQuery = extracted ? extracted.name : raw;
-    const matches = searchManualHistory(searchQuery.trim());
-    renderManualSuggestions(matches, searchQuery.trim());
+    if (searchQuery.trim().length >= 1) {
+      const matches = searchManualHistory(searchQuery.trim());
+      renderManualSuggestions(matches, searchQuery.trim());
+    } else {
+      hideManualSuggestions();
+    }
   };
 
   // Solo al salir del campo (blur): limpiar el nombre si ya terminó
@@ -2721,10 +2733,14 @@ function setupEventListeners() {
 
     manualNameInput.addEventListener('focus', () => {
       const raw = manualNameInput.value.trim();
-      const extracted = extractNameAndPrice(raw);
-      const searchQuery = extracted ? extracted.name : raw;
-      const matches = searchManualHistory(searchQuery.trim());
-      renderManualSuggestions(matches, searchQuery.trim());
+      if (raw.length >= 1) {
+        const extracted = extractNameAndPrice(raw);
+        const searchQuery = extracted ? extracted.name : raw;
+        const matches = searchManualHistory(searchQuery.trim());
+        renderManualSuggestions(matches, searchQuery.trim());
+      } else {
+        hideManualSuggestions();
+      }
     });
 
     manualNameInput.addEventListener('keydown', (e) => {

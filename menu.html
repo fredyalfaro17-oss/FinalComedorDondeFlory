@@ -3,6 +3,9 @@
 
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=flory3" />
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png?v=flory3" />
   <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png?v=flory3" />
@@ -187,9 +190,6 @@
 
         <!-- Manual Input & Actions -->
         <div class="bg-slate-900 border-t border-slate-800 p-2.5 sm:p-4 shrink-0 relative">
-          <!-- Floating Suggestions Container for Manual Items (Fixed full-width positioned on mobile) -->
-          <div id="manual-suggestions" class="hidden fixed z-[9999] max-h-72 overflow-y-auto bg-slate-900/98 border border-slate-700/90 rounded-2xl shadow-2xl shadow-black/90 divide-y divide-slate-800/90 backdrop-blur-xl">
-          </div>
           <div class="max-w-2xl mx-auto flex flex-col sm:flex-row gap-2 sm:gap-3">
             <!-- Fila Superior en Móvil / Lado Izquierdo en Desktop (Micrófono + Nombre con ancho total de pantalla) -->
             <div class="flex-1 flex gap-2 items-center min-w-0">
@@ -347,6 +347,10 @@
       }
     }
   </script>
+
+  <!-- Floating Suggestions Container for Manual Items (Direct body child with highest z-index) -->
+  <div id="manual-suggestions" class="hidden fixed z-[99999] max-h-72 overflow-y-auto bg-slate-900/98 border border-slate-700/90 rounded-2xl shadow-2xl shadow-black/95 divide-y divide-slate-800/90 backdrop-blur-xl">
+  </div>
 </body>
 
 </html>

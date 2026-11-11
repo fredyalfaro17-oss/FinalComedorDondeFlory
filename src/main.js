@@ -267,29 +267,28 @@ const DEFAULT_DETAILS_PRESETS = [
 ];
 
 function getDetailsHistory() {
+  let userHistory = [];
   try {
     const raw = localStorage.getItem(DETAILS_HISTORY_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+      if (Array.isArray(parsed)) {
+        userHistory = parsed;
       }
     }
   } catch (e) {
     console.warn('Error al leer historial de detalles:', e);
   }
 
-  // Pre-popular desde lista por defecto y ventas anteriores
+  // Mapa con las notas reales recopiladas
   const historyMap = new Map();
 
-  DEFAULT_DETAILS_PRESETS.forEach(text => {
-    historyMap.set(text.toLowerCase(), { text, count: 1, lastUsed: Date.now() });
-  });
-
+  // 1. Escanear todas las ventas reales de la base de datos para extraer los detalles usados
   try {
     const sales = getSales();
     if (Array.isArray(sales)) {
       sales.forEach(sale => {
+        const saleTime = sale.date ? new Date(sale.date).getTime() : 0;
         if (Array.isArray(sale.items)) {
           sale.items.forEach(it => {
             if (it && it.description && typeof it.description === 'string') {
@@ -299,8 +298,16 @@ function getDetailsHistory() {
                 const existing = historyMap.get(key);
                 if (existing) {
                   existing.count = (existing.count || 1) + 1;
+                  if (saleTime > (existing.lastUsed || 0)) {
+                    existing.lastUsed = saleTime;
+                  }
                 } else {
-                  historyMap.set(key, { text: trimmed, count: 2, lastUsed: Date.now() });
+                  historyMap.set(key, { 
+                    text: trimmed, 
+                    count: 2, 
+                    lastUsed: saleTime || (Date.now() - 3600000),
+                    userAdded: true
+                  });
                 }
               }
             }
@@ -309,14 +316,54 @@ function getDetailsHistory() {
       });
     }
   } catch (e) {
-    console.warn('Error al pre-popular detalles desde ventas:', e);
+    console.warn('Error al recopilar detalles desde ventas:', e);
   }
 
-  const initialList = Array.from(historyMap.values());
+  // 2. Fusionar con lo que el usuario haya agregado en la sesión actual o previa
+  userHistory.forEach(item => {
+    if (!item || !item.text) return;
+    const key = item.text.trim().toLowerCase();
+    const existing = historyMap.get(key);
+    if (existing) {
+      existing.count = Math.max(existing.count || 1, item.count || 1);
+      existing.lastUsed = Math.max(existing.lastUsed || 0, item.lastUsed || 0);
+      if (item.userAdded) existing.userAdded = true;
+    } else {
+      historyMap.set(key, {
+        text: item.text.trim(),
+        count: item.count || 1,
+        lastUsed: item.lastUsed || 0,
+        userAdded: item.userAdded !== undefined ? item.userAdded : true
+      });
+    }
+  });
+
+  // 3. Si aún no hay detalles propios, colocar algunos presets limpios con baja prioridad
+  const hasUserItems = Array.from(historyMap.values()).some(x => x.userAdded);
+  if (!hasUserItems) {
+    DEFAULT_DETAILS_PRESETS.forEach(preset => {
+      const key = preset.toLowerCase();
+      if (!historyMap.has(key)) {
+        historyMap.set(key, { text: preset, count: 1, lastUsed: 1, userAdded: false });
+      }
+    });
+  }
+
+  const list = Array.from(historyMap.values());
+  // Ordenar: primero los agregados por el usuario, luego los más comunes (count) y más recientes (lastUsed)
+  list.sort((a, b) => {
+    const aUser = a.userAdded ? 1 : 0;
+    const bUser = b.userAdded ? 1 : 0;
+    if (aUser !== bUser) return bUser - aUser;
+    if ((b.count || 0) !== (a.count || 0)) return (b.count || 0) - (a.count || 0);
+    return (b.lastUsed || 0) - (a.lastUsed || 0);
+  });
+
   try {
-    localStorage.setItem(DETAILS_HISTORY_KEY, JSON.stringify(initialList));
+    localStorage.setItem(DETAILS_HISTORY_KEY, JSON.stringify(list));
   } catch {}
-  return initialList;
+
+  return list;
 }
 
 function saveDetailToHistory(text) {
@@ -333,11 +380,13 @@ function saveDetailToHistory(text) {
       history[idx].count = (history[idx].count || 1) + 1;
       history[idx].lastUsed = Date.now();
       history[idx].text = clean;
+      history[idx].userAdded = true;
     } else {
-      history.push({
+      history.unshift({
         text: clean,
         count: 1,
-        lastUsed: Date.now()
+        lastUsed: Date.now(),
+        userAdded: true
       });
     }
 
@@ -365,8 +414,15 @@ function searchDetailsHistory(query) {
 
   const q = (query || '').toLowerCase().trim();
   if (!q) {
+    // Retornar las más comunes y recientes del usuario primero
     return [...history]
-      .sort((a, b) => (b.count || 0) - (a.count || 0) || (b.lastUsed || 0) - (a.lastUsed || 0))
+      .sort((a, b) => {
+        const aUser = a.userAdded ? 1 : 0;
+        const bUser = b.userAdded ? 1 : 0;
+        if (aUser !== bUser) return bUser - aUser;
+        if ((b.count || 0) !== (a.count || 0)) return (b.count || 0) - (a.count || 0);
+        return (b.lastUsed || 0) - (a.lastUsed || 0);
+      })
       .slice(0, 6);
   }
 
@@ -377,7 +433,11 @@ function searchDetailsHistory(query) {
       const bStarts = b.text.toLowerCase().startsWith(q);
       if (aStarts && !bStarts) return -1;
       if (!aStarts && bStarts) return 1;
-      return (b.count || 0) - (a.count || 0);
+      const aUser = a.userAdded ? 1 : 0;
+      const bUser = b.userAdded ? 1 : 0;
+      if (aUser !== bUser) return bUser - aUser;
+      if ((b.count || 0) !== (a.count || 0)) return (b.count || 0) - (a.count || 0);
+      return (b.lastUsed || 0) - (a.lastUsed || 0);
     })
     .slice(0, 6);
 }
@@ -385,6 +445,7 @@ function searchDetailsHistory(query) {
 function openItemModal(item) {
   let qty = 1;
   const itemImage = getItemImage(item);
+  const topRecentOrCommon = searchDetailsHistory('').slice(0, 4);
 
   modalOverlay.innerHTML = `
     <div id="modal-content" class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm animate-scale-in mx-auto my-12 relative shadow-2xl ${itemImage ? 'special-bg' : ''}" ${itemImage ? `style="--modal-bg-image: url('${itemImage}')"` : ''}>
@@ -428,14 +489,16 @@ function openItemModal(item) {
             </div>
           </div>
           
-          <!-- Quick Preset Chips -->
-          <div class="flex flex-wrap gap-1.5 pt-1" id="details-quick-chips">
-            ${['Sin arroz', 'Solo verduras', 'Para llevar', 'Poco picante'].map(chip => `
-              <button type="button" class="quick-chip-btn text-[11px] font-semibold text-slate-300 bg-slate-800/80 hover:bg-slate-700 hover:text-white border border-slate-700/80 px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer" data-chip="${chip}">
-                + ${chip}
-              </button>
-            `).join('')}
-          </div>
+          <!-- Quick Preset Chips: Las más comunes y últimas que has agregado -->
+          ${topRecentOrCommon.length > 0 ? `
+            <div class="flex flex-wrap gap-1.5 pt-1" id="details-quick-chips">
+              ${topRecentOrCommon.map(c => `
+                <button type="button" class="quick-chip-btn text-[11px] font-semibold text-slate-300 bg-slate-800/90 hover:bg-slate-700 hover:text-white border border-slate-700/80 px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer shadow-sm" data-chip="${c.text}" title="Toca para agregar esta nota">
+                  + ${c.text}
+                </button>
+              `).join('')}
+            </div>
+          ` : ''}
         </div>
         
         <button id="add-to-cart-btn" type="button" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-4 rounded-2xl shadow-xl shadow-red-900/30 transition-all active:scale-[0.98] cursor-pointer">
@@ -502,7 +565,7 @@ function openItemModal(item) {
     detailsSuggestionsBox.innerHTML = `
       <div class="p-2 border-b border-slate-800 bg-slate-950/95 flex items-center justify-between text-[11px] text-slate-400">
         <span class="font-bold flex items-center gap-1.5 text-amber-400">
-          <span>💡</span> Sugerencias guardadas (${matches.length}):
+          <span>⭐</span> Más comunes y recientes (${matches.length}):
         </span>
         <span class="text-[10px] text-slate-500">Toca para elegir</span>
       </div>
@@ -517,7 +580,9 @@ function openItemModal(item) {
             displayName = `${before}<span class="text-amber-400 underline font-black decoration-amber-400/80">${match}</span>${after}`;
           }
 
-          const countInfo = it.count > 1 ? `<span class="text-slate-500 text-[10px]">• Usado ${it.count} veces</span>` : '';
+          const countInfo = it.count > 1 
+            ? `<span class="text-amber-400/90 text-[10px] font-bold bg-amber-950/50 px-1.5 py-0.5 rounded border border-amber-800/50">Frecuente (${it.count} veces)</span>` 
+            : `<span class="text-emerald-400/90 text-[10px] font-semibold">Agregado recientemente</span>`;
 
           return `
             <div 
@@ -528,7 +593,7 @@ function openItemModal(item) {
                 <div class="text-xs sm:text-sm font-semibold text-white group-hover:text-amber-300 truncate">
                   📝 ${displayName}
                 </div>
-                ${countInfo ? `<div class="text-xs text-slate-400 mt-0.5">${countInfo}</div>` : ''}
+                <div class="text-xs text-slate-400 mt-0.5">${countInfo}</div>
               </div>
               <div class="flex items-center gap-1.5 shrink-0">
                 <button 
@@ -2349,7 +2414,10 @@ function searchManualHistory(query) {
   const q = (query || '').toLowerCase().trim();
   if (!q) {
     return [...history]
-      .sort((a, b) => (b.count || 0) - (a.count || 0) || (b.lastUsed || 0) - (a.lastUsed || 0))
+      .sort((a, b) => {
+        if ((b.count || 0) !== (a.count || 0)) return (b.count || 0) - (a.count || 0);
+        return (b.lastUsed || 0) - (a.lastUsed || 0);
+      })
       .slice(0, 6);
   }
 
@@ -2360,7 +2428,8 @@ function searchManualHistory(query) {
       const bStarts = b.name.toLowerCase().startsWith(q);
       if (aStarts && !bStarts) return -1;
       if (!aStarts && bStarts) return 1;
-      return (b.count || 0) - (a.count || 0);
+      if ((b.count || 0) !== (a.count || 0)) return (b.count || 0) - (a.count || 0);
+      return (b.lastUsed || 0) - (a.lastUsed || 0);
     })
     .slice(0, 6);
 }
@@ -2483,7 +2552,7 @@ function setupEventListeners() {
     manualSuggestionsBox.innerHTML = `
       <div class="p-2.5 border-b border-slate-800 bg-slate-950/95 flex items-center justify-between text-[11px] text-slate-400">
         <span class="font-bold flex items-center gap-1.5 text-amber-400">
-          <span>💡</span> Sugerencias guardadas (${matches.length}):
+          <span>⭐</span> Más comunes y recientes (${matches.length}):
         </span>
         <span class="text-[10px] text-slate-500">Toca para autocompletar</span>
       </div>

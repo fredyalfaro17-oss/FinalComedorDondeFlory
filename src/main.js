@@ -1878,6 +1878,128 @@ function setupCustomerAutocomplete() {
   });
 }
 
+// --- Sistema de Historial Predictivo para Artículos Manuales ---
+const MANUAL_HISTORY_KEY = 'flory_manual_items_history';
+
+function getManualItemsHistory() {
+  try {
+    const raw = localStorage.getItem(MANUAL_HISTORY_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Error al leer historial de artículos manuales:', e);
+  }
+
+  // Pre-popular desde ventas anteriores si el historial local aún está vacío
+  const historyMap = new Map();
+  try {
+    const sales = getSales();
+    if (Array.isArray(sales)) {
+      sales.forEach(sale => {
+        if (Array.isArray(sale.items)) {
+          sale.items.forEach(it => {
+            if (it && it.name && !isNaN(parseFloat(it.price))) {
+              const key = it.name.trim().toLowerCase();
+              const existing = historyMap.get(key);
+              if (existing) {
+                existing.count = (existing.count || 1) + 1;
+                existing.price = parseFloat(it.price);
+              } else {
+                historyMap.set(key, {
+                  name: it.name.trim(),
+                  price: parseFloat(it.price),
+                  count: 1,
+                  lastUsed: sale.date ? new Date(sale.date).getTime() : Date.now()
+                });
+              }
+            }
+          });
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('Error al pre-popular artículos desde ventas:', e);
+  }
+
+  const initialList = Array.from(historyMap.values());
+  if (initialList.length > 0) {
+    try {
+      localStorage.setItem(MANUAL_HISTORY_KEY, JSON.stringify(initialList));
+    } catch {}
+  }
+  return initialList;
+}
+
+function saveManualItemToHistory(name, price) {
+  if (!name || isNaN(price)) return;
+  const cleanName = name.trim();
+  const numPrice = parseFloat(price);
+  if (!cleanName || isNaN(numPrice) || numPrice <= 0) return;
+
+  try {
+    const history = getManualItemsHistory();
+    const key = cleanName.toLowerCase();
+    const idx = history.findIndex(it => it.name.trim().toLowerCase() === key);
+
+    if (idx >= 0) {
+      history[idx].price = numPrice;
+      history[idx].count = (history[idx].count || 1) + 1;
+      history[idx].lastUsed = Date.now();
+      history[idx].name = cleanName;
+    } else {
+      history.push({
+        name: cleanName,
+        price: numPrice,
+        count: 1,
+        lastUsed: Date.now()
+      });
+    }
+
+    localStorage.setItem(MANUAL_HISTORY_KEY, JSON.stringify(history));
+  } catch (e) {
+    console.warn('Error al guardar artículo manual en historial:', e);
+  }
+}
+
+function deleteManualItemFromHistory(name) {
+  if (!name) return;
+  try {
+    const history = getManualItemsHistory();
+    const key = name.trim().toLowerCase();
+    const filtered = history.filter(it => it.name.trim().toLowerCase() !== key);
+    localStorage.setItem(MANUAL_HISTORY_KEY, JSON.stringify(filtered));
+  } catch (e) {
+    console.warn('Error al eliminar artículo manual de historial:', e);
+  }
+}
+
+function searchManualHistory(query) {
+  const history = getManualItemsHistory();
+  if (!history || history.length === 0) return [];
+
+  const q = (query || '').toLowerCase().trim();
+  if (!q) {
+    return [...history]
+      .sort((a, b) => (b.count || 0) - (a.count || 0) || (b.lastUsed || 0) - (a.lastUsed || 0))
+      .slice(0, 6);
+  }
+
+  return history
+    .filter(it => it.name.toLowerCase().includes(q))
+    .sort((a, b) => {
+      const aStarts = a.name.toLowerCase().startsWith(q);
+      const bStarts = b.name.toLowerCase().startsWith(q);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      return (b.count || 0) - (a.count || 0);
+    })
+    .slice(0, 6);
+}
+
 // --- Event Listeners ---
 
 function setupEventListeners() {
@@ -1957,6 +2079,123 @@ function setupEventListeners() {
 
   const manualNameInput = document.getElementById('manual-name');
   const manualPriceInput = document.getElementById('manual-price');
+  const manualSuggestionsBox = document.getElementById('manual-suggestions');
+
+  let highlightedManualIndex = -1;
+  let currentManualMatches = [];
+
+  const hideManualSuggestions = () => {
+    if (!manualSuggestionsBox) return;
+    manualSuggestionsBox.classList.add('hidden');
+    manualSuggestionsBox.innerHTML = '';
+    highlightedManualIndex = -1;
+    currentManualMatches = [];
+  };
+
+  const selectManualItem = (item) => {
+    if (!item || !manualNameInput || !manualPriceInput) return;
+    manualNameInput.value = item.name;
+    manualPriceInput.value = parseFloat(item.price).toFixed(2);
+    manualPriceInput.classList.add('ring-2', 'ring-emerald-500');
+    setTimeout(() => manualPriceInput.classList.remove('ring-2', 'ring-emerald-500'), 800);
+    hideManualSuggestions();
+  };
+
+  const renderManualSuggestions = (matches, query) => {
+    if (!manualSuggestionsBox) return;
+    currentManualMatches = matches;
+    highlightedManualIndex = -1;
+
+    if (!matches || matches.length === 0) {
+      hideManualSuggestions();
+      return;
+    }
+
+    const qLower = (query || '').toLowerCase().trim();
+
+    manualSuggestionsBox.innerHTML = `
+      <div class="p-2.5 border-b border-slate-800 bg-slate-950/95 flex items-center justify-between text-[11px] text-slate-400">
+        <span class="font-bold flex items-center gap-1.5 text-amber-400">
+          <span>💡</span> Sugerencias guardadas (${matches.length}):
+        </span>
+        <span class="text-[10px] text-slate-500">Toca para autocompletar</span>
+      </div>
+      <div class="divide-y divide-slate-800/80">
+        ${matches.map((item, idx) => {
+          let displayName = item.name;
+          const matchPos = item.name.toLowerCase().indexOf(qLower);
+          if (matchPos !== -1 && qLower.length > 0) {
+            const before = item.name.slice(0, matchPos);
+            const match = item.name.slice(matchPos, matchPos + qLower.length);
+            const after = item.name.slice(matchPos + qLower.length);
+            displayName = `${before}<span class="text-amber-400 underline font-black decoration-amber-400/80">${match}</span>${after}`;
+          }
+
+          const priceFormatted = !isNaN(parseFloat(item.price)) ? parseFloat(item.price).toFixed(2) : item.price;
+          const countInfo = item.count ? `<span class="text-slate-500 text-[10px] hidden sm:inline">• Usado ${item.count} ${item.count === 1 ? 'vez' : 'veces'}</span>` : '';
+
+          return `
+            <div 
+              class="manual-suggestion-item px-3.5 py-2.5 hover:bg-slate-800/90 active:bg-slate-800 cursor-pointer transition-colors flex items-center justify-between gap-3 group"
+              data-index="${idx}"
+            >
+              <div class="min-w-0 flex-1">
+                <div class="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 truncate">
+                  ✨ ${displayName}
+                </div>
+                <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                  <span class="text-emerald-400 font-bold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/60 text-[11px]">Q ${priceFormatted}</span>
+                  ${countInfo}
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button 
+                  type="button" 
+                  class="manual-select-btn text-[11px] font-bold text-emerald-400 bg-emerald-950/60 hover:bg-emerald-600 hover:text-white border border-emerald-700/70 px-2.5 py-1 rounded-lg transition-all active:scale-95"
+                  data-index="${idx}"
+                >
+                  Elegir
+                </button>
+                <button 
+                  type="button" 
+                  class="manual-delete-btn text-[11px] font-bold text-rose-400 bg-rose-950/50 hover:bg-rose-600 hover:text-white border border-rose-800/70 px-2 py-1 rounded-lg transition-all active:scale-95"
+                  data-name="${encodeURIComponent(item.name)}"
+                  title="Eliminar de sugerencias"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    manualSuggestionsBox.classList.remove('hidden');
+
+    manualSuggestionsBox.querySelectorAll('.manual-suggestion-item').forEach(el => {
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('.manual-delete-btn')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const idx = parseInt(el.dataset.index, 10);
+        selectManualItem(currentManualMatches[idx]);
+      });
+    });
+
+    manualSuggestionsBox.querySelectorAll('.manual-delete-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const targetName = decodeURIComponent(btn.dataset.name);
+        deleteManualItemFromHistory(targetName);
+        showReportToast(`Sugerencia "${targetName}" eliminada`);
+        const queryText = manualNameInput ? manualNameInput.value.trim() : '';
+        const updated = searchManualHistory(queryText);
+        renderManualSuggestions(updated, queryText);
+      });
+    });
+  };
 
   // Mientras se escribe o dicta:
   // NUNCA tocamos manualNameInput.value para que Siri no duplique el texto en iPhone
@@ -1969,6 +2208,14 @@ function setupEventListeners() {
       manualPriceInput.value = extracted.price;
       manualPriceInput.classList.add('ring-2', 'ring-emerald-500');
       setTimeout(() => manualPriceInput.classList.remove('ring-2', 'ring-emerald-500'), 800);
+    }
+
+    const searchQuery = extracted ? extracted.name : raw;
+    if (searchQuery.trim().length >= 1) {
+      const matches = searchManualHistory(searchQuery.trim());
+      renderManualSuggestions(matches, searchQuery.trim());
+    } else {
+      hideManualSuggestions();
     }
   };
 
@@ -1985,18 +2232,86 @@ function setupEventListeners() {
 
   if (manualNameInput) {
     manualNameInput.addEventListener('input', handleManualNameInput);
-    manualNameInput.addEventListener('blur', handleManualNameFinish);
+    manualNameInput.addEventListener('blur', () => {
+      setTimeout(() => {
+        handleManualNameFinish();
+      }, 150);
+    });
+
+    manualNameInput.addEventListener('focus', () => {
+      const raw = manualNameInput.value.trim();
+      if (raw.length >= 1) {
+        const extracted = extractNameAndPrice(raw);
+        const searchQuery = extracted ? extracted.name : raw;
+        const matches = searchManualHistory(searchQuery.trim());
+        renderManualSuggestions(matches, searchQuery.trim());
+      }
+    });
+
     manualNameInput.addEventListener('keydown', (e) => {
+      const hasSuggestions = manualSuggestionsBox && !manualSuggestionsBox.classList.contains('hidden') && currentManualMatches.length > 0;
+
+      if (e.key === 'ArrowDown' && hasSuggestions) {
+        e.preventDefault();
+        const items = manualSuggestionsBox.querySelectorAll('.manual-suggestion-item');
+        highlightedManualIndex = (highlightedManualIndex + 1) % items.length;
+        items.forEach((it, idx) => {
+          if (idx === highlightedManualIndex) {
+            it.classList.add('bg-slate-800', 'border-l-4', 'border-amber-400');
+            it.scrollIntoView({ block: 'nearest' });
+          } else {
+            it.classList.remove('bg-slate-800', 'border-l-4', 'border-amber-400');
+          }
+        });
+        return;
+      }
+
+      if (e.key === 'ArrowUp' && hasSuggestions) {
+        e.preventDefault();
+        const items = manualSuggestionsBox.querySelectorAll('.manual-suggestion-item');
+        highlightedManualIndex = (highlightedManualIndex - 1 + items.length) % items.length;
+        items.forEach((it, idx) => {
+          if (idx === highlightedManualIndex) {
+            it.classList.add('bg-slate-800', 'border-l-4', 'border-amber-400');
+            it.scrollIntoView({ block: 'nearest' });
+          } else {
+            it.classList.remove('bg-slate-800', 'border-l-4', 'border-amber-400');
+          }
+        });
+        return;
+      }
+
+      if (e.key === 'Escape' && hasSuggestions) {
+        hideManualSuggestions();
+        return;
+      }
+
       if (e.key === 'Enter') {
+        if (hasSuggestions && highlightedManualIndex >= 0 && highlightedManualIndex < currentManualMatches.length) {
+          e.preventDefault();
+          selectManualItem(currentManualMatches[highlightedManualIndex]);
+          return;
+        }
+        hideManualSuggestions();
         handleManualNameFinish();
         addManual();
       }
     });
   }
 
+  // Cerrar sugerencias al hacer click fuera
+  document.addEventListener('click', (e) => {
+    if (manualNameInput && manualSuggestionsBox) {
+      if (!manualNameInput.contains(e.target) && !manualSuggestionsBox.contains(e.target)) {
+        hideManualSuggestions();
+      }
+    }
+  });
+
   // Manual Add
   const addManual = () => {
     stopManualListening();
+    hideManualSuggestions();
     if (!manualNameInput || !manualPriceInput) return;
     let name = manualNameInput.value.trim();
     let price = parseFloat(manualPriceInput.value);
@@ -2010,6 +2325,7 @@ function setupEventListeners() {
 
     if (name && !isNaN(price) && price > 0) {
       addItemToCart({ name, price }, 1);
+      saveManualItemToHistory(name, price);
       manualNameInput.value = '';
       manualPriceInput.value = '';
       showReportToast(`✅ Añadido: ${name} — Q${price.toFixed(2)}`);
@@ -2119,6 +2435,16 @@ function setupEventListeners() {
             }
           } else {
             manualNameInput.value = transcript;
+            // Si solo dictó el nombre sin precio, buscar en el historial si ya existe precio para este artículo
+            const matches = searchManualHistory(transcript);
+            if (matches && matches.length > 0 && matches[0].name.toLowerCase() === transcript.toLowerCase()) {
+              if (manualPriceInput) {
+                manualPriceInput.value = parseFloat(matches[0].price).toFixed(2);
+                manualPriceInput.classList.add('ring-2', 'ring-emerald-500');
+                setTimeout(() => manualPriceInput.classList.remove('ring-2', 'ring-emerald-500'), 800);
+                showReportToast(`💡 Precio recordado: Q${parseFloat(matches[0].price).toFixed(2)}`);
+              }
+            }
           }
         }
       };

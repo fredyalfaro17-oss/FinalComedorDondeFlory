@@ -445,55 +445,55 @@ function searchDetailsHistory(query) {
 function openItemModal(item) {
   let qty = 1;
   const itemImage = getItemImage(item);
-  const topRecentOrCommon = searchDetailsHistory('').slice(0, 4);
+  const topRecentOrCommon = searchDetailsHistory('').slice(0, 8);
 
   modalOverlay.innerHTML = `
-    <div id="modal-content" class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm animate-scale-in mx-auto my-12 relative shadow-2xl ${itemImage ? 'special-bg' : ''}" ${itemImage ? `style="--modal-bg-image: url('${itemImage}')"` : ''}>
-      <div class="bg-gradient-to-br from-red-600 to-red-900 p-8 text-white relative rounded-t-3xl">
-        <button id="close-modal-btn" type="button" class="absolute top-4 right-4 text-white/50 hover:text-white transition-colors cursor-pointer" title="Cerrar ventana">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+    <div id="modal-content" class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm sm:max-w-lg md:max-w-xl lg:max-w-2xl animate-scale-in mx-auto my-6 sm:my-12 relative shadow-2xl ${itemImage ? 'special-bg' : ''}" ${itemImage ? `style="--modal-bg-image: url('${itemImage}')"` : ''}>
+      <div class="bg-gradient-to-br from-red-600 to-red-900 p-6 sm:p-8 text-white relative rounded-t-3xl">
+        <button id="close-modal-btn" type="button" class="absolute top-4 right-4 sm:top-5 sm:right-5 text-white/60 hover:text-white transition-colors cursor-pointer p-1 rounded-full hover:bg-white/10" title="Cerrar ventana">
+          <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
         </button>
-        <h3 class="text-2xl font-bold font-playfair pr-6">${item.name}</h3>
-        <p class="text-sm text-white/70 mt-2">Precio: Q${item.price.toFixed(2)}</p>
+        <h3 class="text-2xl sm:text-3xl font-bold font-playfair pr-10 leading-snug">${item.name}</h3>
+        <p class="text-sm sm:text-base text-white/80 mt-2 font-medium">Precio unitario: Q${item.price.toFixed(2)}</p>
       </div>
       
-      <div class="p-6 sm:p-8 space-y-6">
+      <div class="p-6 sm:p-8 space-y-6 sm:space-y-7">
         <div class="flex flex-col items-center gap-3">
-          <label class="text-xs uppercase tracking-widest text-slate-500 font-bold">Cantidad</label>
-          <div class="flex items-center gap-8">
-            <button class="qty-btn" id="qty-minus" type="button">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path></svg>
+          <label class="text-xs sm:text-sm uppercase tracking-widest text-slate-400 font-bold">Cantidad</label>
+          <div class="flex items-center gap-8 sm:gap-12">
+            <button class="qty-btn w-12 h-12 sm:w-14 sm:h-14 sm:text-2xl" id="qty-minus" type="button">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path></svg>
             </button>
-            <span class="text-5xl font-bold text-white tabular-nums w-16 text-center" id="qty-display">1</span>
-            <button class="qty-btn" id="qty-plus" type="button">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+            <span class="text-5xl sm:text-6xl font-bold text-white tabular-nums w-16 sm:w-24 text-center select-none" id="qty-display">1</span>
+            <button class="qty-btn w-12 h-12 sm:w-14 sm:h-14 sm:text-2xl" id="qty-plus" type="button">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
             </button>
           </div>
         </div>
         
         <div class="flex flex-col gap-2 relative">
           <div class="flex items-center justify-between">
-            <label class="text-xs uppercase tracking-widest text-slate-500 font-bold">Detalles Adicionales (Opcional)</label>
-            <button type="button" id="mic-btn" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all active:scale-95 select-none shadow-sm cursor-pointer" title="Dictar por voz">
-              <span id="mic-icon" class="text-sm">🎙️</span>
+            <label class="text-xs sm:text-sm uppercase tracking-widest text-slate-400 font-bold">Detalles Adicionales (Opcional)</label>
+            <button type="button" id="mic-btn" class="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all active:scale-95 select-none shadow-sm cursor-pointer" title="Dictar por voz">
+              <span id="mic-icon" class="text-sm sm:text-base">🎙️</span>
               <span id="mic-text">Dictar</span>
             </button>
           </div>
           <div class="relative">
             <input type="text" id="custom-details" maxlength="150" autocomplete="off"
-              class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white text-sm focus:outline-none focus:border-red-500 transition-colors placeholder:text-slate-500"
-              placeholder="Ej: Solo verduras, sin arroz, pechuga...">
+              class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm sm:text-base focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all placeholder:text-slate-500"
+              placeholder="Ej: Solo verduras, sin arroz, pechuga bien dorada...">
             
             <!-- Floating Suggestions Container for Custom Details -->
-            <div id="details-suggestions" class="hidden absolute bottom-full mb-2 left-0 right-0 max-h-56 overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-[120] divide-y divide-slate-800/90 backdrop-blur-md">
+            <div id="details-suggestions" class="hidden absolute bottom-full mb-2 left-0 right-0 max-h-60 overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-[120] divide-y divide-slate-800/90 backdrop-blur-md">
             </div>
           </div>
           
           <!-- Quick Preset Chips: Las más comunes y últimas que has agregado -->
           ${topRecentOrCommon.length > 0 ? `
-            <div class="flex flex-wrap gap-1.5 pt-1" id="details-quick-chips">
+            <div class="flex flex-wrap gap-2 pt-1" id="details-quick-chips">
               ${topRecentOrCommon.map(c => `
-                <button type="button" class="quick-chip-btn text-[11px] font-semibold text-slate-300 bg-slate-800/90 hover:bg-slate-700 hover:text-white border border-slate-700/80 px-2.5 py-1 rounded-lg transition-all active:scale-95 cursor-pointer shadow-sm" data-chip="${c.text}" title="Toca para agregar esta nota">
+                <button type="button" class="quick-chip-btn text-xs sm:text-sm font-semibold text-slate-300 bg-slate-800/90 hover:bg-slate-700 hover:text-white border border-slate-700/80 px-3 py-1.5 rounded-xl transition-all active:scale-95 cursor-pointer shadow-sm" data-chip="${c.text}" title="Toca para agregar esta nota">
                   + ${c.text}
                 </button>
               `).join('')}
@@ -501,7 +501,7 @@ function openItemModal(item) {
           ` : ''}
         </div>
         
-        <button id="add-to-cart-btn" type="button" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-4 rounded-2xl shadow-xl shadow-red-900/30 transition-all active:scale-[0.98] cursor-pointer">
+        <button id="add-to-cart-btn" type="button" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-4 sm:py-5 text-base sm:text-lg rounded-2xl shadow-xl shadow-red-900/30 transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2">
           Añadir al Carrito — Q<span id="subtotal-display">${item.price.toFixed(2)}</span>
         </button>
       </div>
